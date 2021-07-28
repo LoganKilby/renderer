@@ -1,0 +1,51 @@
+Reflection
+
+Specular reflection: Mirror-like; Light reflects from a defined angle
+Diffuse reflection: Rough surface; Light reflects from all angles
+
+Law of reflection:
+ - Light reflects at the angle of incident from the normal on the surface it collided with.
+
+Refraction:
+ - Snell's law defines the direction of refraction
+ - Fresnel's equation computes how much light is refracted vs reflected
+
+Specular Reflection:
+ - Reflections from a surface that are not completely diffuse, but not perfectly reflective like a mirror.
+   Examples would include glossy surfaces, or the surface of rippling water? etc...
+
+Diffuse Reflection:
+ - Rough surfaces. Light reflects from every direction - the direction of the incoming photon has
+   seemingly no correspondance with the direction of the outgoing photon  becuase of the large number of 
+   refractions and reflections within the surface of the object.
+
+Subsurface scattering:
+ - Another word for translucency. Light will be visible from un-illuminated side of an object due to
+   light scattering through and back out of the object's surface in random directions.
+
+Indirect Diffuse
+ - When an object is illuminated by light reflected from a diffuse reflection
+
+Indirect Specular or Caustics
+ - When an object is illuminated by light reflected from a specular reflection
+ - Caustic are lines or patterns that occur indirectly due to specular reflection
+
+Shading and Light Transport
+ - Shading is simulating how light interacts with objects
+ - Light Transport is simulating how light travels from one surface to another
+
+In ray tracing, in addition to the shadow ray, additional "secondary rays" are used to compute indirect
+illumination. The origin of a secondary ray is the point of reflection from another surface.
+
+The actual amount of light that is reflected from a surface depends on the surface properties. This is
+computed using a Shader. Only a few directions are sampled and averaged to approximate illumination in
+practice. "Monte Carlo ray tracing"
+
+In practice, this is why ray tracing is slow. If a primary ray spawns 32 secondary rays when colliding
+with an object, those 32 rays will spawn another 32 rays, and after three bounces, a total of 32786 rays
+have been spawned. The amount of rays are increasing exponentially.
+
+This ray path tracing method is called unidirectional path tracing, and is one of several light transport
+models used. Unidirectional because the rays course goes from eye to light source.
+
+In real-time graphics, other methods are used, like shadow mapping.

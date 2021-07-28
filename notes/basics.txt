@@ -1,0 +1,50 @@
+Stereoscopic Vision
+
+*World Space
+
+For a matrix M that transforms a point in local-space to world-space, using the inverse of M on a point
+in world space will transform it to a point in local space
+
+The space in which objects are defined. Each object has it's own local coordinate system.
+
+*Camera Space Transformation
+
+*Screen Space Transformation
+
+Screen Space (projected onto the surface of the screen space of the frustum, i.e. "canvas", "viewport")
+
+The image will be mirrored vertically and horizontally without dividing by negative P.z
+The Perspective Divide calculation is usually done with a prospective projection matrix while using
+rasterisation to solve the visibility problem, as opposed to ray tracing, where the perspective
+projection matrix will not be used. 
+
+Perspective Divide
+
+P'.y = P.y / -P.z
+P'.x = P.x / -P.z
+
+if |P'.x| is less than (width of the canvas / 2) or,
+if |P'.y| is less than (height of the canvas / 2),
+then the image should be clipped (not visible)
+
+(In OpenGL, the canvas is referred to as the viewport)
+
+*Normalized Device Coordinate Space Transformation
+
+Once in screen space, the coordinates need to be transformed again before being drawn to the screen.
+They undergo normalization, so they range from 0 to 1. This way, we can remap them to any screen
+size.
+P'_normalized.x = (P'.x + canvas_width / 2) / canvas_width
+P'_normalized.y = (P'.y + canvas_height / 2) / canvas_height
+
+*Raster Space Transformation
+
+The coordinates are then transformed to Raster Space and correspond to pixel positions on the screen:
+
+int raster_point_x = floor(Image.Width * NDC.x)
+int raster_point_y = floor(Image.Height * (1 - NDC.y))
+
+We invert the NDC.y because in raster space (the pixels coordinates on the screen) the y axis grows
+downward - the origin of the pixel space is in the top left corner. 
+
+

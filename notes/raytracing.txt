@@ -1,0 +1,52 @@
+Ray Path Tracing
+Tracing the path of photons from a source to a destination.
+
+Forward (Light) Ray Tracing
+Pixels are illuminated by following the path of the light source to each pixel. 
+Too many photons need to be emitted to illuminate all the pixels on the screen, and so a different method
+is used. (Many photons are needed because obviously the photons wouldn't all be reflected back into the
+eye, but in random directions. In practice, illuminating an entire object would be like filling in dots
+over time, and there is no guarentee that all the dots making up the final image would be visible,
+or in other words, that not all photons arrived at the eye from every possible refraction angle. Parts
+of the image would be missing.
+
+Backward (Eye) Ray Tracing
+Instead of tracing the photon from the light source, it is emanated from the eye and traced back to the
+light source.
+This ray is called primary ray, visibility ray, or camera ray.
+
+Shadow Ray
+After a ray emanating from the eye collides with an object, another ray is cast to the light source.
+This second ray is called the shadow ray. If the shadow ray collides with an object other than the light
+source, then the first object is in the shadow of the second object the shadow ray collided with.
+
+Reflection and Refraction
+
+Index of Refraction
+Information about how rays of light bend when entering an object's surface.
+For an object like glass that reflects and refracts light, a combination of the two values will have
+to be calculated using the Fresnel Equation. This computes the reflection color, the reflection color,
+and then mixes them together (using the Fresnel Equation).
+
+ * Reflection
+	- Normal of the point of intersection
+	- Primary ray direction
+	- Use the above to calculate the reflection direction. A new ray is emenated from this direction.
+	  This new ray is used to test collisions with other objects, which then emits a shadow ray towards
+	  the light source. This ray returns a color (0 if in shadow) that is multiplied by the light
+	  intensity and returned to the glass ball's surface.
+ * Refraction (Transmission Ray)
+	- Normal of the point of intersection
+	- Primary ray direction
+	- Refractive index of surface
+	- The transmission ray continues through the surface then refracted one more time. Refraction occurs
+	  every time there is a change of medium.
+	- The refracted ray is then test for collisions in the direction it refracts out of the surface. This
+	  ray returns a color just like the previous case.
+	- The Fresnel's Equations is used using the refractive index of the object the ray passed through,
+	  the angle between the primary ray and the normal at the hit point. Fresnel's equation returns
+	  the mixing of the two values (using a dot product).
+
+In practice, rays may continue to refract and reflect forever in and out of each other. The algorithm to
+calculate the result has to terminate, and so an arbitrary depth is used to terminate after so many
+ray hits.

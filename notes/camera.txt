@@ -1,0 +1,191 @@
+Before doing the perspective divide, transform points to camera space.
+
+A point in camera space can only be visible if if it's z-coordinate is negative.
+To avoid the mirroring effect, use -P.z in the perspective divide
+
+World space -> Camera space -> (perspective divide) Screen space -> NDC -> Raster Space
+
+The Pinhole came is used as a model for computer graphics. The pinhole camera is an apparatus that has
+a small hole where as little light as possible comes in, and that light hits the film in the back of the
+apparatus. The film when exposed to light produces the image (flipped vertically). In computer graphics,
+the canvas of the camera is placed in front of the camera instead of behind it like real pinhole
+cameras.
+
+Field of View
+The Field of View can be defined as the angle of the triangle in the horizontal or vertical plane of
+the frustum. OpenGL uses vertical FOV, RenderMan uses horizontal FOV.
+This triangle, on the horizontal plane for example, would increase in angle if we increase the length
+of the apex of the triangle from the canvas ("viewport"). The closer the apex is to the canvas,
+the more of the scene that will be displayed.
+
+For the frustum triangle: 
+ - the perpendicular bisector AB (distance from apex to canvas) and C make a right triangle
+ - theta is the angle of view
+ - tan(theta) = BC/AB
+   - BC = tan(theta) * AB
+     - Canvas size = 2 * tan(theta) * Distance to the Canvas
+With this single calculation, we can zoom in and zoom out in a scene
+NOTE: The distance between the eye and the canvas IS NOT the focal length. The frustum size is determined
+by the focal length and the film size, and the combination of those parameters defines the angle of
+view and thus the maginification at the image plane.
+
+Note that the image size, the size of the canvas, and the focal length all contribute to the angle
+of view. Changing any of these independtly of the others will have an effect on the angle of view of the
+final image.
+
+When the image being rendered has an aspect ratio different than the canvas, a strategy much be
+chosen to pick an appropriate final aspect ratio.
+There is the Resolution Gate and the Film Gate. You can either fill the Resolution Gate with the Film
+Gate (Part of the image may be lost) or you can fit the Film Gate in the Resolution Gate.
+The last method is called "Overscan" in Maya.
+
+Near and Far Plane
+Objects closer than the Near Plane and further than the Far Plane will be discarded (clipped).
+The position of the canvas bewteen the near and far clipping plane is arbitrary unless a perspective
+projection matrix is being used.
+
+If we set the position of the image plane to the positon of the near plane,
+AngleOfView = theta
+CanvasSize = tan(AngleOfView / 2) * (Distance from eye to near plane)
+CanvasTop = CanvasSize / 2
+CanvasBottom = -CanvasTop
+CanvasRight = CanvasSize / 2
+CanvasLeft = -CanvasRight
+
+For the x and y coordinates of the point projected onto the canvas, if x is less than the left or greater
+than the right of the canvas, or if the y coordinate is greater than the top or less than the bottom,
+the point is not visible (clipped)
+
+Focal Length
+ - Defines the distance between the eye and the image plane in a pinhole camera. Used to compute the
+   Angle of View.
+
+Camera Aperture
+ - The dimensions of the film that would be used in a real camera. Defines the film gate apsect ratio.
+   Also used to calculate the Angle of View.
+
+Clipping Planes
+ - Two planes in the frustum between which objects will be visible. In the pinhole camera model, the
+   canvas is positionted at the near plane.
+
+Image Size
+ - Size of the output image
+ - Defines the resolution gate aspect ratio
+
+Fit Resolution Gate
+ - Advanced strategy used when the resolution aspect ratio is different from the Film Gate aspect ratio
+
+Camera To World (Matrix)
+ - Transforms points in World Space to points in Camera Space
+
+Angle of View
+ - Viewing angle of the scene
+
+Canvas/Screen Window
+ - Computed from the canvas size and the Film Gate aspect ratio
+
+Film Gate Aspect Ratio
+ - Ratio between the film width and the film height
+
+Resolution Gate Aspect Ratio
+ - Ratio between the image width and it's height in pixels
+
+Horizontal Angle of View
+ - tan(horizontal_theta / 2) = A/B
+ -                           = ((Film Aperture Width * 25.4) / 2) / Focal Length
+ - 25.4 is the conversion rate from inches to millimeters
+
+Canvas Width
+ - Canvas Width = 2 * tan(horizontal_theta / 2) * (Distance from eye to near plane)
+ - You could substitute tan(horizontal_theta / 2) 
+
+Canvas Right Coordinate
+ - Right Coordinate = 
+   	(((Film Aperture Width * 25.4) / 2) / Focal Length) * (Distance from eye to near plane)
+
+Canvas Left Coordinate
+ - Left Coordinate = -(Right Coordinate)
+
+Vertical Angle of View
+ - tan(vertical_theta / 2) = A/B
+ -                         = ((Film Apeture Height * 25.4) / 2) / Focal Length
+
+Canvas Top Coordinate
+ - Top Coordinate = tan(vertical_theta / 2) * (Distance from eye to near plane)
+ - You could substitute tan(vertical_theta / 2)
+
+Fill Mode
+ - When the Film Gate Aspect Ratio > Device Aspect Ratio
+	- Canvas Left = Canvas Left * (Resolution Gate Aspect Ratio / Film Gate Aspect Ratio)
+	- Canvas Right = Canvas Right * (Resolution Gate Aspect Ratio / Film Gate Aspect Ratio)
+ - When the Film Gate Aspect Ratio < Device Aspect Ratio
+	- Canvas Top = Canvas Top * ( Film Gate Aspect Ratio / Resolution Gate Aspect Ratio)
+	- Canvas Bottom = Canvas Bottom * (Film Gate Aspect Ratio / Resolution Gate Aspect Ratio)
+
+Overscan Mode
+ - When the Film Gate Aspect Ratio > Device Aspect Ratio
+	- Canvas Top = Canvas Top * (Film Gate Aspect Ratio / Resolution Aspect Ratio)
+	- Canvas Bottom = Canvas Bottom * (Film Gate Aspect Ratio / Resolution Aspect Ratio)
+ - When the Film Gate Aspect Ratio < Device Aspect Ratio
+	- Canvas Top  = Canvas Top * (Resolution Gate Aspect Ratio / Film Gate Aspect Ratio)
+	- Canvas Bottom = Canvas Bottom * (Resolution Gate Aspect Ratio / Film Gate Aspect Ratio)
+
+Source Code
+ - Right Coordinate of Canvas
+ 	- Option 1: Compute the Horizontal Angle of View first
+ 		- float angleOfViewHorizontal = 2 * atan((filmApertureWidth * inchToMm / 2) / focalLength);
+	 	- float right = tan(angleOfViewHorizontal / 2) * nearClippingPlane;
+ 	- Option 2: Compute right coordinate directly
+	 	-  float right = ((filmApertureWidth * inchToMm / 2) / focalLength) * nearClippingPlane;
+ 	- float left = -right
+
+ - Top Coordinate of Canvas
+ 	- Option 1: Compute the Verticla Angle of View first
+ 		 float angleOfViewVertical = 2 * atan((filmApertureHeight * inchToMm / 2) / focalLength);
+		  float top = tan(angleOfViewVertical / 2) * nearClippingPlane;
+ 	- Option 2: Compute the top coordinate directly
+ 		-  float top = ((filmApertureHeight * inchToMm / 2) / focalLength) * nearClippingPlane;
+ 	- float bottom = -top
+
+ - The fast way using the film aspect ratio:
+ 	- float top = ((filmApertureHeight * inchToMm / 2) / focalLength) * nearClippingPlane; 
+     - float bottom = -top; 
+     - float filmAspectRatio = filmApertureWidth / filmApertureHeight; 
+     - float left = bottom * filmAspectRatio; 
+     - float left = -right;
+
+ - Film Fit Strategy
+	
+	float xscale = 1; 
+	float yscale = 1; 
+ 
+	switch (fitFilm) 
+	{ 
+    	default: 
+    	case kFill: 
+        if (filmAspectRatio > deviceAspectRatio) { 
+            // 8a
+            xscale = deviceAspectRatio / filmAspectRatio; 
+        } 
+        else { 
+            // 8c
+            yscale = filmAspectRatio / deviceAspectRatio; 
+        } 
+        break; 
+    	case kOverscan: 
+        if (filmAspectRatio > deviceAspectRatio) { 
+            // 8b
+            yscale = filmAspectRatio / deviceAspectRatio; 
+        } 
+        else { 
+            // 8d
+            xscale = deviceAspectRatio / filmAspectRatio; 
+        } 
+        break; 
+	} 
+ 
+	right *= xscale; 
+	top *= yscale; 
+	left = -right; 
+	bottom = -top; 
+ 

@@ -1,0 +1,255 @@
+In a ray tracing approach, a ray is cast out of every pixel of the frame buffer and tested for collisions
+with triangles in the scene.
+
+With Rasterization, the triangles in the world are projected onto the Canvas and for each pixel of the
+Canvas a check is made to see if that pixel represents part of the triangle. The process of checking
+the pixels on the canvas is Rasterization.
+
+Rasterization is considered object centric because it starts with the geometry of the objects
+and tests the pixel locations of that triangle on the screen. As opposed to ray tracing that starts with
+the pixels and the screen and searches for the geometry.
+
+Converting the geometry in the scene to triangles is important for increasing efficiency and decreasing
+the complexity of rendering.
+
+An improvement to testing all the pixels on the screen is to create a bounding box around the verticies
+making up the triangle and test the pixels in that bounding box instead instead of every pixel in the
+canvas. To compute the bounding box, take the minimum x, y and maximum x, y of the vertices of the
+triangle in NDC space.
+
+After this, we loop through the pixels in the bounding box and color the pixels that overlap the
+triangle (if the triangle won't be clipped). During this test, the distance between the camera and the
+triangle is computed and stored in a Z-Buffer.
+
+The Z-Buffer is used to determine which triangles are visible in the scene. It has the same dimensions
+as the Frame Buffer. Each entry in the Z-Buffer corresponds to a pixel in the Frame Buffer.
+
+Frame Buffer
+ - Stores the pixels that we display on screen.
+
+Stages of Rasterization
+ - Convert a point in camera space to screen space while storing the negated z-coordinate in
+   camera space; used for the visibility problem. 
+	- ScreenSpacePoint.x = (DistToNearPlane * CameraSpacePoint.x) / -CameraSpacePoint.z
+	- ScreenSpacePoint.y = (DistToNearPlane * CameraSpacePoint.y) / -CameraSpacePoint.z
+	- ScreenSpacePoint.z = -CameraSpacePoint.z
+ - Then convert the x and y coordinates to Normalized Device Coordinates using the following formula.
+    - The NDC are mapped to a range of [-1, 1] for use in modern GPUs instead of mapping to a more
+	  intuitive range of [0, 1]
+	- NDC.x = ((ScreenSpacePoint.x * 2) / (CanvasRight - CanvasLeft)) - 
+			  ((CanvasRight + CanvasLeft) / (CanvasRight - CanvasLeft))
+	- NDC.y = ((ScreenSpacePoint.y * 2) / (CanvasTop - CanvasBottom)) -
+			  ((CanvasTop + CanvasBottom) / (CanvasTop - CanvasBottom))
+ - Convert from NDC to Raster Space
+	- RasterSpacePoint.x = (ScreenSpacePoint.x + 1) / (2 * ImageWidth)
+	- RasterSpacePoint.y = (1 - ScreenSpacePoint.y) / (2 * ImageHeight)
+	- RasterSpacePoint.z = -CameraSpacePoint.z
+
+Next, test which triangles overlap each other in Raster Space. Commonly called the coverage test, or
+inside-out test. This is a two step problem:
+ - Find which pixels overlap the triangle
+ - Decide which color those pixels should be
+
+The Edge Function
+ - Used for determining if the pixel area falls within the boundary of the area of a triangle.
+ - Uses the first (v0) and second (v1) verticies of the triangle to create the edge
+ - E(p) = (p.x - v0.x) * (v1.y - v0.y) - (p.y - v0.y) * (v1.x - v0.x)
+ - E(p) > 0 if p is to the "right" of the line (v0 v1)
+ - E(p) = 0 if p is exactly on the line (v0, v1)
+ - E(p) < 0 if p is to the "left" of the l ine (v0, v1)
+   - This solution is equivalent to the magnitude of the cross product between the vectors
+     (v1 - v0) and (p - v0)
+ - For 3D: Area = ||A * B|| = ||A|| * ||B|| * sin(theta)
+ - For 2D (cross product): Area = A.x * B.y - A.y * B.x
+   - This 2D Area is the area of a parallelogram made up of two copies of the triangle defined by
+     A and B. So the actual area of our single triangle is: Area = (1 / 2) * cross_product(A, B)
+
+ - All three edges of the triangle are used to test if the pixel falls between their combined boundary
+   - E(v0, v1, p) = (p.x - v0.x) * (v1.y - v0.y) - (p.y - v0.y) * (v1.x - v0.x)
+   - E(v1, v2, p) = (p.x - v1.x) * (v2.y - v1.y) - (p.y - v1.y) * (v2.x - v1.x)
+   - E(v2, v0, p) = (p.x - v2.x) * (v0.y - v2.y) - (p.y - v2.y) * (v0.x - v2.x)
+ - If the results of E() are positive or zero, then the pixels lies inside the boundary
+ - Optimization: The Edge Function has the property of being linear, so sse instructions and
+   multithreading can be used compute pixels in parallel
+
+ - For clockwise widing: 
+   - E(a, b, P) = (P.x - a.x) * (B.y - a.y) - (P.y - a.y) * (b.x - a.x)
+ - For counter-clockwise winding: 
+   - E(a, b, P) = (a.x - b.x) * (P.y - a.y) - (a.y - b.y) * (P.x - a.x)
+
+Winding
+The verticies of a triangle can be counted in a clockwise or counter-clockwise direction. This ordering
+is used as a convention to deterimine which direction the normal of the surface of the triangle
+is facing.
+ - The normal of a triangle can be computed from the cross product of the two vectors A and B where
+   A = (v2 - v0) and B = (v1 - v0)
+ - N = A * B
+
+Barycentric Coordinates
+Used to define any point on the surface of a triangle
+ - P = (l0 * v0) + (l1 * v1) + (l2 * v2)
+   - Where l represents one of the barycentric coordinates
+   - l0 + l1 + l2 = 1 for a point P in the triangle (v0, v1, v2)
+   - When any of the l points equals 1, the other points must equal 0 and the point P is one of the
+     vertices on the triangle corresponding to that l. For example, if l0 = 1, P = v0
+If z is the value on the surface of a triangle, and l0 + l1 + l2 = 1 then,
+ - z = v0 + l1(v1 - v0) + l2(v2 - v0)
+ - (v1 - v0) and (v2 - v0) are pre-computed as an optimization by GPUs
+
+Top-Left Rule
+What happens when pixles align on the shared edge of two different triangle?
+The Top Left Rule says that a pixel is considered to overlap a triangle if it is inside the
+triangle or either lies on the top or left edge. 
+ - An edge is considered top or bottom if it is perfectly horizontal.
+   - Top edge: The two defining verticies are higher than the third vertex
+   - Bottom Edge: The two defining vertices are lower than the third vertex
+ - An edge is considered right or left based on the triangles winding orientation
+   - Left Edge: Pointing up
+   - Right Edge: Pointing down
+
+Note: Vertex Atrributes
+There is more data associated with triangles other than the vertices in the context of rendering.
+Triangles are usually delivered to the rendere with other Vertex Attributes like color, normals,
+and texture coordinates.
+
+Example: Stages of Rasterization
+float nearClippingPlane = 0.1; 
+// point in camera space
+Vec3f pCamera; 
+worldToCamera.multVecMatrix(pWorld, pCamera); 
+// convert to screen space
+Vec2f pScreen; 
+pScreen.x = nearClippingPlane * pCamera.x / -pCamera.z; 
+pScreen.y = nearClippingPlane * pCamera.y / -pCamera.z; 
+// now convert point from screen space to NDC space (in range [-1,1])
+Vec2f pNDC; 
+pNDC.x = 2 * pScreen.x / (r - l) - (r + l) / (r - l); 
+pNDC.y = 2 * pScreen.y / (t - b) - (t + b) / (t - b); 
+// convert to raster space and set point z-coordinate to -pCamera.z
+Vec3f pRaster; 
+pRaster.x = (pScreen.x + 1) / 2 * imageWidth; 
+// in raster space y is down so invert direction
+pRaster.y = (1 - pScreen.y) / 2 * imageHeight; 
+// store the point camera space z-coordinate (as a positive value)
+pRaster.z = -pCamera.z; 
+
+Example: Bounding Box
+// convert the vertices of the current triangle to raster space
+Vec2f bbmin = INFINITY, bbmax = -INFINITY; 
+Vec2f vproj[3]; 
+for (int i = 0; i < 3; ++i) { 
+    vproj[i] = projectAndConvertToNDC(triangle[i].v[i]); 
+    // coordinates are in raster space but still floats not integers
+    vproj[i].x *= imageWidth; 
+    vproj[i].y *= imageHeight; 
+    if (vproj[i].x < bbmin.x) bbmin.x = vproj[i].x); 
+    if (vproj[i].y < bbmin.y) bbmin.y = vproj[i].y); 
+    if (vproj[i].x > bbmax.x) bbmax.x = vproj[i].x); 
+    if (vproj[i].y > bbmax.y) bbmax.y = vproj[i].y); 
+} 
+
+Example: Coloring the pixels of the Bounding Box
+... 
+uint xmin = std::max(0, std:min(imageWidth - 1, std::floor(min.x))); 
+uint ymin = std::max(0, std:min(imageHeight - 1, std::floor(min.y))); 
+uint xmax = std::max(0, std:min(imageWidth - 1, std::floor(max.x))); 
+uint ymax = std::max(0, std:min(imageHeight - 1, std::floor(max.y))); 
+for (y = ymin; y <= ymin; ++y) { 
+    for (x = xmin; x <= xmax; ++x) { 
+        // check of if current pixel lies in triangle
+        if (pixelContainedIn2DTriangle(v0, v1, v2, x, y)) { 
+            image(x,y) = triangle[i].color; 
+        } 
+    } 
+}
+
+Example: Using the Z-Buffer to color pixels
+// A z-buffer is just an 2D array of floats
+float buffer = new float [imageWidth * imageHeight]; 
+// initialize the distance for each pixel to a very large number
+for (uint32_t i = 0; i < imageWidth * imageHeight; ++i) 
+    buffer[i] = INFINITY; 
+ 
+for (each triangle in scene) { 
+    // project vertices
+    ... 
+    // compute bbox of the projected triangle
+    ... 
+    for (y = ymin; y <= ymin; ++y) { 
+        for (x = xmin; x <= xmax; ++x) { 
+            // check of if current pixel lies in triangle
+            float z; // distance from the camera to the triangle 
+            if (pixelContainedIn2DTriangle(v0, v1, v2, x, y, z)) { 
+                // If the distance to that triangle is lower than the distance stored in the
+                // z-buffer, update the z-buffer and update the image at pixel location (x,y)
+                // with the color of that triangle
+                if (z < zbuffer(x,y)) { 
+                    zbuffer(x,y) = z; 
+                    image(x,y) = triangle[i].color; 
+                } 
+            } 
+        } 
+    } 
+} 
+
+Example: EdgeFunction
+bool edgeFunction(const Vec2f &a, const Vec3f &b, const Vec2f &c) 
+{ 
+    return ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x) >= 0); 
+} 
+ 
+bool inside = true; 
+inside &= edgeFunction(V0, V1, p); 
+inside &= edgeFunction(V1, V2, p); 
+inside &= edgeFunction(V2, V0, p); 
+ 
+if (inside == true) { 
+    // point p is inside triangles defined by vertices v0, v1, v2
+    ... 
+}
+
+Example: Computing Barycentric Coordinates
+float edgeFunction(const Vec2f &a, const Vec3f &b, const Vec2f &c) 
+{ 
+    return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x); 
+} 
+ 
+float area = edgeFunction(v0, v1, v2); // area of the triangle multiplied by 2 
+float w0 = edgeFunction(v1, v2, p); // signed area of the triangle v1v2p multiplied by 2 
+float w1 = edgeFunction(v2, v0, p); // signed area of the triangle v2v0p multiplied by 2 
+float w2 = edgeFunction(v0, v1, p); // signed area of the triangle v0v1p multiplied by 2 
+ 
+// if point p is inside triangles defined by vertices v0, v1, v2
+if (w0 >= 0 && w1 >= 0 && w2 >= 0) { 
+    // barycentric coordinates are the areas of the sub-triangles divided by the area of the main triangle
+    w0 /= area; 
+    w1 /= area; 
+    w2 /= area; 
+} 
+
+Example: Top-Left Rule (Proof of concept)
+// Does it pass the top-left rule?
+Vec2f v0 = { ... }; 
+Vec2f v1 = { ... }; 
+Vec2f v2 = { ... }; 
+ 
+float w0 = edgeFunction(v1, v2, p); 
+float w1 = edgeFunction(v2, v0, p); 
+float w2 = edgeFunction(v0, v1, p); 
+ 
+Vec2f edge0 = v2 - v1; 
+Vec2f edge1 = v0 - v2; 
+Vec2f edge2 = v1 - v0; 
+ 
+bool overlaps = true; 
+ 
+// If the point is on the edge, test if it is a top or left edge, 
+// otherwise test if  the edge function is positive
+overlaps &= (w0 == 0 ? ((edge0.y == 0 && edge0.x > 0) ||  edge0.y > 0) : (w0 > 0)); 
+overlaps &= (w1 == 0 ? ((edge1.y == 0 && edge1.x > 0) ||  edge1.y > 0) : (w1 > 0)); 
+overlaps &= (w1 == 0 ? ((edge2.y == 0 && edge2.x > 0) ||  edge2.y > 0) : (w2 > 0)); 
+ 
+if (overlaps) { 
+    // pixel overlap the triangle
+    ... 
+} 

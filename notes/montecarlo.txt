@@ -1,0 +1,21 @@
+Monte Carlo
+
+Monte Carlo Approximation
+ - (1 / N) * E(x)
+ - where E(x) is the sum of the randomly selected sample x
+
+In raytracing, pixels are treated as small grid surfaces. It is an intractable problem to compute the
+amount of lightreflected across the pixel surface. 
+Using the MonteCarlo method, the pixel is sampled in random places across the surface to
+average it's color using ray tracing.
+ - (1 / N) * S(L(Xn)) where S is the sum of the average color L at each pixel X for all N pixels
+
+The rate of convergence (arrival at the exact answer) is slow for this method. Every sample returns
+a different result since the pixels are chosen at random (in a defined range of pixels, say in a 16x16
+pixel grid), and you need twice as many samples to minimize the error by a factor of two.
+
+Biased vs Unbiased and Estimators
+The estimator is the value of the approximation as the number of samples goes to infinity.
+In an biased system, the estimated approximation DOES NOT converge to the exact answer given enough
+samples (or at infinity).
+In an unbiased system, the estimated approximation DOES equal the exact answer given enough samples

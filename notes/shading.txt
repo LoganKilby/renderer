@@ -1,0 +1,22 @@
+Shading
+ - The computation of how much light is being reflected from an incident direction to an output direction
+ - A mathematical model for simulating light-matter interactions
+ - There are generally different shading equations/programs for each unique type or category of material
+
+Diffuse objects reflect light in all directions regardless of incoming light direction. For specular
+surfaces, this is not the case.
+
+Phong Specular Model:
+ - Used to compute glossy surfaces
+
+To compute brightness:
+ - How much light falls on the surface and the point being measured?
+ - How much light is reflected at this point in the viewing direction?
+
+For specular surfaces (like a mirror) the amount of light being reflected depends on the viewing angle.
+
+
+Shaders are only the computation of the reflection of light at the surface of an object - the way light
+is transported between objects is a different problem called light-transport.
+
+TODO: Explore signal processing and Fourier analysis

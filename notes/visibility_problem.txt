@@ -1,0 +1,30 @@
+REYES: Render Everything You Ever Saw (Rasterisation algorithm)
+
+Using rasterisation to solve visibility:
+ - For each projected point, convert P' coordinates from screen space to raster space
+ 	- Find the pixel the point maps to (using the projected point raster coordinates),
+   	and store th distance of that point to the eye in a special list of points (called
+   	the depth list), maintained by that pixel.
+ - After processing each point, every pixel will have a list of values of the distance bewtween
+   that point and the eye. When sorted, the first element in that list is the visible point.
+	 - Depth Sorting Algorithm:
+	 - The z-buffering algorithm (most common, objects sub-divided into fragments, REYES)
+	 - The Painter's algorithm
+	 - The Newell's algorithm
+ - A list of depths are kept in order to render transparent objects
+
+Using Ray Tracing to solve visibility:
+Start from the pixel and convert it to a point on the image plane. raster space -> screen space
+
+Why Triangles?
+ - Co-planar: no matter where the vertices are, a triangle is always lies on a plane
+ - Indivisible: many more triangle can be constructed from a single triangle
+ - Computing the barycentric coordinates (points inside the triangle?) is simple and robust
+
+Acceleration structure
+ - divinding a space into sub-spaces, like a grid, that can be tested for collisions with objects
+   inside that sub-space. If the sub space is bigger than the object most of the scene space can be
+   discarded and only the sub-space is tested and thus saving time.
+ - However, if geometry is not distrbuted evenly, as in it's clustered in one sub-space, you still spend
+   a large amount of time testing collisions in that one sub-space. This technique is? not fast enough
+   for real-time rasterization.
