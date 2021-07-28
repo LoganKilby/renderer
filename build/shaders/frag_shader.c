@@ -41,7 +41,7 @@ void main()
     float epsilon = (spotlightBoundary - spotlightBoundaryEnd);
     float intensity = clamp((theta - spotlightBoundaryEnd) / epsilon, 0.0, 1.0);
     
-    // Ambient                              trucating the texture (vec4) to a vec3
+    // Ambient                              trucating the texture (vec4) to a vec3 (rgb)
     vec3 ambientComponent = light.ambient * texture(material.diffuseMap, TexCoord).rgb;
     
     // Diffuse
