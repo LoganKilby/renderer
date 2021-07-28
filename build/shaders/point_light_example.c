@@ -4,13 +4,13 @@ struct Material
 {
     sampler2D diffuseMap;
     sampler2D specularMap;
+    vec3 specular;
     float shininess;
 };
 
 struct Light
 {
-    vec3 position; // Camera pos
-    vec3 direction; // Camera front vector
+    vec3 position;
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
@@ -30,36 +30,27 @@ uniform Light light;
 uniform float constant;
 uniform float linear;
 uniform float quadratic;
-uniform float spotlightBoundary;
-uniform float spotlightBoundaryEnd;
 
 void main()
 {
-    vec3 lightToFrag = normalize(light.position - FragPos);
-    
-    float theta = dot(lightToFrag, normalize(-light.direction));
-    float epsilon = (spotlightBoundary - spotlightBoundaryEnd);
-    float intensity = clamp((theta - spotlightBoundaryEnd) / epsilon, 0.0, 1.0);
-    
-    // Ambient                              trucating the texture (vec4) to a vec3
+    // Ambient                                     trucating the texture (vec4) to a vec3
     vec3 ambientComponent = light.ambient * texture(material.diffuseMap, TexCoord).rgb;
     
     // Diffuse
     vec3 surfaceNormal = normalize(Normal);
-    float angleOfIncidence = max(dot(surfaceNormal, lightToFrag), 0.0);
+    vec3 lightDirection = normalize(light.position - FragPos);
+    //vec3 lightDirection = normalize(-dirLightDirection); (Directional Light)
+    float angleOfIncidence = max(dot(surfaceNormal, lightDirection), 0.0);
     vec3 diffuseComponent = angleOfIncidence * light.diffuse * texture(material.diffuseMap, TexCoord).rgb;
     
     // Specular
     vec3 viewDirection = normalize(viewPos - FragPos);
-    vec3 reflectionDirection = reflect(-lightToFrag, surfaceNormal);
+    vec3 reflectionDirection = reflect(-lightDirection, surfaceNormal);
     float angleOfReflection = pow(max(dot(viewDirection, reflectionDirection), 0.0), material.shininess);
     vec3 specularComponent = texture(material.specularMap, TexCoord).rgb * angleOfReflection * light.specular;
     
     float pLightDistance = length(light.position - FragPos);
-    float attenuation = 1.0 / (constant + linear * pLightDistance + quadratic * (pLightDistance * pLightDistance));
-    
-    diffuseComponent *= intensity;
-    specularComponent *= intensity;
+    float attenuation = 1.0 / (constant + (linear * pLightDistance) + (quadratic * (pLightDistance * pLightDistance)));
     
     ambientComponent *= attenuation;
     diffuseComponent *= attenuation;

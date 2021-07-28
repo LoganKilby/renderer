@@ -4,3 +4,7 @@
 *.ilk
 *.pdb
 *.pdb
+*.pdb
+*.obj
+*.exe
+*.ctm

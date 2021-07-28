@@ -29,7 +29,6 @@ LoadImage(char *Filename)
     return Result;
 }
 
-
 internal char *
 ReadEntireFileToString(char *Filename)
 {
@@ -112,6 +111,5 @@ ReadEntireFile(char *Filename, unsigned long int *TotalBytesRead)
     
     return FileBuffer;
 }
-
 
 #endif //UTILITY_H

@@ -226,7 +226,7 @@ SetShaderMaterial(GLuint Program,
 
 internal void
 SetShaderLightSource(GLuint Program,
-                     char *UniformName,
+                     char *StructName,
                      light_source Light)
 {
     glUseProgram(Program);
@@ -236,28 +236,32 @@ SetShaderLightSource(GLuint Program,
     glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
     
     int MaxStringLength = MaxUniformLength + MaxAttributeLength;
-    char *Location = (char *)malloc(MaxStringLength);
-    memset(Location, 0, MaxStringLength);
-    char *ClearOffset = &Location[0] + strlen(UniformName);
+    char *UniformName = (char *)malloc(MaxStringLength);
+    memset(UniformName, 0, MaxStringLength);
+    char *ClearOffset = &UniformName[0] + strlen(StructName);
     
-    strcpy(Location, UniformName);
+    strcpy(UniformName, StructName);
     
-    strcat(Location, ".position");
-    glUniform3fv(glGetUniformLocation(Program, Location), 1, &Light.Position[0]);
+    strcat(UniformName, ".position");
+    SetUniform3fv(Program, UniformName, Light.Position);
     memset(ClearOffset, 0, sizeof(".position"));
     
-    strcat(Location, ".ambient");
-    glUniform3fv(glGetUniformLocation(Program, Location), 1, &Light.Ambient[0]);
+    strcat(UniformName, ".direction");
+    SetUniform3fv(Program, UniformName, Light.Direction);
+    memset(ClearOffset, 0, sizeof(".direction"));
+    
+    strcat(UniformName, ".ambient");
+    SetUniform3fv(Program, UniformName, Light.Ambient);
     memset(ClearOffset, 0, sizeof(".ambient"));
     
-    strcat(Location, ".diffuse");
-    glUniform3fv(glGetUniformLocation(Program, Location), 1, &Light.Diffuse[0]);
+    strcat(UniformName, ".diffuse");
+    SetUniform3fv(Program, UniformName, Light.Diffuse);
     memset(ClearOffset, 0, sizeof(".diffuse"));
     
-    strcat(Location, ".specular");
-    glUniform3fv(glGetUniformLocation(Program, Location), 1, &Light.Specular[0]);
+    strcat(UniformName, ".specular");
+    SetUniform3fv(Program, UniformName, Light.Specular);
     
-    free(Location);
+    free(UniformName);
 }
 
 internal texture
@@ -299,4 +303,32 @@ LoadTexture(char *Filename)
     }
     
     return Result;
+}
+
+// NOTE: I might decide that saving the uniform locations is better than looking them up every time
+// a uniform is set, as some uniforms are set every frame. So maybe in the future I can just assert that
+// the uniform location passed as an argument is valid
+
+internal void
+SetUniform3fv(int Program, char *Name, glm::vec3 Data)
+{
+    GLint UniformLocation = glGetUniformLocation(Program, Name);
+    AssertUniformLoc(UniformLocation);
+    glUniform3fv(UniformLocation, 1, &Data[0]);
+}
+
+internal void
+SetUniform1f(int Program, char *Name, float Data)
+{
+    GLint UniformLocation = glGetUniformLocation(Program, Name);
+    AssertUniformLoc(UniformLocation);
+    glUniform1f(UniformLocation, Data);
+}
+
+internal void
+SetUniformMatrix4fv(int Program, char *Name, glm::mat4 Data)
+{
+    GLint UniformLocation = glGetUniformLocation(Program, Name);
+    AssertUniformLoc(UniformLocation);
+    glUniformMatrix4fv(UniformLocation, 1, GL_FALSE, &Data[0][0]);
 }

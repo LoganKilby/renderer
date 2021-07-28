@@ -3,6 +3,9 @@
 #ifndef OPENGL_CODE_H
 #define OPENGL_CODE_H
 
+internal void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
+internal void SetUniform1f(int Program, char *Name, float Data);
+
 float TriangleVert1[] = 
 {   // vertices         // color
     -1.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
@@ -78,10 +81,18 @@ struct material
 struct light_source
 {
     glm::vec3 Position;
+    glm::vec3 Direction;
     glm::vec3 Ambient;
     glm::vec3 Diffuse;
     glm::vec3 Specular;
-    float Shininess;
+};
+
+struct directional_light
+{
+    glm::vec3 Direction;
+    glm::vec3 Ambient;
+    glm::vec3 Diffuse;
+    glm::vec3 Specular;
 };
 
 struct texture
@@ -95,5 +106,11 @@ struct texture
 
 // Personal NOTE: OpenGL guarentees at least 16 4-component vertex attributes (vetex shader input
 // variables) per shader. This can be tested with glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max);
+
+
+/*
+float lightDistance = length(light.position - FragPos);
+float lightAttenuation = 1 / (light.constant + (light.linear * lightDistance) + (light.quadratic * lightDistance * lightDistance));
+*/
 
 #endif //OPENGL_CODE_H

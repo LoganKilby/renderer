@@ -31,12 +31,6 @@ struct global_input
     glm::vec2 PrevMousePos;
 };
 
-struct camera_data
-{
-    glm::vec2 Position;
-    glm::vec3 Front;
-};
-
 struct camera_orientation
 {
     float Yaw;
@@ -47,14 +41,13 @@ struct camera_orientation
 };
 
 global_variable global_input GlobalInput;
-global_variable camera_data Camera;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
 
-int WinMain(HINSTANCE hInstance, 
-            HINSTANCE hPrevInstance, 
-            LPSTR lpCmdLine, 
-            int nCmdShow)
+int WinMain(HINSTANCE hInstance,
+            HINSTANCE hPrevInstance,
+            LPSTR     lpCmdLine,
+            int       nShowCmd)
 {
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
@@ -184,6 +177,7 @@ int WinMain(HINSTANCE hInstance,
     
     texture ContainerTexture = LoadTexture("textures/container2.png");
     texture ContainerSpecMap = LoadTexture("textures/container2_specularmap.png");
+    texture ContainerEmissionMap = LoadTexture("textures/emission_map.jpg");
     
     char *VertexShaderFromFile;
     char *FragShaderFromFile;
@@ -217,22 +211,35 @@ int WinMain(HINSTANCE hInstance,
     GlobalInput.PrevMousePos.y = WindowHeight / 2;
     
     // Camera
-    glm::vec3 CameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-    glm::vec3 CameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-    glm::vec3 CameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 CameraPos(0.0f, 0.0f, 0.0f);
+    glm::vec3 CameraFront(0.0f, 0.0f, -1.0f);
+    glm::vec3 CameraUp(0.0f, 1.0f, 0.0f);
     CameraOrientation = {};
     CameraOrientation.Yaw = -90.0f;
     CameraOrientation.LookSpeed = 0.1f;
     CameraOrientation.PanSpeed = 2.0f;
     FieldOfView = 45.0f;
     
+    OutputErrorQueue();
+    
     // Light
+    // NOTE: Consider using vec4(x, y, z, 0.0f) for directions, and vec4(x, y, z, 1.0f) for positions
+    // Vectors shouldn't be effected by translations
     glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
     light_source Light;
-    Light.Position = glm::vec3(0.0, 0.0, -5.0f);
-    Light.Ambient = glm::vec3(0.5f); // Can multiply by the light color
-    Light.Diffuse = glm::vec3(0.5f); // Can multiply by the light color
+    Light.Position = glm::vec3(0.0, 0.0, -5.0f); // NOTE: Directional lights don't have a position
+    Light.Ambient = glm::vec3(0.1f); // Can multiply by the light color
+    Light.Diffuse = glm::vec3(0.8f); // Can multiply by the light color
     Light.Specular = glm::vec3(1.0f);
+    float LightBoundary = glm::cos(glm::radians(12.5));
+    float LightBoundaryEnd = glm::cos(glm::radians(17.5));
+    
+    glUseProgram(Program.Id);
+    SetUniform1f(Program.Id, "constant", 1.0f);
+    SetUniform1f(Program.Id, "linear", 0.09f);
+    SetUniform1f(Program.Id, "quadratic", 0.032f);
+    SetUniform1f(Program.Id, "spotlightBoundary", LightBoundary);
+    SetUniform1f(Program.Id, "spotlightBoundaryEnd", LightBoundaryEnd);
     
     // Material
     material BasicMaterial = {};
@@ -241,27 +248,20 @@ int WinMain(HINSTANCE hInstance,
     BasicMaterial.Shininess = 32.0f;
     SetShaderMaterial(Program.Id, "material", BasicMaterial);
     
-    
     // Light program uniform locations
     int LightMVPLocation = glGetUniformLocation(LightProgram.Id, "mvp");
     
-    // Untitled program uniform locations
+    // Untitled program uniform locations (GLuint)
     int ModelMVPLocation = glGetUniformLocation(Program.Id, "mvp");
     int ModelViewLocation = glGetUniformLocation(Program.Id, "view");
     int ModelLocation = glGetUniformLocation(Program.Id, "model");
     int LightPosLocation = glGetUniformLocation(Program.Id, "lightPos");
     int ViewPosLocation = glGetUniformLocation(Program.Id, "viewPos");
     
-    glUseProgram(Program.Id); 
-    glUniform1i(glGetUniformLocation(Program.Id, "texture1"), 0); // Texture units 0, 1
-    glUniform1i(glGetUniformLocation(Program.Id, "texture2"), 1);
-    
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
-    
-    OutputErrorQueue();
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -296,10 +296,10 @@ int WinMain(HINSTANCE hInstance,
                                             WindowWidth / WindowHeight, 
                                             0.1f, 
                                             100.0f);
-        
-        
+        Light.Position = CameraPos;
+        Light.Direction = CameraFront;
         SetShaderLightSource(Program.Id, "light", Light);
-        
+#if 0
         // Draw light
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, Light.Position);
@@ -309,7 +309,7 @@ int WinMain(HINSTANCE hInstance,
         glUniformMatrix4fv(LightMVPLocation, 1, GL_FALSE, glm::value_ptr(MVP));
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        
+#endif
         // Draw world objects
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, ContainerTexture.TextureId);

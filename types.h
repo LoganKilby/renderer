@@ -11,6 +11,7 @@
 
 #if ASSERTIONS_ENABLED
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
+#define AssertUniformLoc(Integer) if(Integer == -1) {*(int *)0 = 0;}
 #else
 #define Assert(Expression)
 #endif
