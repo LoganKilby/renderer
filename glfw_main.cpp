@@ -20,8 +20,6 @@
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void ProcessInput(GLFWwindow);
-internal unsigned char *ReadEntireFile(char *, unsigned long int *);
-internal char *ReadEntireFileToString(char *);
 void ProcessKeyboardInput(GLFWwindow *, int, int, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
@@ -179,6 +177,14 @@ int WinMain(HINSTANCE hInstance,
     texture ContainerSpecMap = LoadTexture("textures/container2_specularmap.png");
     texture ContainerEmissionMap = LoadTexture("textures/emission_map.jpg");
     
+    // NOTE: TESTING
+    // This shader is a frag shader compiled with the GL_VERTEX_SHADER flag. There is no error returned
+    // Check if the error comes up during linking
+    
+    // TODO: COMPLETE AND USE NEW SHADER LOADING FUNCTION
+    
+    opengl_shader TestVertexShader = LoadAndCompileShader("shaders/frag_shader.c", GL_FRAGMENT_SHADER);
+    
     char *VertexShaderFromFile;
     char *FragShaderFromFile;
     opengl_shader VertexShader;
@@ -226,20 +232,18 @@ int WinMain(HINSTANCE hInstance,
     // NOTE: Consider using vec4(x, y, z, 0.0f) for directions, and vec4(x, y, z, 1.0f) for positions
     // Vectors shouldn't be effected by translations
     glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
-    light_source Light;
+    spot_light Light;
     Light.Position = glm::vec3(0.0, 0.0, -5.0f); // NOTE: Directional lights don't have a position
     Light.Ambient = glm::vec3(0.1f); // Can multiply by the light color
     Light.Diffuse = glm::vec3(0.8f); // Can multiply by the light color
     Light.Specular = glm::vec3(1.0f);
-    float LightBoundary = glm::cos(glm::radians(12.5));
-    float LightBoundaryEnd = glm::cos(glm::radians(17.5));
+    Light.NearRadius = glm::cos(glm::radians(12.5));
+    Light.FarRadius = glm::cos(glm::radians(17.5));
     
     glUseProgram(Program.Id);
-    SetUniform1f(Program.Id, "constant", 1.0f);
-    SetUniform1f(Program.Id, "linear", 0.09f);
-    SetUniform1f(Program.Id, "quadratic", 0.032f);
-    SetUniform1f(Program.Id, "spotlightBoundary", LightBoundary);
-    SetUniform1f(Program.Id, "spotlightBoundaryEnd", LightBoundaryEnd);
+    //SetUniform1f(Program.Id, "constant", 1.0f);
+    //SetUniform1f(Program.Id, "linear", 0.09f);
+    //SetUniform1f(Program.Id, "quadratic", 0.032f);
     
     // Material
     material BasicMaterial = {};
@@ -298,7 +302,7 @@ int WinMain(HINSTANCE hInstance,
                                             100.0f);
         Light.Position = CameraPos;
         Light.Direction = CameraFront;
-        SetShaderLightSource(Program.Id, "light", Light);
+        SetShaderSpotLight(Program.Id, "SpotLight", Light);
 #if 0
         // Draw light
         ModelMatrix = glm::mat4(1.0f);
