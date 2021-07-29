@@ -3,8 +3,15 @@
 #ifndef OPENGL_CODE_H
 #define OPENGL_CODE_H
 
+#if ASSERTIONS_ENABLED
+#define AssertUniformLoc(Integer) if(Integer == -1) {*(int *)0 = 0;}
+#else
+#define AssertUniformLoc(Integer)
+#endif
+
 internal void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
 internal void SetUniform1f(int Program, char *Name, float Data);
+internal void SetUniform1i(int Program, char *Name, int Data);
 
 float TriangleVert1[] = 
 {   // vertices         // color
@@ -110,6 +117,11 @@ struct spot_light
     // Smoothing boundary
     float NearRadius;
     float FarRadius;
+    
+    // Attenuation 
+    float Constant;
+    float Linear;
+    float Quadratic;
 };
 
 struct texture

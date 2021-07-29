@@ -1,19 +1,26 @@
 #version 330 core
 
-struct Material
+struct material
 {
-    sampler2D diffuseMap;
-    sampler2D specularMap;
-    float shininess;
+    sampler2D DiffuseMap;
+    sampler2D SpecularMap;
+    float Shininess;
 };
 
-struct Light
+struct spot_light
 {
-    vec3 position; // Camera pos
-    vec3 direction; // Camera front vector
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 Position; // Camera pos
+    vec3 Direction; // Camera front vector
+    vec3 Ambient;
+    vec3 Diffuse;
+    vec3 Specular;
+    
+    float Constant;
+    float Linear;
+    float Quadratic;
+    
+    float NearRadius;
+    float FarRadius;
 };
 
 in vec3 FragPos;
@@ -22,45 +29,39 @@ in vec3 Normal;
 
 out vec4 FragColor;
 
-uniform vec3 viewPos;
-uniform Material material;
-uniform Light light;
+uniform vec3 ViewPosition;
+uniform material Material;
+uniform spot_light SpotLight;
 
 // Point light (add to struct?)
-uniform float constant;
-uniform float linear;
-uniform float quadratic;
-uniform float spotlightBoundary;
-uniform float spotlightBoundaryEnd;
 
 void main()
 {
-    vec3 lightToFrag = normalize(light.position - FragPos);
     
-    float theta = dot(lightToFrag, normalize(-light.direction));
-    float epsilon = (spotlightBoundary - spotlightBoundaryEnd);
-    float intensity = clamp((theta - spotlightBoundaryEnd) / epsilon, 0.0, 1.0);
+    // Ambient                                  trucating the texture (vec4) to a vec3 (rgb)
+    vec3 ambientComponent = SpotLight.Ambient * texture(Material.DiffuseMap, TexCoord).rgb;
     
-    // Ambient                              trucating the texture (vec4) to a vec3 (rgb)
-    vec3 ambientComponent = light.ambient * texture(material.diffuseMap, TexCoord).rgb;
+    vec3 lightToFrag = normalize(SpotLight.Position - FragPos);
+    vec3 surfaceNormal = normalize(Normal);
     
     // Diffuse
-    vec3 surfaceNormal = normalize(Normal);
     float angleOfIncidence = max(dot(surfaceNormal, lightToFrag), 0.0);
-    vec3 diffuseComponent = angleOfIncidence * light.diffuse * texture(material.diffuseMap, TexCoord).rgb;
+    vec3 diffuseComponent = angleOfIncidence * SpotLight.Diffuse * texture(Material.DiffuseMap, TexCoord).rgb;
     
     // Specular
-    vec3 viewDirection = normalize(viewPos - FragPos);
+    vec3 viewDirection = normalize(ViewPosition - FragPos);
     vec3 reflectionDirection = reflect(-lightToFrag, surfaceNormal);
-    float angleOfReflection = pow(max(dot(viewDirection, reflectionDirection), 0.0), material.shininess);
-    vec3 specularComponent = texture(material.specularMap, TexCoord).rgb * angleOfReflection * light.specular;
+    float angleOfReflection = pow(max(dot(viewDirection, reflectionDirection), 0.0), Material.Shininess);
+    vec3 specularComponent = texture(Material.SpecularMap, TexCoord).rgb * angleOfReflection * SpotLight.Specular;
     
-    float pLightDistance = length(light.position - FragPos);
-    float attenuation = 1.0 / (constant + linear * pLightDistance + quadratic * (pLightDistance * pLightDistance));
-    
+    float theta = dot(lightToFrag, normalize(-SpotLight.Direction));
+    float epsilon = (SpotLight.NearRadius - SpotLight.FarRadius);
+    float intensity = clamp((theta - SpotLight.FarRadius) / epsilon, 0.0, 1.0);
     diffuseComponent *= intensity;
     specularComponent *= intensity;
     
+    float pLightDistance = length(SpotLight.Position - FragPos);
+    float attenuation = 1.0 / (SpotLight.Constant + SpotLight.Linear * pLightDistance + SpotLight.Quadratic * (pLightDistance * pLightDistance));
     ambientComponent *= attenuation;
     diffuseComponent *= attenuation;
     specularComponent *= attenuation;

@@ -177,34 +177,18 @@ int WinMain(HINSTANCE hInstance,
     texture ContainerSpecMap = LoadTexture("textures/container2_specularmap.png");
     texture ContainerEmissionMap = LoadTexture("textures/emission_map.jpg");
     
-    // NOTE: TESTING
-    // This shader is a frag shader compiled with the GL_VERTEX_SHADER flag. There is no error returned
-    // Check if the error comes up during linking
+    unsigned int VertexShaderID;
+    unsigned int FragmentShaderID;
     
-    // TODO: COMPLETE AND USE NEW SHADER LOADING FUNCTION
+    VertexShaderID = LoadAndCompileShader("shaders/vertex_shader.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/frag_shader.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    DebugPrintUniforms(Program.Id);
     
-    opengl_shader TestVertexShader = LoadAndCompileShader("shaders/frag_shader.c", GL_FRAGMENT_SHADER);
-    
-    char *VertexShaderFromFile;
-    char *FragShaderFromFile;
-    opengl_shader VertexShader;
-    opengl_shader FragmentShader;
-    
-    VertexShaderFromFile = ReadEntireFileToString("shaders/vertex_shader.c");
-    FragShaderFromFile = ReadEntireFileToString("shaders/frag_shader.c");
-    VertexShader = CompileShader(VertexShaderFromFile, VERTEX);
-    FragmentShader = CompileShader(FragShaderFromFile, FRAGMENT);
-    opengl_shader_program Program = CreateShaderProgram(VertexShader, FragmentShader);
-    free(VertexShaderFromFile);
-    free(FragShaderFromFile);
-    
-    VertexShaderFromFile = ReadEntireFileToString("shaders/light_source_vertex_shader.c");
-    FragShaderFromFile = ReadEntireFileToString("shaders/light_source_frag_shader.c");
-    VertexShader = CompileShader(VertexShaderFromFile, VERTEX);
-    FragmentShader = CompileShader(FragShaderFromFile, FRAGMENT);
-    opengl_shader_program LightProgram = CreateShaderProgram(VertexShader, FragmentShader);
-    free(VertexShaderFromFile);
-    free(FragShaderFromFile);
+    VertexShaderID = LoadAndCompileShader("shaders/light_source_vertex_shader.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/light_source_frag_shader.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program LightProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    DebugPrintUniforms(LightProgram.Id);
     
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     
@@ -226,31 +210,27 @@ int WinMain(HINSTANCE hInstance,
     CameraOrientation.PanSpeed = 2.0f;
     FieldOfView = 45.0f;
     
-    OutputErrorQueue();
-    
     // Light
     // NOTE: Consider using vec4(x, y, z, 0.0f) for directions, and vec4(x, y, z, 1.0f) for positions
     // Vectors shouldn't be effected by translations
     glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
     spot_light Light;
     Light.Position = glm::vec3(0.0, 0.0, -5.0f); // NOTE: Directional lights don't have a position
-    Light.Ambient = glm::vec3(0.1f); // Can multiply by the light color
+    Light.Ambient = glm::vec3(0.2f); // Can multiply by the light color
     Light.Diffuse = glm::vec3(0.8f); // Can multiply by the light color
     Light.Specular = glm::vec3(1.0f);
     Light.NearRadius = glm::cos(glm::radians(12.5));
     Light.FarRadius = glm::cos(glm::radians(17.5));
-    
-    glUseProgram(Program.Id);
-    //SetUniform1f(Program.Id, "constant", 1.0f);
-    //SetUniform1f(Program.Id, "linear", 0.09f);
-    //SetUniform1f(Program.Id, "quadratic", 0.032f);
+    Light.Constant = 1.0f;
+    Light.Linear = 0.0014f;
+    Light.Quadratic = 0.000007f;
     
     // Material
     material BasicMaterial = {};
     BasicMaterial.DiffuseMapTexUnit = 0;
     BasicMaterial.SpecularMapTexUnit = 1;
     BasicMaterial.Shininess = 32.0f;
-    SetShaderMaterial(Program.Id, "material", BasicMaterial);
+    SetShaderMaterial(Program.Id, "CrateMaterial", BasicMaterial);
     
     // Light program uniform locations
     int LightMVPLocation = glGetUniformLocation(LightProgram.Id, "mvp");
@@ -259,8 +239,6 @@ int WinMain(HINSTANCE hInstance,
     int ModelMVPLocation = glGetUniformLocation(Program.Id, "mvp");
     int ModelViewLocation = glGetUniformLocation(Program.Id, "view");
     int ModelLocation = glGetUniformLocation(Program.Id, "model");
-    int LightPosLocation = glGetUniformLocation(Program.Id, "lightPos");
-    int ViewPosLocation = glGetUniformLocation(Program.Id, "viewPos");
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -303,17 +281,7 @@ int WinMain(HINSTANCE hInstance,
         Light.Position = CameraPos;
         Light.Direction = CameraFront;
         SetShaderSpotLight(Program.Id, "SpotLight", Light);
-#if 0
-        // Draw light
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, Light.Position);
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.2f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        glUseProgram(LightProgram.Id);
-        glUniformMatrix4fv(LightMVPLocation, 1, GL_FALSE, glm::value_ptr(MVP));
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-#endif
+        
         // Draw world objects
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, ContainerTexture.TextureId);
@@ -321,7 +289,7 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, ContainerSpecMap.TextureId);
         
         glUseProgram(Program.Id);
-        glUniform3fv(ViewPosLocation, 1, &CameraPos[0]);
+        SetUniform3fv(Program.Id, "ViewPosition", CameraPos);
         glUniformMatrix4fv(ModelViewLocation, 1, GL_FALSE, glm::value_ptr(ViewMatrix));
         for(int CubeIndex = 0; CubeIndex < ArrayCount(CubePositions); ++CubeIndex)
         {

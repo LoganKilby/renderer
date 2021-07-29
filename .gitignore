@@ -8,3 +8,6 @@
 *.obj
 *.exe
 *.ctm
+*.ipch
+*.db
+build/.vs/renderer/v16/.suo

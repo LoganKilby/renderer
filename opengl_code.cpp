@@ -59,26 +59,17 @@ CompileShader(char *ShaderSource, shader_type Type)
     return Result;
 }
 
-internal opengl_shader
+internal GLuint
 LoadAndCompileShader(char *Filename, GLenum ShaderType)
 {
-    opengl_shader Result = {};
+    GLuint ResultID = 0;
     char *ShaderTypeString;
     switch(ShaderType)
     {
         case GL_VERTEX_SHADER: 
         ShaderTypeString = "GL_VERTEX_SHADER";
         break;
-        case TESS_CONTROL: 
-        ShaderTypeString = "GL_TESS_CONTROL_SHADER";
-        break;
-        case TESS_EVALUATION: 
-        ShaderTypeString = "GL_TESS_EVALUATION_SHADER";
-        break;
-        case GEOMETRY:
-        ShaderTypeString = "GL_GEOMETRY_SHADER";
-        break;
-        case FRAGMENT:
+        case GL_FRAGMENT_SHADER:
         ShaderTypeString = "GL_FRAGMENT_SHADER";
         break;
         default:
@@ -89,41 +80,50 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
     
     char *ShaderSource = ReadEntireFileToString(Filename);
     
-    Result.Id = glCreateShader(Result.Type);
-    glShaderSource(Result.Id, 1, &ShaderSource, NULL);
-    glCompileShader(Result.Id);
-    
-    int CompilationStatus;
-    glGetShaderiv(Result.Id, GL_COMPILE_STATUS, &CompilationStatus);
-    if(CompilationStatus == GL_FALSE)
+    if(ShaderSource)
     {
-        int LogLength;
-        glGetShaderiv(Result.Id, GL_INFO_LOG_LENGTH, &LogLength);
-        char *LogBuffer = (char *)malloc(sizeof(LogLength));
+        ResultID = glCreateShader(ShaderType);
+        glShaderSource(ResultID, 1, &ShaderSource, NULL);
+        glCompileShader(ResultID);
         
-        glGetShaderInfoLog(Result.Id, LogLength, NULL, LogBuffer);
+        int CompilationStatus;
+        glGetShaderiv(ResultID, GL_COMPILE_STATUS, &CompilationStatus);
+        if(CompilationStatus == GL_FALSE)
+        {
+            int LogLength;
+            glGetShaderiv(ResultID, GL_INFO_LOG_LENGTH, &LogLength);
+            char *LogBuffer = (char *)malloc(sizeof(LogLength));
+            memset(LogBuffer, 0, LogLength);
+            glGetShaderInfoLog(ResultID, LogLength, NULL, LogBuffer);
+            
+            fprintf(stderr, "\nERROR: Shader compilation error (%s): %s\n", ShaderTypeString, Filename);
+            fprintf(stderr, "%s", LogBuffer);
+            fprintf(stderr, "\n%s\n\n", ShaderSource);
+            
+            free(LogBuffer);
+        }
         
-        fprintf(stderr, "\nERROR: Shader compilation error (%s)\n", ShaderTypeString);
-        fprintf(stderr, "%s", LogBuffer);
-        fprintf(stderr, "\n%s\n\n", ShaderSource);
+        free(ShaderSource);
     }
     
-    return Result;
+    return ResultID;
 }
 
+// TODO: Probably want to take an array of compiled shaders
+// TODO: Probably don't need a program struct
 internal opengl_shader_program
-CreateShaderProgram(opengl_shader VertexShader, opengl_shader FragmentShader)
+CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID)
 {
     opengl_shader_program Result;
     Result.Id = glCreateProgram();
     
-    glAttachShader(Result.Id, VertexShader.Id);
-    glAttachShader(Result.Id, FragmentShader.Id);
+    glAttachShader(Result.Id, VertexShaderID);
+    glAttachShader(Result.Id, FragmentShaderID);
     glLinkProgram(Result.Id);
     
     // Shaders will only be flagged for deletion while attached to a program and not immediately deleted.
-    glDeleteShader(VertexShader.Id); 
-    glDeleteShader(FragmentShader.Id);
+    glDeleteShader(VertexShaderID); 
+    glDeleteShader(FragmentShaderID);
     
     return Result;
 }
@@ -203,8 +203,6 @@ SetShaderMaterial(GLuint Program,
                   char *UniformName,
                   material Material)
 {
-    glUseProgram(Program);
-    
     int MaxUniformLength, MaxAttributeLength;
     glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);
     glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
@@ -216,16 +214,16 @@ SetShaderMaterial(GLuint Program,
     
     strcpy(Location, UniformName);
     
-    strcat(Location, ".diffuseMap");
-    glUniform1i(glGetUniformLocation(Program, Location), Material.DiffuseMapTexUnit);
-    memset(ClearOffset, 0, sizeof(".diffuseMap"));
+    strcat(Location, ".DiffuseMap");
+    SetUniform1i(Program, Location, Material.DiffuseMapTexUnit);
+    memset(ClearOffset, 0, sizeof(".DiffuseMap"));
     
-    strcat(Location, ".specularMap");
-    glUniform1i(glGetUniformLocation(Program, Location), Material.SpecularMapTexUnit);
-    memset(ClearOffset, 0, sizeof(".specularMap"));
+    strcat(Location, ".SpecularMap");
+    SetUniform1i(Program, Location, Material.SpecularMapTexUnit);
+    memset(ClearOffset, 0, sizeof(".SpecularMap"));
     
-    strcat(Location, ".shininess");
-    glUniform1f(glGetUniformLocation(Program, Location), Material.Shininess);
+    strcat(Location, ".Shininess");
+    SetUniform1f(Program, Location, Material.Shininess);
     
     free(Location);
 }
@@ -233,15 +231,13 @@ SetShaderMaterial(GLuint Program,
 internal void
 SetShaderSpotLight(GLuint Program, char *StructName, spot_light Light)
 {
-    glUseProgram(Program);
-    
     int MaxUniformLength, MaxAttributeLength;
     glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);
     glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
+    
     int MinBufferSize = MaxUniformLength + MaxAttributeLength;
     char *UniformName = (char *)malloc(MinBufferSize);
     memset(UniformName, 0, MinBufferSize);
-    
     char *ClearOffset = &UniformName[0] + strlen(StructName);
     
     strcpy(UniformName, StructName);
@@ -272,6 +268,19 @@ SetShaderSpotLight(GLuint Program, char *StructName, spot_light Light)
     
     strcat(UniformName, ".FarRadius");
     SetUniform1f(Program, UniformName, Light.FarRadius);
+    memset(ClearOffset, 0, sizeof(".FarRadius"));
+    
+    strcat(UniformName, ".Constant");
+    SetUniform1f(Program, UniformName, Light.FarRadius);
+    memset(ClearOffset, 0, sizeof(".Constant"));
+    
+    strcat(UniformName, ".Linear");
+    SetUniform1f(Program, UniformName, Light.FarRadius);
+    memset(ClearOffset, 0, sizeof(".Linear"));
+    
+    strcat(UniformName, ".Quadratic");
+    SetUniform1f(Program, UniformName, Light.FarRadius);
+    memset(ClearOffset, 0, sizeof(".Quadratic"));
     
     free(UniformName);
 }
@@ -291,7 +300,7 @@ LoadTexture(char *Filename)
             case 3: PixelFormat = GL_RGB; break;
             default: 
             {
-                printf("WARNING: An unsupported image format attempted to load. Aborting...\n");
+                printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
                 stbi_image_free(Result.Data);
                 Result.Data = 0;
                 return Result;
@@ -311,7 +320,7 @@ LoadTexture(char *Filename)
     }
     else
     {
-        printf("WARNING: Failed to load image from at %s\n", Filename);
+        printf("WARNING: Failed to load image %s\n", Filename);
     }
     
     return Result;
@@ -324,6 +333,7 @@ LoadTexture(char *Filename)
 internal void
 SetUniform3fv(int Program, char *Name, glm::vec3 Data)
 {
+    glUseProgram(Program);
     GLint UniformLocation = glGetUniformLocation(Program, Name);
     AssertUniformLoc(UniformLocation);
     glUniform3fv(UniformLocation, 1, &Data[0]);
@@ -332,6 +342,7 @@ SetUniform3fv(int Program, char *Name, glm::vec3 Data)
 internal void
 SetUniform1f(int Program, char *Name, float Data)
 {
+    glUseProgram(Program);
     GLint UniformLocation = glGetUniformLocation(Program, Name);
     AssertUniformLoc(UniformLocation);
     glUniform1f(UniformLocation, Data);
@@ -340,7 +351,37 @@ SetUniform1f(int Program, char *Name, float Data)
 internal void
 SetUniformMatrix4fv(int Program, char *Name, glm::mat4 Data)
 {
+    glUseProgram(Program);
     GLint UniformLocation = glGetUniformLocation(Program, Name);
     AssertUniformLoc(UniformLocation);
     glUniformMatrix4fv(UniformLocation, 1, GL_FALSE, &Data[0][0]);
+}
+
+internal void
+SetUniform1i(int Program, char *Name, int Data)
+{
+    glUseProgram(Program);
+    GLint UniformLocation = glGetUniformLocation(Program, Name);
+    AssertUniformLoc(UniformLocation);
+    glUniform1i(UniformLocation, Data);
+}
+
+internal void DebugPrintUniforms(GLuint ProgramID)
+{
+    int UniformCount;
+    glGetProgramiv(ProgramID, GL_ACTIVE_UNIFORMS, &UniformCount);
+    
+    char Buffer[100] = {};
+    
+    GLsizei Length;
+    int Size;
+    GLenum Type;
+    
+    fprintf(stderr, "DEBUG INFO: Uniform Dump :: Program ID (%d)\n", ProgramID);
+    for(unsigned int UniformID = 0; UniformID < UniformCount; ++UniformID)
+    {
+        glGetActiveUniform(ProgramID, UniformID, 100, &Length, &Size, &Type, &Buffer[0]);
+        fprintf(stderr, "\t%s\n", Buffer);
+        memset(Buffer, 0, Length);
+    }
 }
