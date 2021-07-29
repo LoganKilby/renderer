@@ -7,14 +7,42 @@ struct Material
     float shininess;
 };
 
-struct Light
+struct directional_light
 {
-    vec3 position; // Camera pos
-    vec3 direction; // Camera front vector
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 Direction;
+    vec3 Ambient;
+    vec3 Diffuse;
+    vec3 Specular;
 };
+
+struct point_light
+{
+    vec3 Position;
+    vec3 Ambient;
+    vec3 Diffuse;
+    vec3 Specular;
+    
+    // Attenuation 
+    float Constant;
+    float Linear;
+    float Quadratic;
+};
+
+struct spot_light
+{
+    vec3 Position;
+    vec3 Direction;
+    vec3 Ambient;
+    vec3 Diffuse;
+    vec3 Specular;
+    
+    // Smoothing boundary
+    float NearRadius;
+    float FarRadius;
+};
+
+vec3 CalculateSpotLight(spot_light Light, vec3 FragmentPosition, vec3 Normal, 
+                        vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor);
 
 in vec3 FragPos;
 in vec2 TexCoord;
@@ -24,46 +52,81 @@ out vec4 FragColor;
 
 uniform vec3 viewPos;
 uniform Material material;
-uniform Light light;
+uniform spot_light SpotLight;
 
 // Point light (add to struct?)
 uniform float constant;
 uniform float linear;
 uniform float quadratic;
-uniform float spotlightBoundary;
-uniform float spotlightBoundaryEnd;
+
 
 void main()
 {
-    vec3 lightToFrag = normalize(light.position - FragPos);
+    vec3 ViewDirection = normalize(viewPos - FragPos);
+    vec3 DiffuseColor = texture(material.diffuseMap, TexCoord).rgb;
+    vec3 SpecularColor = texture(material.specularMap, TexCoord).rgb;
+    vec3 SurfaceNormal = normalize(Normal);
     
-    float theta = dot(lightToFrag, normalize(-light.direction));
-    float epsilon = (spotlightBoundary - spotlightBoundaryEnd);
-    float intensity = clamp((theta - spotlightBoundaryEnd) / epsilon, 0.0, 1.0);
+    vec3 SpotLightComponent = CalculateSpotLight(SpotLight, FragPos, SurfaceNormal, ViewDirection, DiffuseColor, SpecularColor);
     
-    // Ambient                              trucating the texture (vec4) to a vec3 (rgb)
-    vec3 ambientComponent = light.ambient * texture(material.diffuseMap, TexCoord).rgb;
+    FragColor = vec4(SpotLightComponent, 1.0);
+}
+
+vec3 CalculateSpotLight(spot_light Light, vec3 FragmentPosition, vec3 SurfaceNormal, 
+                        vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor)
+{
+    vec3 LightToFrag = normalize(Light.Position - FragmentPosition);
     
-    // Diffuse
-    vec3 surfaceNormal = normalize(Normal);
-    float angleOfIncidence = max(dot(surfaceNormal, lightToFrag), 0.0);
-    vec3 diffuseComponent = angleOfIncidence * light.diffuse * texture(material.diffuseMap, TexCoord).rgb;
+    float Theta = dot(LightToFrag, normalize(-Light.Direction));
+    float Epsilon = (Light.NearRadius - Light.FarRadius);
+    float Intensity = clamp((Theta - Light.FarRadius) / Epsilon, 0.0, 1.0);
     
-    // Specular
-    vec3 viewDirection = normalize(viewPos - FragPos);
-    vec3 reflectionDirection = reflect(-lightToFrag, surfaceNormal);
-    float angleOfReflection = pow(max(dot(viewDirection, reflectionDirection), 0.0), material.shininess);
-    vec3 specularComponent = texture(material.specularMap, TexCoord).rgb * angleOfReflection * light.specular;
+    vec3 AmbientComponent = Light.Ambient * DiffuseColor;
     
-    float pLightDistance = length(light.position - FragPos);
-    float attenuation = 1.0 / (constant + linear * pLightDistance + quadratic * (pLightDistance * pLightDistance));
+    vec3 LightDirection = normalize(Light.Position - FragmentPosition);
+    float AngleOfIncidence = max(dot(SurfaceNormal, LightDirection), 0);
+    vec3 DiffuseComponent = Light.Diffuse * AngleOfIncidence * Intensity * DiffuseColor;
     
-    diffuseComponent *= intensity;
-    specularComponent *= intensity;
+    vec3 ReflectionDirection = reflect(-Light.Direction, SurfaceNormal);
+    vec3 AngleToReflectedLight = pow(max(dot(ViewDirection, ReflectionDirection), 0.0), Light.Specular);
+    vec3 SpecularComponent = Light.Specular * AngleToReflectedLight * Intensity * SpecularColor;
     
-    ambientComponent *= attenuation;
-    diffuseComponent *= attenuation;
-    specularComponent *= attenuation;
+    return AmbientComponent + DiffuseComponent + SpecularComponent;
+}
+
+vec3 CalculateDirectionalLight(directional_light Light, vec3 FragmentPosition, vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor)
+{
+    vec3 AmbientComponent = Light.Ambient * DiffuseColor;
     
-    FragColor = vec4(ambientComponent + diffuseComponent + specularComponent, 1.0);
+    vec3 LightDirection = normalize(-Light.Direction);
+    float AngleOfIncidence = max(dot(SurfaceNormal, LightDirection), 0.0); // diffuse
+    vec3 DiffuseComponent = Light.Diffuse * AngleOfIncidence * DiffuseColor;
+    
+    // Angle between our POV and the angle of reflection I think...
+    vec3 ReflectionDirection = reflect(-LightDirection, SurfaceNormal);
+    float AngleToReflectedLight = pow(max(dot(ViewDirection, ReflectionDirection), 0.0), Light.Specular);
+    vec3 SpecularComponent = Light.Specular * AngleToReflectedLight * SpecularColor;
+    
+    return AmbientComponent + DiffuseComponent + SpecularComponent;
+}
+
+vec3 CalculatePointLight(point_light Light, vec3 FragmentPosition, vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor)
+{
+    
+    float DistanceToFragment = length(Light.Position - FragmentPosition);
+    float Attenuation = 1.0 / (Light.Constant + 
+                               (Light.Linear * DistanceToFragment) + 
+                               (Light.Quadratic * DistanceToFragment * DistanceToFragment));
+    
+    vec3 AmbientComponent = Light.Ambient * Attenuation * DiffuseColor;
+    
+    vec3 LightToFrag = normalize(Light.Position - FragmentPosition);
+    float AngleOfIncidence = max(dot(SurfaceNormal, LightToFrag), 0);
+    vec3 DiffuseComponent = Light.Diffuse * Attenuation * DiffuseColor;
+    
+    vec3 ReflectionDirection = reflect(-Light.Direction, SurfaceNormal);
+    vec3 AngleToReflectedLight = pow(max(dot(ViewDirection, ReflectionDirection), 0.0), Light.Specular);
+    vec3 SpecularComponent = Light.Specular * AngleToReflectedLight * Attenuation * SpecularColor;
+    
+    return AmbientComponent + DiffuseComponent + SpecularComponent;
 }
