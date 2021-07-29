@@ -1,52 +1,5 @@
 #include "opengl_code.h"
 
-internal opengl_buffer
-InitializeOpenglBuffer(float *Vertices, int VertexCount, unsigned int *Indices, int IndexCount)
-{
-    // The resulting draw call would either be glDrawArrays or glDrawElements
-    // It may make more sense to cluster together each of these different types of draw calls,
-    // I'm not sure. 
-    
-    opengl_buffer Result = {};
-    
-    Assert(Vertices);
-    Assert(VertexCount);
-    
-    if(Indices)
-    {
-        Assert(IndexCount);
-        
-        glGenVertexArrays(1, &Result.VAO);
-        glGenBuffers(1, &Result.VBO);
-        glGenBuffers(1, &Result.EBO);
-        
-        glBindVertexArray(Result.VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, Result.VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices[0]) * VertexCount, Vertices, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Result.EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices[0]) * IndexCount, Indices, GL_STATIC_DRAW);
-        
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-        glEnableVertexAttribArray(0);
-    }
-    else
-    {
-        glGenVertexArrays(1, &Result.VAO);
-        glGenBuffers(1, &Result.VBO);
-        
-        glBindVertexArray(Result.VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, Result.VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * VertexCount, Vertices, GL_STATIC_DRAW);
-        
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
-        glEnableVertexAttribArray(0);
-    }
-    
-    glBindVertexArray(0);
-    
-    return Result;
-}
-
 internal opengl_shader
 CompileShader(char *ShaderSource, shader_type Type)
 {
@@ -89,17 +42,70 @@ CompileShader(char *ShaderSource, shader_type Type)
     glCompileShader(Result.Id);
     
     int CompilationStatus;
-    char ErrorInfo[512] = {};
     glGetShaderiv(Result.Id, GL_COMPILE_STATUS, &CompilationStatus);
     if(!CompilationStatus)
     {
-        char *Divider = "-------------------------------------";
-        glGetShaderInfoLog(Result.Id, 512, NULL, ErrorInfo);
-        fprintf(stderr, "ERROR: Shader compilation (%s)\n", ShaderString);
-        fprintf(stderr, "%s", ErrorInfo);
-        fprintf(stderr, "\n%s\n", Divider);
-        fprintf(stderr, "\n%s\n", ShaderSource);
-        fprintf(stderr, "\n%s\n\n", Divider);
+        int LogLength;
+        glGetShaderiv(Result.Id, GL_INFO_LOG_LENGTH, &LogLength);
+        char *LogBuffer = (char *)malloc(sizeof(LogLength));
+        
+        glGetShaderInfoLog(Result.Id, LogLength, NULL, LogBuffer);
+        
+        fprintf(stderr, "\nERROR: Shader compilation error (%s)\n", ShaderString);
+        fprintf(stderr, "%s", LogBuffer);
+        fprintf(stderr, "\n%s\n\n", ShaderSource);
+    }
+    
+    return Result;
+}
+
+internal opengl_shader
+LoadAndCompileShader(char *Filename, GLenum ShaderType)
+{
+    opengl_shader Result = {};
+    char *ShaderTypeString;
+    switch(ShaderType)
+    {
+        case GL_VERTEX_SHADER: 
+        ShaderTypeString = "GL_VERTEX_SHADER";
+        break;
+        case TESS_CONTROL: 
+        ShaderTypeString = "GL_TESS_CONTROL_SHADER";
+        break;
+        case TESS_EVALUATION: 
+        ShaderTypeString = "GL_TESS_EVALUATION_SHADER";
+        break;
+        case GEOMETRY:
+        ShaderTypeString = "GL_GEOMETRY_SHADER";
+        break;
+        case FRAGMENT:
+        ShaderTypeString = "GL_FRAGMENT_SHADER";
+        break;
+        default:
+        {
+            printf("WARNING: Undefined shader type passed to CompileShader with filename %s\n", Filename);
+        }
+    }
+    
+    char *ShaderSource = ReadEntireFileToString(Filename);
+    
+    Result.Id = glCreateShader(Result.Type);
+    glShaderSource(Result.Id, 1, &ShaderSource, NULL);
+    glCompileShader(Result.Id);
+    
+    int CompilationStatus;
+    glGetShaderiv(Result.Id, GL_COMPILE_STATUS, &CompilationStatus);
+    if(CompilationStatus == GL_FALSE)
+    {
+        int LogLength;
+        glGetShaderiv(Result.Id, GL_INFO_LOG_LENGTH, &LogLength);
+        char *LogBuffer = (char *)malloc(sizeof(LogLength));
+        
+        glGetShaderInfoLog(Result.Id, LogLength, NULL, LogBuffer);
+        
+        fprintf(stderr, "\nERROR: Shader compilation error (%s)\n", ShaderTypeString);
+        fprintf(stderr, "%s", LogBuffer);
+        fprintf(stderr, "\n%s\n\n", ShaderSource);
     }
     
     return Result;
@@ -225,41 +231,47 @@ SetShaderMaterial(GLuint Program,
 }
 
 internal void
-SetShaderLightSource(GLuint Program,
-                     char *StructName,
-                     light_source Light)
+SetShaderSpotLight(GLuint Program, char *StructName, spot_light Light)
 {
     glUseProgram(Program);
     
     int MaxUniformLength, MaxAttributeLength;
     glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);
     glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
+    int MinBufferSize = MaxUniformLength + MaxAttributeLength;
+    char *UniformName = (char *)malloc(MinBufferSize);
+    memset(UniformName, 0, MinBufferSize);
     
-    int MaxStringLength = MaxUniformLength + MaxAttributeLength;
-    char *UniformName = (char *)malloc(MaxStringLength);
-    memset(UniformName, 0, MaxStringLength);
     char *ClearOffset = &UniformName[0] + strlen(StructName);
     
     strcpy(UniformName, StructName);
     
-    strcat(UniformName, ".position");
+    strcat(UniformName, ".Position");
     SetUniform3fv(Program, UniformName, Light.Position);
-    memset(ClearOffset, 0, sizeof(".position"));
+    memset(ClearOffset, 0, sizeof(".Position"));
     
-    strcat(UniformName, ".direction");
+    strcat(UniformName, ".Direction");
     SetUniform3fv(Program, UniformName, Light.Direction);
-    memset(ClearOffset, 0, sizeof(".direction"));
+    memset(ClearOffset, 0, sizeof(".Direction"));
     
-    strcat(UniformName, ".ambient");
+    strcat(UniformName, ".Ambient");
     SetUniform3fv(Program, UniformName, Light.Ambient);
-    memset(ClearOffset, 0, sizeof(".ambient"));
+    memset(ClearOffset, 0, sizeof(".Ambient"));
     
-    strcat(UniformName, ".diffuse");
+    strcat(UniformName, ".Diffuse");
     SetUniform3fv(Program, UniformName, Light.Diffuse);
-    memset(ClearOffset, 0, sizeof(".diffuse"));
+    memset(ClearOffset, 0, sizeof(".Diffuse"));
     
-    strcat(UniformName, ".specular");
+    strcat(UniformName, ".Specular");
     SetUniform3fv(Program, UniformName, Light.Specular);
+    memset(ClearOffset, 0, sizeof(".Specular"));
+    
+    strcat(UniformName, ".NearRadius");
+    SetUniform1f(Program, UniformName, Light.NearRadius);
+    memset(ClearOffset, 0, sizeof(".NearRadius"));
+    
+    strcat(UniformName, ".FarRadius");
+    SetUniform1f(Program, UniformName, Light.FarRadius);
     
     free(UniformName);
 }
@@ -305,8 +317,8 @@ LoadTexture(char *Filename)
     return Result;
 }
 
-// NOTE: I might decide that saving the uniform locations is better than looking them up every time
-// a uniform is set, as some uniforms are set every frame. So maybe in the future I can just assert that
+// NOTE: Saving the uniform locations is better than looking them up every time.
+// Some uniforms are set every frame. So maybe in the future I can just assert that
 // the uniform location passed as an argument is valid
 
 internal void
