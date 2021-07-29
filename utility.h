@@ -65,6 +65,8 @@ ReadEntireFileToString(char *Filename)
         }
     }
     
+    CloseHandle(FileHandle);
+    
     return FileBuffer;
 }
 
