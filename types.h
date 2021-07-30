@@ -20,6 +20,8 @@
 #define Gigabytes(Value) (Megabytes(Value)*1024LL)
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
 
+#define OffsetOf offsetof
+
 typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;

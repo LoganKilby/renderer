@@ -92,6 +92,15 @@ int WinMain(HINSTANCE hInstance,
         printf("ERROR: Glew failed to initialize");
     }
     
+    if(ASSERTIONS_ENABLED)
+    {
+        printf("INFO: Assertions turned ON\n");
+    }
+    else
+    {
+        printf("INFO: Assertions turned OFF\n");
+    }
+    
     stbi_set_flip_vertically_on_load(true);
     
     float Vertices[] = {
@@ -210,20 +219,59 @@ int WinMain(HINSTANCE hInstance,
     CameraOrientation.PanSpeed = 2.0f;
     FieldOfView = 45.0f;
     
+    glm::vec3 LightCubePosition = glm::vec3(0.0f);
     // Light
     // NOTE: Consider using vec4(x, y, z, 0.0f) for directions, and vec4(x, y, z, 1.0f) for positions
     // Vectors shouldn't be effected by translations
     glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
-    spot_light Light;
-    Light.Position = glm::vec3(0.0, 0.0, -5.0f); // NOTE: Directional lights don't have a position
-    Light.Ambient = glm::vec3(0.2f); // Can multiply by the light color
-    Light.Diffuse = glm::vec3(0.8f); // Can multiply by the light color
-    Light.Specular = glm::vec3(1.0f);
-    Light.NearRadius = glm::cos(glm::radians(12.5));
-    Light.FarRadius = glm::cos(glm::radians(17.5));
-    Light.Constant = 1.0f;
-    Light.Linear = 0.0014f;
-    Light.Quadratic = 0.000007f;
+    spot_light SpotLight = {};
+    //SpotLight.Position is CameraPostion
+    //SpotLight.Direction is CameraFront
+    SpotLight.Ambient = glm::vec3(0.2f); // Can multiply by the light color
+    SpotLight.Diffuse = glm::vec3(0.8f); // Can multiply by the light color
+    SpotLight.Specular = glm::vec3(1.0f);
+    SpotLight.NearRadius = glm::cos(glm::radians(12.5));
+    SpotLight.FarRadius = glm::cos(glm::radians(17.5));
+    SpotLight.Constant = 1.0f;
+    SpotLight.Linear = 0.07f;
+    SpotLight.Quadratic = 0.017f;
+    
+    directional_light DirectionalLight;
+    DirectionalLight.Direction = glm::vec3(0.0f, 0.0f, -1.0f);
+    DirectionalLight.Ambient = glm::vec3(0.1f);
+    DirectionalLight.Diffuse = glm::vec3(0.1f);
+    DirectionalLight.Specular = glm::vec3(1.0f);
+    SetShaderDirectionalLight(Program.Id, "DirectionalLight", DirectionalLight);
+    
+    glm::vec3 PointLightPosOffset(0.0f);
+    glm::vec3 PointLightPositions[] = 
+    {
+        glm::vec3( 0.7f,  0.2f,  2.0f),
+        glm::vec3( 2.3f, -3.3f, -4.0f),
+        glm::vec3(-4.0f,  2.0f, -12.0f),
+        glm::vec3( 0.0f,  0.0f, -3.0f)
+    };
+    
+    point_light PointLight = {};
+    PointLight.Ambient = glm::vec3(0.5f);
+    PointLight.Diffuse = glm::vec3(0.5f);
+    PointLight.Specular = glm::vec3(1.0f);
+    PointLight.Constant = 1.0f;
+    PointLight.Linear = 0.14f;
+    PointLight.Quadratic = 0.07f;
+    
+    PointLight.Position = PointLightPositions[0];
+    SetShaderPointLight(Program.Id, "PointLights[0]", PointLight);
+    
+    PointLight.Position = PointLightPositions[1];
+    SetShaderPointLight(Program.Id, "PointLights[1]", PointLight);
+    
+    PointLight.Position = PointLightPositions[2];
+    SetShaderPointLight(Program.Id, "PointLights[2]", PointLight);
+    
+    PointLight.Position = PointLightPositions[3];
+    SetShaderPointLight(Program.Id, "PointLights[3]", PointLight);
+    
     
     // Material
     material BasicMaterial = {};
@@ -259,10 +307,12 @@ int WinMain(HINSTANCE hInstance,
             CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * CameraOrientation.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
             CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * CameraOrientation.PanSpeed * FrameTime;
+#if 0
         if(glfwGetKey(Window, GLFW_KEY_Q) == GLFW_PRESS)
-            Light.Position.z += CameraOrientation.PanSpeed * FrameTime;
+            PointLightPosOffset.z += CameraOrientation.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
-            Light.Position.z -= CameraOrientation.PanSpeed * FrameTime;
+            PointLightPosOffset.z -= CameraOrientation.PanSpeed * FrameTime;
+#endif
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
@@ -278,9 +328,22 @@ int WinMain(HINSTANCE hInstance,
                                             WindowWidth / WindowHeight, 
                                             0.1f, 
                                             100.0f);
-        Light.Position = CameraPos;
-        Light.Direction = CameraFront;
-        SetShaderSpotLight(Program.Id, "SpotLight", Light);
+        
+        for(int i = 0; i < ArrayCount(PointLightPositions); ++i)
+        {
+            ModelMatrix = glm::mat4(1.0f);
+            ModelMatrix = glm::translate(ModelMatrix, PointLightPositions[i]);
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.25f));
+            MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+            glUseProgram(LightProgram.Id);
+            glUniformMatrix4fv(LightMVPLocation, 1, GL_FALSE, &MVP[0][0]);
+            glBindVertexArray(LightVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+        
+        SpotLight.Position = CameraPos;
+        SpotLight.Direction = CameraFront;
+        SetShaderSpotLight(Program.Id, "SpotLight", SpotLight);
         
         // Draw world objects
         glActiveTexture(GL_TEXTURE0);

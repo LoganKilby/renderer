@@ -3,6 +3,39 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+enum texture_map_enum
+{
+    DIFFUSE_MAP,
+    SPECULAR_MAP
+};
+
+struct vertex
+{
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec2 TextureCoordinates;
+};
+
+struct texture_unit
+{
+    unsigned int Id;
+    texture_map_enum Type;
+};
+
+struct mesh
+{
+    vertex *Vertices;
+    int VertexCount;
+    unsigned int *Indices;
+    int IndexCount;
+    texture_unit *TextureUnits; // max 16
+    int TexUnitCount;
+    
+    unsigned int VAO;
+    unsigned int VBO;
+    unsigned int EBO;
+};
+
 /* Light Attenuation table
  
 Distance	Constant	Linear	Quadratic

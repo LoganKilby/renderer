@@ -1,62 +1,42 @@
 #include "opengl_code.h"
+#include "renderer.h"
 
-internal opengl_shader
-CompileShader(char *ShaderSource, shader_type Type)
+internal void
+DrawMesh(opengl_shader_program Program, mesh Mesh)
 {
-    opengl_shader Result = {};
-    char *ShaderString;
-    switch(Type)
+    unsigned int DiffuseTexUnit = 1;
+    unsigned int SpecularTexUnit = 1;
+    
+    char DiffuseLexeme[] = "Material.DiffuseMaps[X]";
+    char SpecularLexeme[] = "Material.SpecularMaps[X]";
+    
+    texture_unit Texture;
+    for(int TexIndex = 0; TexIndex < Mesh.TexUnitCount; ++TexIndex)
     {
-        case COMPUTE: 
-        Result.Type = GL_COMPUTE_SHADER; 
-        ShaderString = "GL_COMPUTE_SHADER"; 
-        break;
-        case VERTEX: 
-        Result.Type = GL_VERTEX_SHADER;
-        ShaderString = "GL_VERTEX_SHADER";
-        break;
-        case TESS_CONTROL: 
-        Result.Type =  GL_TESS_CONTROL_SHADER; 
-        ShaderString = "GL_TESS_CONTROL_SHADER";
-        break;
-        case TESS_EVALUATION: 
-        Result.Type = GL_TESS_EVALUATION_SHADER;
-        ShaderString = "GL_TESS_EVALUATION_SHADER";
-        break;
-        case GEOMETRY:
-        Result.Type = GL_GEOMETRY_SHADER;
-        ShaderString = "GL_GEOMETRY_SHADER";
-        break;
-        case FRAGMENT:
-        Result.Type = GL_FRAGMENT_SHADER;
-        ShaderString = "GL_FRAGMENT_SHADER";
-        break;
-        default:
+        glActiveTexture(GL_TEXTURE0 + TexIndex);
+        Texture = Mesh.TextureUnits[TexIndex];
+        
+        if(Texture.Type == DIFFUSE_MAP)
         {
-            printf("WARNING: Undefined shader type passed to CompileShader\n");
+            DiffuseLexeme[sizeof(DiffuseLexeme) - 3] = DiffuseTexUnit;
+            SetUniform1i(Program.Id, DiffuseLexeme, Texture.Id);
+            glBindTexture(GL_TEXTURE_2D, Texture.Id);
+            DiffuseTexUnit++;
+        }
+        else if(Texture.Type == SPECULAR_MAP)
+        {
+            SpecularLexeme[sizeof(SpecularLexeme) - 3] = SpecularTexUnit;
+            SetUniform1i(Program.Id, SpecularLexeme, Texture.Id);
+            glBindTexture(GL_TEXTURE_2D, Texture.Id);
+            SpecularTexUnit++;
         }
     }
     
-    Result.Id = glCreateShader(Result.Type);
-    glShaderSource(Result.Id, 1, &ShaderSource, NULL);
-    glCompileShader(Result.Id);
+    glActiveTexture(GL_TEXTURE0);
     
-    int CompilationStatus;
-    glGetShaderiv(Result.Id, GL_COMPILE_STATUS, &CompilationStatus);
-    if(!CompilationStatus)
-    {
-        int LogLength;
-        glGetShaderiv(Result.Id, GL_INFO_LOG_LENGTH, &LogLength);
-        char *LogBuffer = (char *)malloc(sizeof(LogLength));
-        
-        glGetShaderInfoLog(Result.Id, LogLength, NULL, LogBuffer);
-        
-        fprintf(stderr, "\nERROR: Shader compilation error (%s)\n", ShaderString);
-        fprintf(stderr, "%s", LogBuffer);
-        fprintf(stderr, "\n%s\n\n", ShaderSource);
-    }
-    
-    return Result;
+    glBindVertexArray(Mesh.VAO);
+    glDrawElements(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
 internal GLuint
@@ -74,7 +54,7 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
         break;
         default:
         {
-            printf("WARNING: Undefined shader type passed to CompileShader with filename %s\n", Filename);
+            printf("WARNING: No Support for the shader type passed to CompileShader with filename %s\n", Filename);
         }
     }
     
@@ -107,6 +87,33 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
     }
     
     return ResultID;
+}
+
+internal void
+InitMeshBuffer(mesh *Mesh)
+{
+    glGenVertexArrays(1, &Mesh->VAO);
+    glGenBuffers(1, &Mesh->VBO);
+    glGenBuffers(1, &Mesh->EBO);
+    
+    glBindVertexArray(Mesh->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, Mesh->VBO);
+    
+    glBufferData(GL_ARRAY_BUFFER, Mesh->VertexCount * sizeof(vertex), &Mesh->Vertices[0], GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh->EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, Mesh->IndexCount * sizeof(unsigned int), &Mesh->Indices[0], GL_STATIC_DRAW);
+    
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)0);
+    
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)OffsetOf(vertex, Normal));
+    
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)OffsetOf(vertex, TextureCoordinates));
+    
+    glBindVertexArray(0);
 }
 
 // TODO: Probably want to take an array of compiled shaders
@@ -208,19 +215,19 @@ SetShaderMaterial(GLuint Program,
     glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
     
     int MaxStringLength = MaxUniformLength + MaxAttributeLength;
-    char *Location = (char *)malloc(MaxStringLength);
+    char *Location = (char *)malloc(MaxStringLength); // TODO: Stack allocate the buffer
     memset(Location, 0, MaxStringLength);
     char *ClearOffset = &Location[0] + strlen(UniformName);
     
     strcpy(Location, UniformName);
     
-    strcat(Location, ".DiffuseMap");
+    strcat(Location, ".DiffuseMaps[0]");
     SetUniform1i(Program, Location, Material.DiffuseMapTexUnit);
-    memset(ClearOffset, 0, sizeof(".DiffuseMap"));
+    memset(ClearOffset, 0, sizeof(".DiffuseMap[0]"));
     
-    strcat(Location, ".SpecularMap");
+    strcat(Location, ".SpecularMaps[0]");
     SetUniform1i(Program, Location, Material.SpecularMapTexUnit);
-    memset(ClearOffset, 0, sizeof(".SpecularMap"));
+    memset(ClearOffset, 0, sizeof(".SpecularMap[0]"));
     
     strcat(Location, ".Shininess");
     SetUniform1f(Program, Location, Material.Shininess);
@@ -236,7 +243,7 @@ SetShaderSpotLight(GLuint Program, char *StructName, spot_light Light)
     glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
     
     int MinBufferSize = MaxUniformLength + MaxAttributeLength;
-    char *UniformName = (char *)malloc(MinBufferSize);
+    char *UniformName = (char *)malloc(MinBufferSize); // TODO: Stack allocate the buffer
     memset(UniformName, 0, MinBufferSize);
     char *ClearOffset = &UniformName[0] + strlen(StructName);
     
@@ -271,16 +278,108 @@ SetShaderSpotLight(GLuint Program, char *StructName, spot_light Light)
     memset(ClearOffset, 0, sizeof(".FarRadius"));
     
     strcat(UniformName, ".Constant");
-    SetUniform1f(Program, UniformName, Light.FarRadius);
+    SetUniform1f(Program, UniformName, Light.Constant);
     memset(ClearOffset, 0, sizeof(".Constant"));
     
     strcat(UniformName, ".Linear");
-    SetUniform1f(Program, UniformName, Light.FarRadius);
+    SetUniform1f(Program, UniformName, Light.Linear);
     memset(ClearOffset, 0, sizeof(".Linear"));
     
     strcat(UniformName, ".Quadratic");
-    SetUniform1f(Program, UniformName, Light.FarRadius);
+    SetUniform1f(Program, UniformName, Light.Quadratic);
     memset(ClearOffset, 0, sizeof(".Quadratic"));
+    
+    free(UniformName);
+}
+
+int GetMaxUniformLength(unsigned int Program)
+{
+    int Result;
+    glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &Result);
+    return Result;
+}
+
+int GetMaxAttributeLength(unsigned int Program)
+{
+    int Result;
+    glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &Result);
+    return Result;
+}
+
+internal void
+SetShaderPointLight(GLuint Program, char *StructName, point_light Light)
+{
+    int MaxUniformLength, MaxAttributeLength;
+    glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);
+    glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
+    
+    int MinBufferSize = MaxUniformLength + MaxAttributeLength;
+    char *UniformName = (char *)malloc(MinBufferSize); // TODO: Stack allocate the buffer
+    memset(UniformName, 0, MinBufferSize);
+    char *ClearOffset = &UniformName[0] + strlen(StructName);
+    
+    strcpy(UniformName, StructName);
+    
+    strcat(UniformName, ".Position");
+    SetUniform3fv(Program, UniformName, Light.Position);
+    memset(ClearOffset, 0, sizeof(".Position"));
+    
+    strcat(UniformName, ".Ambient");
+    SetUniform3fv(Program, UniformName, Light.Ambient);
+    memset(ClearOffset, 0, sizeof(".Ambient"));
+    
+    strcat(UniformName, ".Diffuse");
+    SetUniform3fv(Program, UniformName, Light.Diffuse);
+    memset(ClearOffset, 0, sizeof(".Diffuse"));
+    
+    strcat(UniformName, ".Specular");
+    SetUniform3fv(Program, UniformName, Light.Specular);
+    memset(ClearOffset, 0, sizeof(".Specular"));
+    
+    strcat(UniformName, ".Constant");
+    SetUniform1f(Program, UniformName, Light.Constant);
+    memset(ClearOffset, 0, sizeof(".Constant"));
+    
+    strcat(UniformName, ".Linear");
+    SetUniform1f(Program, UniformName, Light.Linear);
+    memset(ClearOffset, 0, sizeof(".Linear"));
+    
+    strcat(UniformName, ".Quadratic");
+    SetUniform1f(Program, UniformName, Light.Quadratic);
+    memset(ClearOffset, 0, sizeof(".Quadratic"));
+    
+    free(UniformName);
+}
+
+internal void
+SetShaderDirectionalLight(GLuint Program, char *StructName, directional_light Light)
+{
+    int MaxUniformLength, MaxAttributeLength;
+    glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformLength);
+    glGetProgramiv(Program, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttributeLength);
+    
+    int MinBufferSize = MaxUniformLength + MaxAttributeLength;
+    char *UniformName = (char *)malloc(MinBufferSize); // TODO: Stack allocate the buffer
+    memset(UniformName, 0, MinBufferSize);
+    char *ClearOffset = &UniformName[0] + strlen(StructName);
+    
+    strcpy(UniformName, StructName);
+    
+    strcat(UniformName, ".Direction");
+    SetUniform3fv(Program, UniformName, Light.Direction);
+    memset(ClearOffset, 0, sizeof(".Direction"));
+    
+    strcat(UniformName, ".Ambient");
+    SetUniform3fv(Program, UniformName, Light.Ambient);
+    memset(ClearOffset, 0, sizeof(".Ambient"));
+    
+    strcat(UniformName, ".Diffuse");
+    SetUniform3fv(Program, UniformName, Light.Diffuse);
+    memset(ClearOffset, 0, sizeof(".Diffuse"));
+    
+    strcat(UniformName, ".Specular");
+    SetUniform3fv(Program, UniformName, Light.Specular);
+    memset(ClearOffset, 0, sizeof(".Specular"));
     
     free(UniformName);
 }
