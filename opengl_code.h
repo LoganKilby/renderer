@@ -9,9 +9,9 @@
 #define AssertUniformLoc(Integer)
 #endif
 
-internal void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
-internal void SetUniform1f(int Program, char *Name, float Data);
-internal void SetUniform1i(int Program, char *Name, int Data);
+static void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
+static void SetUniform1f(int Program, char *Name, float Data);
+static void SetUniform1i(int Program, char *Name, int Data);
 
 struct opengl_buffer
 {
@@ -75,15 +75,6 @@ struct spot_light
     float Constant;
     float Linear;
     float Quadratic;
-};
-
-struct texture
-{
-    unsigned int TextureId;
-    int Width;
-    int Height;
-    int ColorChannels;
-    unsigned char *Data;
 };
 
 // Personal NOTE: OpenGL guarentees at least 16 4-component vertex attributes (vetex shader input

@@ -13,7 +13,7 @@ struct image
 };
 
 // NOTE: Requires STB_IMAGE_IMPLEMENTATION definition and stb_image.h
-internal image
+static image
 LoadImage(char *Filename)
 {
     image Result = {};
@@ -29,7 +29,7 @@ LoadImage(char *Filename)
     return Result;
 }
 
-internal char *
+static char *
 ReadEntireFileToString(char *Filename)
 {
     HANDLE FileHandle = CreateFileA(Filename,
@@ -71,7 +71,7 @@ ReadEntireFileToString(char *Filename)
 }
 
 
-internal unsigned char *
+static char *
 ReadEntireFile(char *Filename, unsigned long int *TotalBytesRead)
 {
     HANDLE FileHandle = CreateFileA(Filename,
@@ -90,10 +90,10 @@ ReadEntireFile(char *Filename, unsigned long int *TotalBytesRead)
     }
     
     unsigned int FileSizeInBytes = GetFileSize(FileHandle, 0);
-    unsigned char *FileBuffer = 0;
+    char *FileBuffer = 0;
     if(FileSizeInBytes)
     {
-        FileBuffer = (unsigned char *)malloc(FileSizeInBytes);
+        FileBuffer = (char *)malloc(FileSizeInBytes);
         memset(FileBuffer, 0, FileSizeInBytes);
         
         unsigned long int BytesRead;

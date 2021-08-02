@@ -20,20 +20,28 @@ struct texture_unit
 {
     unsigned int Id;
     texture_map_enum Type;
+    int Width;
+    int Height;
+    int ColorChannels;
+    char Path[256];
 };
 
 struct mesh
 {
-    vertex *Vertices;
-    int VertexCount;
-    unsigned int *Indices;
-    int IndexCount;
-    texture_unit *TextureUnits; // max 16
-    int TexUnitCount;
-    
+    // TODO: I don't really need the entire "texture unit". Just the ID...
+    // This could be changed easily.. just store the texture unit in the texture cache,
+    // and store the texture IDs when processing the mesh/model
+    std::vector<texture_unit> Textures;
     unsigned int VAO;
     unsigned int VBO;
     unsigned int EBO;
+};
+
+struct model
+{
+    std::vector<mesh> Mesh;
+    char Directory[256] = {};
+    int DirectoryStrLen;
 };
 
 /* Light Attenuation table

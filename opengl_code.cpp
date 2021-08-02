@@ -1,44 +1,6 @@
 #include "opengl_code.h"
 #include "renderer.h"
 
-internal void
-DrawMesh(opengl_shader_program Program, mesh Mesh)
-{
-    unsigned int DiffuseTexUnit = 1;
-    unsigned int SpecularTexUnit = 1;
-    
-    char DiffuseLexeme[] = "Material.DiffuseMaps[X]";
-    char SpecularLexeme[] = "Material.SpecularMaps[X]";
-    
-    texture_unit Texture;
-    for(int TexIndex = 0; TexIndex < Mesh.TexUnitCount; ++TexIndex)
-    {
-        glActiveTexture(GL_TEXTURE0 + TexIndex);
-        Texture = Mesh.TextureUnits[TexIndex];
-        
-        if(Texture.Type == DIFFUSE_MAP)
-        {
-            DiffuseLexeme[sizeof(DiffuseLexeme) - 3] = DiffuseTexUnit;
-            SetUniform1i(Program.Id, DiffuseLexeme, Texture.Id);
-            glBindTexture(GL_TEXTURE_2D, Texture.Id);
-            DiffuseTexUnit++;
-        }
-        else if(Texture.Type == SPECULAR_MAP)
-        {
-            SpecularLexeme[sizeof(SpecularLexeme) - 3] = SpecularTexUnit;
-            SetUniform1i(Program.Id, SpecularLexeme, Texture.Id);
-            glBindTexture(GL_TEXTURE_2D, Texture.Id);
-            SpecularTexUnit++;
-        }
-    }
-    
-    glActiveTexture(GL_TEXTURE0);
-    
-    glBindVertexArray(Mesh.VAO);
-    glDrawElements(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
-
 internal GLuint
 LoadAndCompileShader(char *Filename, GLenum ShaderType)
 {
@@ -83,37 +45,11 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
             free(LogBuffer);
         }
         
+        fprintf(stderr, "SHADER: %s compiled\n", Filename);
         free(ShaderSource);
     }
     
     return ResultID;
-}
-
-internal void
-InitMeshBuffer(mesh *Mesh)
-{
-    glGenVertexArrays(1, &Mesh->VAO);
-    glGenBuffers(1, &Mesh->VBO);
-    glGenBuffers(1, &Mesh->EBO);
-    
-    glBindVertexArray(Mesh->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, Mesh->VBO);
-    
-    glBufferData(GL_ARRAY_BUFFER, Mesh->VertexCount * sizeof(vertex), &Mesh->Vertices[0], GL_STATIC_DRAW);
-    
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh->EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, Mesh->IndexCount * sizeof(unsigned int), &Mesh->Indices[0], GL_STATIC_DRAW);
-    
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)0);
-    
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)OffsetOf(vertex, Normal));
-    
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)OffsetOf(vertex, TextureCoordinates));
-    
-    glBindVertexArray(0);
 }
 
 // TODO: Probably want to take an array of compiled shaders
@@ -384,13 +320,15 @@ SetShaderDirectionalLight(GLuint Program, char *StructName, directional_light Li
     free(UniformName);
 }
 
-internal texture
+internal texture_unit
 LoadTexture(char *Filename)
 {
-    texture Result = {};
-    Result.Data = stbi_load(Filename, &Result.Width, &Result.Height, &Result.ColorChannels, 0);
-    if(Result.Data)
+    texture_unit Result = {};
+    unsigned char *Data = stbi_load(Filename, &Result.Width, &Result.Height, &Result.ColorChannels, 0);
+    if(Data)
     {
+        strcpy(Result.Path, Filename);
+        
         GLenum PixelFormat;
         switch(Result.ColorChannels)
         {
@@ -400,22 +338,21 @@ LoadTexture(char *Filename)
             default: 
             {
                 printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
-                stbi_image_free(Result.Data);
-                Result.Data = 0;
                 return Result;
             }
         }
         
-        glGenTextures(1, &Result.TextureId);
-        glBindTexture(GL_TEXTURE_2D, Result.TextureId);
-        glTexImage2D(GL_TEXTURE_2D, 0, PixelFormat, Result.Width, Result.Height, 0, PixelFormat, GL_UNSIGNED_BYTE, Result.Data);
+        glGenTextures(1, &Result.Id);
+        glBindTexture(GL_TEXTURE_2D, Result.Id);
+        glTexImage2D(GL_TEXTURE_2D, 0, PixelFormat, Result.Width, Result.Height, 0, PixelFormat, GL_UNSIGNED_BYTE, Data);
         glGenerateMipmap(GL_TEXTURE_2D);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         
-        printf("INFO: Texture %d loaded.\n", Result.TextureId);
+        stbi_image_free(Data);
+        printf("INFO: Texture %s loaded. (Texture ID: %d)\n", Filename, Result.Id);
     }
     else
     {

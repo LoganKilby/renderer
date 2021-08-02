@@ -1,26 +1,30 @@
 #include "windows.h"
 #include "include/GL/glew.h"
 #include "include/GLFW/glfw3.h"
-#include "stdio.h"
-#include "types.h"
-
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "include/glm/gtc/type_ptr.hpp"
-
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
-#include "include/stb_image.h"
+#include "include/stb/stb_image.h"
+//#define FAST_OBJ_IMPLEMENTATION
+//#include "include/fast_obj/fast_obj.h"
+#include "include/assimp/Importer.hpp"
+#include "include/assimp/scene.h"
+#include "include/assimp/postprocess.h"
+#include "include/qpc/qpc.h"
+#include "stdio.h"
+#include <vector>
+#include "types.h"
 #include "utility.h"
 #include "opengl_code.h"
 #include "cube.h"
+#include "renderer.h"
 
 #include "opengl_code.cpp"
-#include "math_functions.cpp"
+#include "renderer.cpp"
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
-void ProcessInput(GLFWwindow);
-void ProcessKeyboardInput(GLFWwindow *, int, int, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 
@@ -53,6 +57,10 @@ int WinMain(HINSTANCE hInstance,
     SetConsoleTitle("Debug Console");
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    
+    // TODO: Assimp is way too slow.
+    //fastObjMesh *mesh = fast_obj_read("models/backpack.obj");
+    //model Model = LoadModel("models/backpack.obj");
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -182,9 +190,13 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
     
-    texture ContainerTexture = LoadTexture("textures/container2.png");
-    texture ContainerSpecMap = LoadTexture("textures/container2_specularmap.png");
-    texture ContainerEmissionMap = LoadTexture("textures/emission_map.jpg");
+    texture_unit ContainerTexture = LoadTexture("textures/container2.png");
+    texture_unit ContainerSpecMap = LoadTexture("textures/container2_specularmap.png");
+    texture_unit  ContainerEmissionMap = LoadTexture("textures/emission_map.jpg");
+    
+    QPC_StartCounter();
+    model TestModel = LoadModel("models/backpack/backpack.obj");
+    fprintf(stderr, "INFO: Model loading completed. %Lf ms\n", QPC_EndCounter(0) / 1000.0l);
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
@@ -347,9 +359,9 @@ int WinMain(HINSTANCE hInstance,
         
         // Draw world objects
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, ContainerTexture.TextureId);
+        glBindTexture(GL_TEXTURE_2D, ContainerTexture.Id);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, ContainerSpecMap.TextureId);
+        glBindTexture(GL_TEXTURE_2D, ContainerSpecMap.Id);
         
         glUseProgram(Program.Id);
         SetUniform3fv(Program.Id, "ViewPosition", CameraPos);
