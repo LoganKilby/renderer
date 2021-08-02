@@ -5,7 +5,7 @@
 
 enum texture_map_enum
 {
-    DIFFUSE_MAP,
+    DIFFUSE_MAP = 1,
     SPECULAR_MAP
 };
 
@@ -15,6 +15,10 @@ struct vertex
     glm::vec3 Normal;
     glm::vec2 TextureCoordinates;
 };
+
+// TODO: I don't really need the entire "texture unit" in the mesh, just the Id.
+// I should store the texture unit in the texture cache and store the texture IDs 
+// in the mesh.
 
 struct texture_unit
 {
@@ -28,10 +32,8 @@ struct texture_unit
 
 struct mesh
 {
-    // TODO: I don't really need the entire "texture unit". Just the ID...
-    // This could be changed easily.. just store the texture unit in the texture cache,
-    // and store the texture IDs when processing the mesh/model
     std::vector<texture_unit> Textures;
+    int IndexCount;
     unsigned int VAO;
     unsigned int VBO;
     unsigned int EBO;
@@ -39,7 +41,7 @@ struct mesh
 
 struct model
 {
-    std::vector<mesh> Mesh;
+    std::vector<mesh> Meshes;
     char Directory[256] = {};
     int DirectoryStrLen;
 };

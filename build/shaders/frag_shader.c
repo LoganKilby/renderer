@@ -72,20 +72,9 @@ void main()
     vec3 SpecularColor = texture(CrateMaterial.SpecularMaps[0], TexCoord).rgb;
     vec3 SurfaceNormal = normalize(Normal);
     
-    vec3 Result;
-    
-    Result += CalculateSpotLight(SpotLight, FragPos, SurfaceNormal, ViewDirection, 
-                                 DiffuseColor, SpecularColor, CrateMaterial.Shininess);;
-    
-    Result += CalculateDirectionalLight(DirectionalLight, FragPos, SurfaceNormal, 
-                                        ViewDirection, DiffuseColor, SpecularColor,
-                                        CrateMaterial.Shininess);
-    
-    for(int i = 0; i < 4; ++i)
-    {
-        Result += CalculatePointLight(PointLights[i], FragPos, SurfaceNormal,
-                                      ViewDirection, DiffuseColor, SpecularColor, CrateMaterial.Shininess);
-    }
+    vec3 Result = CalculateDirectionalLight(DirectionalLight, FragPos, SurfaceNormal, 
+                                            ViewDirection, DiffuseColor, SpecularColor,
+                                            32.0);
     
     FragColor = vec4(Result, 1.0);
 }

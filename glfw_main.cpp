@@ -18,8 +18,8 @@
 #include "types.h"
 #include "utility.h"
 #include "opengl_code.h"
-#include "cube.h"
 #include "renderer.h"
+#include "vertices.h"
 
 #include "opengl_code.cpp"
 #include "renderer.cpp"
@@ -58,9 +58,8 @@ int WinMain(HINSTANCE hInstance,
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     
+    
     // TODO: Assimp is way too slow.
-    //fastObjMesh *mesh = fast_obj_read("models/backpack.obj");
-    //model Model = LoadModel("models/backpack.obj");
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -91,8 +90,13 @@ int WinMain(HINSTANCE hInstance,
         printf("Vendor: "); printf((char *)glGetString(GL_VENDOR)); printf("\n");
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
         printf("Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
-        glEnable(GL_DEPTH_TEST);
         // TODO: Do more initialization here?
+        
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     }
     else
     {
@@ -111,92 +115,32 @@ int WinMain(HINSTANCE hInstance,
     
     stbi_set_flip_vertically_on_load(true);
     
-    float Vertices[] = {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-        
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-        
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    };
-    
-    glm::vec3 CubePositions[] = {
-        { 2.0f,  5.0f, -15.0f}, 
-        {-1.5f, -2.2f, -2.5f},  
-        {-3.8f, -2.0f, -12.3f},  
-        { 2.4f, -0.4f, -3.5f},  
-        {-1.7f,  3.0f, -7.5f},  
-        { 1.3f, -2.0f, -2.5f},  
-        { 1.5f,  2.0f, -2.5f}, 
-        { 1.5f,  0.2f, -1.5f}, 
-        {-1.3f,  1.0f, -1.5f}  
-    };
-    
-    unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-    
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+    unsigned int CubeVAO, CubeVBO;
+    glGenVertexArrays(1, &CubeVAO);
+    glGenBuffers(1, &CubeVBO);
+    glBindVertexArray(CubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), &CubeVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glBindVertexArray(0);
     
-    unsigned int LightVAO;
-    glGenVertexArrays(1, &LightVAO);
-    glBindVertexArray(LightVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+    unsigned int PlaneVAO, PlaneVBO;
+    glGenVertexArrays(1, &PlaneVAO);
+    glGenBuffers(1, &PlaneVBO);
+    glBindVertexArray(PlaneVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, PlaneVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(PlaneVertices), &PlaneVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glBindVertexArray(0);
     
-    texture_unit ContainerTexture = LoadTexture("textures/container2.png");
-    texture_unit ContainerSpecMap = LoadTexture("textures/container2_specularmap.png");
-    texture_unit  ContainerEmissionMap = LoadTexture("textures/emission_map.jpg");
-    
-    QPC_StartCounter();
-    model TestModel = LoadModel("models/backpack/backpack.obj");
-    fprintf(stderr, "INFO: Model loading completed. %Lf ms\n", QPC_EndCounter(0) / 1000.0l);
+    texture_unit CubeTexture = LoadTexture("textures/marble.jpg");
+    texture_unit PlaneTexture = LoadTexture("textures/metal.jpg");
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
@@ -204,14 +148,10 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/vertex_shader.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/frag_shader.c", GL_FRAGMENT_SHADER);
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    DebugPrintUniforms(Program.Id);
     
-    VertexShaderID = LoadAndCompileShader("shaders/light_source_vertex_shader.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/light_source_frag_shader.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program LightProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    DebugPrintUniforms(LightProgram.Id);
-    
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    VertexShaderID = LoadAndCompileShader("shaders/outline_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/outline_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program OutlineProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -250,8 +190,8 @@ int WinMain(HINSTANCE hInstance,
     
     directional_light DirectionalLight;
     DirectionalLight.Direction = glm::vec3(0.0f, 0.0f, -1.0f);
-    DirectionalLight.Ambient = glm::vec3(0.1f);
-    DirectionalLight.Diffuse = glm::vec3(0.1f);
+    DirectionalLight.Ambient = glm::vec3(0.5f);
+    DirectionalLight.Diffuse = glm::vec3(0.5f);
     DirectionalLight.Specular = glm::vec3(1.0f);
     SetShaderDirectionalLight(Program.Id, "DirectionalLight", DirectionalLight);
     
@@ -271,29 +211,6 @@ int WinMain(HINSTANCE hInstance,
     PointLight.Constant = 1.0f;
     PointLight.Linear = 0.14f;
     PointLight.Quadratic = 0.07f;
-    
-    PointLight.Position = PointLightPositions[0];
-    SetShaderPointLight(Program.Id, "PointLights[0]", PointLight);
-    
-    PointLight.Position = PointLightPositions[1];
-    SetShaderPointLight(Program.Id, "PointLights[1]", PointLight);
-    
-    PointLight.Position = PointLightPositions[2];
-    SetShaderPointLight(Program.Id, "PointLights[2]", PointLight);
-    
-    PointLight.Position = PointLightPositions[3];
-    SetShaderPointLight(Program.Id, "PointLights[3]", PointLight);
-    
-    
-    // Material
-    material BasicMaterial = {};
-    BasicMaterial.DiffuseMapTexUnit = 0;
-    BasicMaterial.SpecularMapTexUnit = 1;
-    BasicMaterial.Shininess = 32.0f;
-    SetShaderMaterial(Program.Id, "CrateMaterial", BasicMaterial);
-    
-    // Light program uniform locations
-    int LightMVPLocation = glGetUniformLocation(LightProgram.Id, "mvp");
     
     // Untitled program uniform locations (GLuint)
     int ModelMVPLocation = glGetUniformLocation(Program.Id, "mvp");
@@ -319,20 +236,19 @@ int WinMain(HINSTANCE hInstance,
             CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * CameraOrientation.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
             CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * CameraOrientation.PanSpeed * FrameTime;
-#if 0
         if(glfwGetKey(Window, GLFW_KEY_Q) == GLFW_PRESS)
-            PointLightPosOffset.z += CameraOrientation.PanSpeed * FrameTime;
+            CameraPos.y += CameraOrientation.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
-            PointLightPosOffset.z -= CameraOrientation.PanSpeed * FrameTime;
-#endif
-        
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            CameraPos.y -= CameraOrientation.PanSpeed * FrameTime;
         
         glm::vec3 CameraAngle;
         CameraAngle.x = cos(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
         CameraAngle.y = sin(glm::radians(CameraOrientation.Pitch));
         CameraAngle.z = sin(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
         CameraFront = glm::normalize(CameraAngle);
+        
+        //SpotLight.Position = CameraPos;
+        //SpotLight.Direction = CameraFront;
         
         ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
         
@@ -341,41 +257,69 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             100.0f);
         
-        for(int i = 0; i < ArrayCount(PointLightPositions); ++i)
-        {
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::translate(ModelMatrix, PointLightPositions[i]);
-            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.25f));
-            MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-            glUseProgram(LightProgram.Id);
-            glUniformMatrix4fv(LightMVPLocation, 1, GL_FALSE, &MVP[0][0]);
-            glBindVertexArray(LightVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         
-        SpotLight.Position = CameraPos;
-        SpotLight.Direction = CameraFront;
-        SetShaderSpotLight(Program.Id, "SpotLight", SpotLight);
-        
-        // Draw world objects
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, ContainerTexture.Id);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, ContainerSpecMap.Id);
-        
+        // Floor
         glUseProgram(Program.Id);
-        SetUniform3fv(Program.Id, "ViewPosition", CameraPos);
-        glUniformMatrix4fv(ModelViewLocation, 1, GL_FALSE, glm::value_ptr(ViewMatrix));
-        for(int CubeIndex = 0; CubeIndex < ArrayCount(CubePositions); ++CubeIndex)
-        {
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::translate(ModelMatrix, CubePositions[CubeIndex]);
-            MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-            glUniformMatrix4fv(ModelMVPLocation, 1, GL_FALSE, glm::value_ptr(MVP));
-            glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
-            glBindVertexArray(VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        glStencilMask(0x00);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -0.01f, 0.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
+        SetUniformMatrix4fv(Program.Id, "mvp", MVP);
+        glBindVertexArray(PlaneVAO);
+        glBindTexture(GL_TEXTURE_2D, PlaneTexture.Id);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+        
+        // Cubes
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF);
+        
+        glBindVertexArray(CubeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, CubeTexture.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-1.0f, 0.0f, -1.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
+        SetUniformMatrix4fv(Program.Id, "mvp", MVP);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(2.0f, 0.0f, 0.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
+        SetUniformMatrix4fv(Program.Id, "mvp", MVP);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        // Outline draw pass
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilMask(0x00);
+        glDisable(GL_DEPTH_TEST);
+        
+        glUseProgram(OutlineProgram.Id);
+        glBindVertexArray(CubeVAO);
+        glBindTexture(GL_TEXTURE_2D, CubeTexture.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-1.0f, 0.0f, -1.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.1f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(OutlineProgram.Id, "mvp", MVP);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(2.0f, 0.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.1f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(OutlineProgram.Id, "mvp", MVP);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+        
+        glStencilMask(0xFF);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        glEnable(GL_DEPTH_TEST);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

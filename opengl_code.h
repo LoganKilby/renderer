@@ -3,7 +3,7 @@
 #ifndef OPENGL_CODE_H
 #define OPENGL_CODE_H
 
-#if ASSERTIONS_ENABLED
+#if UNIFORM_ASSERTIONS_ENABLED
 #define AssertUniformLoc(Integer) if(Integer == -1) {*(int *)0 = 0;}
 #else
 #define AssertUniformLoc(Integer)

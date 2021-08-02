@@ -36,6 +36,7 @@ LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, tex
         else
         {
             texture_unit TextureResult = LoadTexture(Path);
+            TextureResult.Type = MapType;
             TextureUnits.push_back(TextureResult);
             TextureCache.push_back(TextureResult);
         }
@@ -88,6 +89,8 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
         }
     }
     
+    Result.IndexCount = Indices.size();
+    
     if(Mesh->mMaterialIndex >= 0)
     {
         aiMaterial *Material = Scene->mMaterials[Mesh->mMaterialIndex];
@@ -99,6 +102,8 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
         Result.Textures.insert(Result.Textures.end(), SpecularMaps.begin(), SpecularMaps.end());
     }
     
+    Assert(Indices.size() > 0);
+    
     glGenVertexArrays(1, &Result.VAO);
     glGenBuffers(1, &Result.VBO);
     glGenBuffers(1, &Result.EBO);
@@ -106,7 +111,7 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     glBindVertexArray(Result.VAO);
     glBindBuffer(GL_ARRAY_BUFFER, Result.VBO);
     
-    glBufferData(GL_ARRAY_BUFFER, Vertices.size() * sizeof(Vertex), &Vertices[0], GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, Vertices.size() * sizeof(vertex), &Vertices[0], GL_STATIC_DRAW);  
     
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Result.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.size() * sizeof(unsigned int), 
@@ -114,13 +119,13 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     
     // vertex positions
     glEnableVertexAttribArray(0);	
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
     // vertex normals
     glEnableVertexAttribArray(1);	
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(vertex, Normal));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, Normal));
     // vertex texture coords
     glEnableVertexAttribArray(2);	
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(vertex, TextureCoordinates));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, TextureCoordinates));
     
     glBindVertexArray(0);
     
@@ -128,18 +133,18 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
 }
 
 internal void
-ProcessNode(model *Model, aiNode *Node, const aiScene *Scene, std::vector<mesh> *Meshes)
+ProcessNode(model *Model, aiNode *Node, const aiScene *Scene)
 {
     for(unsigned int i = 0; i < Node->mNumMeshes; ++i)
     {
         aiMesh *Mesh = Scene->mMeshes[Node->mMeshes[i]];
         
-        Meshes->push_back(ProcessMesh(Model, Mesh, Scene));
+        Model->Meshes.push_back(ProcessMesh(Model, Mesh, Scene));
     }
     
     for(unsigned int i = 0; i < Node->mNumChildren; ++i)
     {
-        ProcessNode(Model, Node->mChildren[i], Scene, Meshes);
+        ProcessNode(Model, Node->mChildren[i], Scene);
     }
 }
 
@@ -178,9 +183,52 @@ LoadModel(char *Path)
     
     Model.DirectoryStrLen = PathIndex + 1;
     
-    std::vector<mesh> Meshes;
-    ProcessNode(&Model, Scene->mRootNode, Scene, &Meshes);
-    
+    ProcessNode(&Model, Scene->mRootNode, Scene);
     
     return Model;
+}
+
+internal void
+DrawMesh(unsigned int Program, mesh Mesh)
+{
+#if 1
+    glUseProgram(Program);
+    unsigned int DiffuseTexUnit = 1;
+    unsigned int SpecularTexUnit = 1;
+    
+    char DifString[] = "CrateMaterial.DiffuseMaps[ ]";
+    char SpecString[] = "CrateMaterial.SpecularMaps[ ]";
+    
+    texture_unit TexUnit;
+    unsigned int TextureCount = Mesh.Textures.size();
+    Assert(TextureCount == 2);
+    for(unsigned int i = 0; i < TextureCount; ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + i);
+        
+        TexUnit = Mesh.Textures[i];
+        if(TexUnit.Type == DIFFUSE_MAP)
+        {
+            DifString[sizeof(DifString) - 3] = 48 + DiffuseTexUnit++;
+            SetUniform1i(Program, DifString, TexUnit.Id);
+        }
+        else if(TexUnit.Type == SPECULAR_MAP)
+        {
+            SpecString[sizeof(SpecString) - 3] = 48 + SpecularTexUnit++;
+            SetUniform1i(Program, SpecString, TexUnit.Id);
+        }
+        else
+        {
+            Assert(0);
+        }
+        
+        glBindTexture(GL_TEXTURE_2D, TexUnit.Id);
+    }
+    
+    glActiveTexture(GL_TEXTURE0);
+#endif
+    
+    glBindVertexArray(Mesh.VAO);
+    glDrawElements(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
