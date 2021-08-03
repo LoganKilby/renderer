@@ -53,14 +53,13 @@ vec3 CalculateDirectionalLight(directional_light Light, vec3 FragmentPosition, v
 vec3 CalculatePointLight(point_light Light, vec3 FragmentPosition, vec3 SurfaceNormal,
                          vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor, float Shininess);
 
-in vec3 FragPos;
-in vec2 TexCoord;
-in vec3 Normal;
+in vec2 TexCoords;
 
-out vec4 FragColor;
+out vec4 FragColorOut;
+
 
 uniform vec3 ViewPosition;
-uniform material CrateMaterial;
+uniform material Materials;
 uniform spot_light SpotLight;
 uniform point_light PointLights[4];
 uniform point_light PointLight;
@@ -68,14 +67,7 @@ uniform directional_light DirectionalLight;
 
 void main()
 {
-    vec3 ViewDirection = normalize(ViewPosition - FragPos);
-    vec3 DiffuseColor = texture(CrateMaterial.DiffuseMaps[0], TexCoord).rgb;
-    vec3 SpecularColor = texture(CrateMaterial.SpecularMaps[0], TexCoord).rgb;
-    vec3 SurfaceNormal = normalize(Normal);
-    
-    vec3 Result = CalculatePointLight(PointLight, FragPos, SurfaceNormal, ViewDirection,
-                                      DiffuseColor, SpecularColor, 32.0);
-    FragColor = vec4(Result, 1.0);
+    FragColorOut = texture(Materials.DiffuseMaps[0], TexCoords);
 }
 
 vec3 CalculateSpotLight(spot_light Light, vec3 FragmentPosition, vec3 SurfaceNormal, 

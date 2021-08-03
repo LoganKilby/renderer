@@ -67,3 +67,11 @@ Distance	Constant	Linear	Quadratic
 325		 1.0		 0.014	 0.0007
 600		 1.0		 0.007	 0.0002
 3250		1.0		 0.0014	0.000007
+
+Grayscale:
+ - The human eye has a particular sensitivity to each color. When calculating a grayscale image,
+(at least in the learnopengl tutorial) the following scaling constants can be used to produce
+a more realitic result: 0.2126 * Red + 0.7152 * Green + 0.0722 * Blue = Fragment color
+
+Kernels (Convolutional matricies) should add up to 1 or the resulting color will be 
+brighter/darker.

@@ -330,11 +330,22 @@ LoadTexture(char *Filename)
         strcpy(Result.Path, Filename);
         
         GLenum PixelFormat;
+        GLenum TexParam;
         switch(Result.ColorChannels)
         {
             // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
-            case 4: PixelFormat = GL_RGBA; break;
-            case 3: PixelFormat = GL_RGB; break;
+            case 4: 
+            {
+                // TODO: Reminder: Maybe setting these params here is a bad idea. All pngs probably
+                // don't need to be clamped to the edge
+                PixelFormat = GL_RGBA; 
+                TexParam = GL_CLAMP_TO_EDGE;
+            } break;
+            case 3:
+            {
+                PixelFormat = GL_RGB;
+                TexParam = GL_REPEAT;
+            } break;
             default: 
             {
                 printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
@@ -346,8 +357,8 @@ LoadTexture(char *Filename)
         glBindTexture(GL_TEXTURE_2D, Result.Id);
         glTexImage2D(GL_TEXTURE_2D, 0, PixelFormat, Result.Width, Result.Height, 0, PixelFormat, GL_UNSIGNED_BYTE, Data);
         glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, TexParam);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, TexParam);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         

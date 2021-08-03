@@ -27,6 +27,7 @@
 void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
+void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 
 struct global_input
 {
@@ -45,6 +46,7 @@ struct camera_orientation
 global_variable global_input GlobalInput;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
+global_variable int TransparentIndexBuffer[5] = {};
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -93,10 +95,9 @@ int WinMain(HINSTANCE hInstance,
         // TODO: Do more initialization here?
         
         glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-        glEnable(GL_STENCIL_TEST);
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
     else
     {
@@ -125,7 +126,6 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-    glBindVertexArray(0);
     
     unsigned int PlaneVAO, PlaneVBO;
     glGenVertexArrays(1, &PlaneVAO);
@@ -137,21 +137,78 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    
+    unsigned int GrassVAO, GrassVBO;
+    glGenVertexArrays(1, &GrassVAO);
+    glGenBuffers(1, &GrassVBO);
+    glBindVertexArray(GrassVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, GrassVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GrassVertices), &GrassVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    
+    unsigned int ScreenVAO, ScreenVBO;
+    glGenVertexArrays(1, &ScreenVAO);
+    glGenBuffers(1, &ScreenVBO);
+    glBindVertexArray(ScreenVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ScreenVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
     glBindVertexArray(0);
     
-    texture_unit CubeTexture = LoadTexture("textures/marble.jpg");
+    unsigned int FrameBuffer;
+    glGenFramebuffers(1, &FrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
+    
+    unsigned int ColorBuffer;
+    glGenTextures(1, &ColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, ColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WindowWidth, WindowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ColorBuffer, 0);
+    
+    unsigned int RBO; // Render buffer object
+    glGenRenderbuffers(1, &RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WindowWidth, WindowHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+    
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("ERROR: An error occured while creating render buffer\n");
+    }
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // The default framebuffer is now bound
+    
+    texture_unit CubeTexture = LoadTexture("textures/container.jpg");
     texture_unit PlaneTexture = LoadTexture("textures/metal.jpg");
+    texture_unit WindowTexture = LoadTexture("textures/blending_transparent_window.png");
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     
-    VertexShaderID = LoadAndCompileShader("shaders/vertex_shader.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/frag_shader.c", GL_FRAGMENT_SHADER);
+    VertexShaderID = LoadAndCompileShader("shaders/simple_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/simple_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    SetUniform1i(Program.Id, "Materials.DiffuseMaps[0]", 0);
+    DebugPrintUniforms(Program.Id);
     
-    VertexShaderID = LoadAndCompileShader("shaders/outline_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/outline_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program OutlineProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    VertexShaderID = LoadAndCompileShader("shaders/screen_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/screen_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program ScreenProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    DebugPrintUniforms(ScreenProgram.Id);
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -171,56 +228,19 @@ int WinMain(HINSTANCE hInstance,
     CameraOrientation.PanSpeed = 2.0f;
     FieldOfView = 45.0f;
     
-    glm::vec3 LightCubePosition = glm::vec3(0.0f);
-    // Light
-    // NOTE: Consider using vec4(x, y, z, 0.0f) for directions, and vec4(x, y, z, 1.0f) for positions
-    // Vectors shouldn't be effected by translations
-    glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
-    spot_light SpotLight = {};
-    //SpotLight.Position is CameraPostion
-    //SpotLight.Direction is CameraFront
-    SpotLight.Ambient = glm::vec3(0.2f); // Can multiply by the light color
-    SpotLight.Diffuse = glm::vec3(0.8f); // Can multiply by the light color
-    SpotLight.Specular = glm::vec3(1.0f);
-    SpotLight.NearRadius = glm::cos(glm::radians(12.5));
-    SpotLight.FarRadius = glm::cos(glm::radians(17.5));
-    SpotLight.Constant = 1.0f;
-    SpotLight.Linear = 0.07f;
-    SpotLight.Quadratic = 0.017f;
-    
-    directional_light DirectionalLight;
-    DirectionalLight.Direction = glm::vec3(0.0f, 0.0f, -1.0f);
-    DirectionalLight.Ambient = glm::vec3(0.5f);
-    DirectionalLight.Diffuse = glm::vec3(0.5f);
-    DirectionalLight.Specular = glm::vec3(1.0f);
-    SetShaderDirectionalLight(Program.Id, "DirectionalLight", DirectionalLight);
-    
-    glm::vec3 PointLightPosOffset(0.0f);
-    glm::vec3 PointLightPositions[] = 
-    {
-        glm::vec3( 0.7f,  0.2f,  2.0f),
-        glm::vec3( 2.3f, -3.3f, -4.0f),
-        glm::vec3(-4.0f,  2.0f, -12.0f),
-        glm::vec3( 0.0f,  0.0f, -3.0f)
-    };
-    
-    point_light PointLight = {};
-    PointLight.Ambient = glm::vec3(0.5f);
-    PointLight.Diffuse = glm::vec3(0.5f);
-    PointLight.Specular = glm::vec3(1.0f);
-    PointLight.Constant = 1.0f;
-    PointLight.Linear = 0.14f;
-    PointLight.Quadratic = 0.07f;
-    
-    // Untitled program uniform locations (GLuint)
-    int ModelMVPLocation = glGetUniformLocation(Program.Id, "mvp");
-    int ModelViewLocation = glGetUniformLocation(Program.Id, "view");
-    int ModelLocation = glGetUniformLocation(Program.Id, "model");
-    
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
+    
+    glm::vec3 GrassPositions[] = 
+    {
+        glm::vec3(-1.5f,  0.0f, -0.48f),
+        glm::vec3( 1.5f,  0.0f,  0.51f),
+        glm::vec3( 0.0f,  0.0f,  0.7f),
+        glm::vec3(-0.3f,  0.0f, -2.3f),
+        glm::vec3( 0.5f,  0.0f, -0.6f) 
+    };
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -247,9 +267,6 @@ int WinMain(HINSTANCE hInstance,
         CameraAngle.z = sin(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
         CameraFront = glm::normalize(CameraAngle);
         
-        //SpotLight.Position = CameraPos;
-        //SpotLight.Direction = CameraFront;
-        
         ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
         
         ProjectionMatrix = glm::perspective(glm::radians(FieldOfView), 
@@ -257,69 +274,63 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             100.0f);
         
+        glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        
+        glUseProgram(Program.Id);
         
         // Floor
-        glUseProgram(Program.Id);
-        glStencilMask(0x00);
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -0.01f, 0.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
         glBindVertexArray(PlaneVAO);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, PlaneTexture.Id);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
         
         // Cubes
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
-        
         glBindVertexArray(CubeVAO);
-        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, CubeTexture.Id);
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-1.0f, 0.0f, -1.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(2.0f, 0.0f, 0.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
-        // Outline draw pass
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        glDisable(GL_DEPTH_TEST);
+        // Grass
+        glDisable(GL_CULL_FACE);
+        glBindVertexArray(GrassVAO);
+        glBindTexture(GL_TEXTURE_2D, WindowTexture.Id);
+        TransparencyDepthSort(&GrassPositions[0], ArrayCount(GrassPositions), CameraPos);
+        for(int i = 0; i < ArrayCount(GrassPositions); ++i)
+        {
+            ModelMatrix = glm::mat4(1.0f);
+            ModelMatrix = glm::translate(ModelMatrix, GrassPositions[TransparentIndexBuffer[i]]);
+            MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+            SetUniformMatrix4fv(Program.Id, "mvp", MVP);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
         
-        glUseProgram(OutlineProgram.Id);
-        glBindVertexArray(CubeVAO);
-        glBindTexture(GL_TEXTURE_2D, CubeTexture.Id);
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-1.0f, 0.0f, -1.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.1f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(OutlineProgram.Id, "mvp", MVP);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
         
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(2.0f, 0.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.1f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(OutlineProgram.Id, "mvp", MVP);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        
-        glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glEnable(GL_DEPTH_TEST);
+        glUseProgram(ScreenProgram.Id);
+        glBindVertexArray(ScreenVAO);
+        glDisable(GL_DEPTH_TEST); // So the screen buffer gets drawn in front of anything else
+        glBindTexture(GL_TEXTURE_2D, ColorBuffer);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
@@ -327,6 +338,55 @@ int WinMain(HINSTANCE hInstance,
     }
     
     return 0;
+}
+
+struct transparent_sort_object
+{
+    float Length;
+    int Index;
+};
+
+internal void TransparencyDepthSort(glm::vec3 *TransparentObjects, int ArrayCount, glm::vec3 CameraPosition)
+{
+    // The depth buffer is too small to hold the objects
+    Assert(ArrayCount <= ArrayCount(TransparentIndexBuffer));
+    memset(TransparentIndexBuffer, 0, sizeof(TransparentIndexBuffer));
+    
+    transparent_sort_object TempLengths[5] = {};
+    
+    float Length;
+    for(int i = 0; i < ArrayCount; ++i)
+    {
+        Length = glm::length(CameraPosition - TransparentObjects[i]);
+        TempLengths[i].Length = Length;
+        TempLengths[i].Index = i;
+    }
+    
+    while(true)
+    {
+        int SwapCount = 0;
+        
+        for(int i = 0; i < 4; i++)
+        {
+            if(TempLengths[i].Length < TempLengths[i + 1].Length)
+            {
+                transparent_sort_object Temp = TempLengths[i];
+                TempLengths[i] = TempLengths[i + 1];
+                TempLengths[i + 1] = Temp;
+                SwapCount++;
+            }
+        }
+        
+        if(SwapCount == 0)
+        {
+            break;
+        }
+    }
+    
+    for(int i = 0; i < 5; ++i)
+    {
+        TransparentIndexBuffer[i] = TempLengths[i].Index;
+    }
 }
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
