@@ -43,5 +43,6 @@ void main()
         color += sampleTex[i] * sharpenKernel[i];
     }
     
-    FragColor = vec4(color, 1.0);
+    //FragColor = vec4(color, 1.0);
+    FragColor = texture(screenTexture, TexCoords);
 }

@@ -34,7 +34,7 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
         {
             int LogLength;
             glGetShaderiv(ResultID, GL_INFO_LOG_LENGTH, &LogLength);
-            char *LogBuffer = (char *)malloc(sizeof(LogLength));
+            char *LogBuffer = (char *)malloc(LogLength);
             memset(LogBuffer, 0, LogLength);
             glGetShaderInfoLog(ResultID, LogLength, NULL, LogBuffer);
             
@@ -44,8 +44,11 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
             
             free(LogBuffer);
         }
+        else
+        {
+            fprintf(stderr, "SHADER: %s compiled\n", Filename);
+        }
         
-        fprintf(stderr, "SHADER: %s compiled\n", Filename);
         free(ShaderSource);
     }
     
@@ -336,8 +339,6 @@ LoadTexture(char *Filename)
             // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
             case 4: 
             {
-                // TODO: Reminder: Maybe setting these params here is a bad idea. All pngs probably
-                // don't need to be clamped to the edge
                 PixelFormat = GL_RGBA; 
                 TexParam = GL_CLAMP_TO_EDGE;
             } break;
@@ -349,6 +350,7 @@ LoadTexture(char *Filename)
             default: 
             {
                 printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
+                // TODO: Return a default texture
                 return Result;
             }
         }
@@ -431,4 +433,79 @@ internal void DebugPrintUniforms(GLuint ProgramID)
         fprintf(stderr, "\t%s\n", Buffer);
         memset(Buffer, 0, Length);
     }
+}
+
+internal unsigned int
+LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *Front)
+{
+    char *Paths[6] = 
+    {
+        Right, Left, 
+        Top, Bottom, 
+        Back, Front
+    };
+    
+    unsigned int Result = 0;
+    glGenTextures(1, &Result);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, Result);
+    
+    int Width, Height, ColorChannels;
+    unsigned char *Data;
+    GLenum PixelFormat;
+    
+    // NOTE: Since we're looking from inside the cubemap, the textures will be inverted.
+    // Letting the texture load inverted creates the effect I want. I'm not sure that this is
+    // robust, but it at least works for my first cubemap (skybox). 
+    stbi_set_flip_vertically_on_load(false);
+    for(int PathIndex = 0; PathIndex < 6; ++PathIndex)
+    {
+        Data = stbi_load(Paths[PathIndex], &Width, &Height, &ColorChannels, 0);
+        if(Data)
+        {
+            switch(ColorChannels)
+            {
+                // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
+                case 4: 
+                {
+                    PixelFormat = GL_RGBA; 
+                } break;
+                case 3:
+                {
+                    PixelFormat = GL_RGB;
+                } break;
+                default: 
+                {
+                    printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Paths[PathIndex]);
+                    // TODO: Apply a default texture
+                    return Result;
+                }
+            }
+            
+            // NOTE: The cubemap enums enumerate from POSITIVE_X to NEGATIVE_Z
+            // Order starting with POSITIVE_X:
+            // Right, Left, Top, Bottom, Back, Front
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + PathIndex, 0, 
+                         PixelFormat, Width, Height, 0, 
+                         PixelFormat, GL_UNSIGNED_BYTE, Data);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            
+            printf("INFO: Cubemap texture %s loaded. (Texture ID: %d)\n",
+                   Paths[PathIndex], Result);
+            
+            stbi_image_free(Data);
+        }
+        else
+        {
+            // TODO: Apply default texture
+            printf("WARNING: Unable to load cubemap texture (%s).\n", Paths[PathIndex]);
+        }
+    }
+    
+    stbi_set_flip_vertically_on_load(true);
+    
+    return Result;
 }

@@ -30,6 +30,16 @@ struct texture_unit
     char Path[256];
 };
 
+struct cubemap_texture_paths
+{
+    char *Left;
+    char *Right;
+    char *Top;
+    char *Bottom;
+    char *Back;
+    char *Front;
+};
+
 struct mesh
 {
     std::vector<texture_unit> Textures;

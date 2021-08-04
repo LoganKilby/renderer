@@ -95,7 +95,6 @@ int WinMain(HINSTANCE hInstance,
         // TODO: Do more initialization here?
         
         glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -116,6 +115,15 @@ int WinMain(HINSTANCE hInstance,
     
     stbi_set_flip_vertically_on_load(true);
     
+    unsigned int SkyboxVAO, SkyboxVBO;
+    glGenVertexArrays(1, &SkyboxVAO);
+    glGenBuffers(1, &SkyboxVBO);
+    glBindVertexArray(SkyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, SkyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(SkyboxVertices), &SkyboxVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    
     unsigned int CubeVAO, CubeVBO;
     glGenVertexArrays(1, &CubeVAO);
     glGenBuffers(1, &CubeVBO);
@@ -123,9 +131,11 @@ int WinMain(HINSTANCE hInstance,
     glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), &CubeVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(5 * sizeof(float)));
     
     unsigned int PlaneVAO, PlaneVBO;
     glGenVertexArrays(1, &PlaneVAO);
@@ -148,6 +158,18 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    
+    unsigned int MirrorVAO, MirrorVBO;
+    glGenVertexArrays(1, &MirrorVAO);
+    glGenBuffers(1, &MirrorVBO);
+    glBindVertexArray(MirrorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, MirrorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(MirrorVertices), &MirrorVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
+    glBindVertexArray(0);
     
     unsigned int ScreenVAO, ScreenVBO;
     glGenVertexArrays(1, &ScreenVAO);
@@ -196,6 +218,17 @@ int WinMain(HINSTANCE hInstance,
     texture_unit PlaneTexture = LoadTexture("textures/metal.jpg");
     texture_unit WindowTexture = LoadTexture("textures/blending_transparent_window.png");
     
+    cubemap_texture_paths CubemapPaths;
+    CubemapPaths.Left = "textures/skybox/left.jpg";
+    CubemapPaths.Right = "textures/skybox/right.jpg";
+    CubemapPaths.Top = "textures/skybox/top.jpg";
+    CubemapPaths.Bottom = "textures/skybox/bottom.jpg";
+    CubemapPaths.Back = "textures/skybox/back.jpg";
+    CubemapPaths.Front = "textures/skybox/front.jpg";
+    unsigned int SkyboxCubemap = LoadCubemap(CubemapPaths.Right, CubemapPaths.Left,
+                                             CubemapPaths.Top, CubemapPaths.Bottom,
+                                             CubemapPaths.Front, CubemapPaths.Back);
+    
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     
@@ -203,12 +236,18 @@ int WinMain(HINSTANCE hInstance,
     FragmentShaderID = LoadAndCompileShader("shaders/simple_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     SetUniform1i(Program.Id, "Materials.DiffuseMaps[0]", 0);
-    DebugPrintUniforms(Program.Id);
     
-    VertexShaderID = LoadAndCompileShader("shaders/screen_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/screen_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program ScreenProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    DebugPrintUniforms(ScreenProgram.Id);
+    VertexShaderID = LoadAndCompileShader("shaders/reflective_cube_vertex.c", GL_VERTEX_SHADER);
+    opengl_shader_program ReflectionProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    DebugPrintUniforms(ReflectionProgram.Id);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/skybox_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/skybox_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program SkyboxProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -230,6 +269,7 @@ int WinMain(HINSTANCE hInstance,
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
+    glm::mat4 ViewSubMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
     
@@ -268,6 +308,7 @@ int WinMain(HINSTANCE hInstance,
         CameraFront = glm::normalize(CameraAngle);
         
         ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
+        ViewSubMatrix = glm::mat4(glm::mat3(ViewMatrix));
         
         ProjectionMatrix = glm::perspective(glm::radians(FieldOfView), 
                                             WindowWidth / WindowHeight, 
@@ -277,11 +318,22 @@ int WinMain(HINSTANCE hInstance,
         glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
         
-        glUseProgram(Program.Id);
+        // Skybox
+        glDepthMask(GL_FALSE); // Don't write to the depth buffer
+        glDepthFunc(GL_LEQUAL);
+        glUseProgram(SkyboxProgram.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        MVP = ProjectionMatrix * ViewSubMatrix * ModelMatrix;
+        SetUniformMatrix4fv(SkyboxProgram.Id, "mvp", MVP);
+        glBindVertexArray(SkyboxVAO);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
         
+        glUseProgram(Program.Id);
         // Floor
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -0.01f, 0.0f));
@@ -309,7 +361,6 @@ int WinMain(HINSTANCE hInstance,
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
         // Grass
-        glDisable(GL_CULL_FACE);
         glBindVertexArray(GrassVAO);
         glBindTexture(GL_TEXTURE_2D, WindowTexture.Id);
         TransparencyDepthSort(&GrassPositions[0], ArrayCount(GrassPositions), CameraPos);
@@ -323,12 +374,13 @@ int WinMain(HINSTANCE hInstance,
         }
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
         
-        glUseProgram(ScreenProgram.Id);
-        glBindVertexArray(ScreenVAO);
+        glUseProgram(PostEffectsProgram.Id);
         glDisable(GL_DEPTH_TEST); // So the screen buffer gets drawn in front of anything else
+        glBindVertexArray(ScreenVAO);
         glBindTexture(GL_TEXTURE_2D, ColorBuffer);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         
