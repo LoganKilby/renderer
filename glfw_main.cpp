@@ -320,19 +320,6 @@ int WinMain(HINSTANCE hInstance,
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         
-        // Skybox
-        glDepthMask(GL_FALSE); // Don't write to the depth buffer
-        glDepthFunc(GL_LEQUAL);
-        glUseProgram(SkyboxProgram.Id);
-        ModelMatrix = glm::mat4(1.0f);
-        MVP = ProjectionMatrix * ViewSubMatrix * ModelMatrix;
-        SetUniformMatrix4fv(SkyboxProgram.Id, "mvp", MVP);
-        glBindVertexArray(SkyboxVAO);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LESS);
-        
         glUseProgram(Program.Id);
         // Floor
         ModelMatrix = glm::mat4(1.0f);
@@ -359,6 +346,17 @@ int WinMain(HINSTANCE hInstance,
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        // Skybox
+        glDepthFunc(GL_LEQUAL);
+        glUseProgram(SkyboxProgram.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        MVP = ProjectionMatrix * ViewSubMatrix * ModelMatrix;
+        SetUniformMatrix4fv(SkyboxProgram.Id, "mvp", MVP);
+        glBindVertexArray(SkyboxVAO);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthFunc(GL_LESS);
         
         // Grass
         glBindVertexArray(GrassVAO);
