@@ -68,6 +68,13 @@ Distance	Constant	Linear	Quadratic
 600		 1.0		 0.007	 0.0002
 3250		1.0		 0.0014	0.000007
 
+Some Material Refraction Indices:
+Air	     1.00
+Water	   1.33
+Ice	     1.309
+Glass	   1.52
+Diamond     2.42
+
 Grayscale:
  - The human eye has a particular sensitivity to each color. When calculating a grayscale image,
 (at least in the learnopengl tutorial) the following scaling constants can be used to produce

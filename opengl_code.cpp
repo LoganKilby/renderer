@@ -415,7 +415,17 @@ SetUniform1i(int Program, char *Name, int Data)
     glUniform1i(UniformLocation, Data);
 }
 
-internal void DebugPrintUniforms(GLuint ProgramID)
+internal void
+SetUniformMatrix3fv(int Program, char *Name, glm::mat3 Data)
+{
+    glUseProgram(Program);
+    GLint UniformLocation = glGetUniformLocation(Program, Name);
+    AssertUniformLoc(UniformLocation);
+    glUniformMatrix3fv(UniformLocation, 1, GL_FALSE, &Data[0][0]);
+}
+
+internal void 
+DebugPrintUniforms(GLuint ProgramID)
 {
     int UniformCount;
     glGetProgramiv(ProgramID, GL_ACTIVE_UNIFORMS, &UniformCount);

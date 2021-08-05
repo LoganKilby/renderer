@@ -137,6 +137,17 @@ int WinMain(HINSTANCE hInstance,
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(5 * sizeof(float)));
     
+    unsigned int ReflectiveCubeVAO, ReflectiveCubeVBO;
+    glGenVertexArrays(1, &ReflectiveCubeVAO);
+    glGenBuffers(1, &ReflectiveCubeVBO);
+    glBindVertexArray(ReflectiveCubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ReflectiveCubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(ReflectiveCubeVertices), &ReflectiveCubeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+    
     unsigned int PlaneVAO, PlaneVBO;
     glGenVertexArrays(1, &PlaneVAO);
     glGenBuffers(1, &PlaneVBO);
@@ -237,10 +248,6 @@ int WinMain(HINSTANCE hInstance,
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     SetUniform1i(Program.Id, "Materials.DiffuseMaps[0]", 0);
     
-    VertexShaderID = LoadAndCompileShader("shaders/reflective_cube_vertex.c", GL_VERTEX_SHADER);
-    opengl_shader_program ReflectionProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    DebugPrintUniforms(ReflectionProgram.Id);
-    
     VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
@@ -248,6 +255,15 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/skybox_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/skybox_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program SkyboxProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    SetUniform1i(SkyboxProgram.Id, "cubemap", 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/reflective_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/reflective_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program ReflectiveProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    SetUniform1i(ReflectiveProgram.Id, "skybox", 0);
+    DebugPrintUniforms(ReflectiveProgram.Id);
+    
+    
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -314,7 +330,7 @@ int WinMain(HINSTANCE hInstance,
                                             WindowWidth / WindowHeight, 
                                             0.1f, 
                                             100.0f);
-        
+#if 0
         glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -347,18 +363,7 @@ int WinMain(HINSTANCE hInstance,
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
-        // Skybox
-        glDepthFunc(GL_LEQUAL);
-        glUseProgram(SkyboxProgram.Id);
-        ModelMatrix = glm::mat4(1.0f);
-        MVP = ProjectionMatrix * ViewSubMatrix * ModelMatrix;
-        SetUniformMatrix4fv(SkyboxProgram.Id, "mvp", MVP);
-        glBindVertexArray(SkyboxVAO);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthFunc(GL_LESS);
-        
-        // Grass
+        // Transparent objects
         glBindVertexArray(GrassVAO);
         glBindTexture(GL_TEXTURE_2D, WindowTexture.Id);
         TransparencyDepthSort(&GrassPositions[0], ArrayCount(GrassPositions), CameraPos);
@@ -381,6 +386,38 @@ int WinMain(HINSTANCE hInstance,
         glBindVertexArray(ScreenVAO);
         glBindTexture(GL_TEXTURE_2D, ColorBuffer);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        
+#endif
+        glEnable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        // Reflective Cube
+        glUseProgram(ReflectiveProgram.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, 3.0f, -2.0f));
+        SetUniformMatrix4fv(ReflectiveProgram.Id, "model", ModelMatrix);
+        SetUniformMatrix4fv(ReflectiveProgram.Id, "view", ViewMatrix);
+        SetUniformMatrix4fv(ReflectiveProgram.Id, "projection", ProjectionMatrix);
+        SetUniform3fv(ReflectiveProgram.Id, "uCameraPos", CameraPos);
+        glBindVertexArray(ReflectiveCubeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+        
+        // Skybox
+        glDepthFunc(GL_LEQUAL);
+        glUseProgram(SkyboxProgram.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        MVP = ProjectionMatrix * ViewSubMatrix * ModelMatrix;
+        SetUniformMatrix4fv(SkyboxProgram.Id, "mvp", MVP);
+        glBindVertexArray(SkyboxVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+        glDepthFunc(GL_LESS);
+        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
