@@ -141,22 +141,30 @@ int WinMain(HINSTANCE hInstance,
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
+    
     VertexShaderID = LoadAndCompileShader("shaders/model_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/model_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     DebugPrintUniforms(Program.Id);
     
+    VertexShaderID = LoadAndCompileShader("shaders/instanced_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/instanced_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program InstancedProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    
+    
     float SecondsElapsed;
     float PrevTime = 0;
     float FrameTime;
+    int FPS;
+    char FPS_OutputBuffer[20] = {};
     
     // Asteroid position setup
-    unsigned int amount = 1000;
+    unsigned int amount = 100;
     glm::mat4 *ModelMatricies = (glm::mat4 *)malloc(sizeof(glm::mat4) * amount);
     memset(ModelMatricies, 0, sizeof(glm::mat4) * amount);
     srand(glfwGetTime()); // initialize random seed	
-    float radius = 75.0;
-    float offset = 2.5f;
+    float radius = 100.0;
+    float offset = 10.0f;
     glm::mat4 model;
     for(unsigned int i = 0; i < amount; i++)
     {
@@ -181,7 +189,37 @@ int WinMain(HINSTANCE hInstance,
         
         // 4. now add to list of matrices
         ModelMatricies[i] = model;
-    } 
+    }
+    
+    unsigned int InstancedMatrixBuffer;
+    glGenBuffers(1, &InstancedMatrixBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, InstancedMatrixBuffer);
+    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &ModelMatricies[0], GL_STATIC_DRAW);
+    
+    size_t Vec4Size = sizeof(glm::vec4);
+    for(unsigned int MeshIndex = 0; MeshIndex < Asteroid.Meshes.size(); ++MeshIndex)
+    {
+        glBindVertexArray(Asteroid.Meshes[MeshIndex].VAO);
+        
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)0);
+        
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)Vec4Size);
+        
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)(2 * Vec4Size));
+        
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)(3 * Vec4Size));
+        
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+        glVertexAttribDivisor(6, 1);
+        
+        glBindVertexArray(0);
+    }
     
     GlobalInput = {};
     GlobalInput.PrevMousePos.x = WindowWidth / 2;
@@ -247,18 +285,23 @@ int WinMain(HINSTANCE hInstance,
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
         DrawModel(Program.Id, Planet);
         
-        for(int i = 0; i < amount; ++i)
+        SetUniformMatrix4fv(InstancedProgram.Id, "view", ViewMatrix);
+        SetUniformMatrix4fv(InstancedProgram.Id, "projection", ProjectionMatrix);
+        for(int MeshIndex = 0; MeshIndex < Asteroid.Meshes.size(); ++MeshIndex)
         {
-            ModelMatrix = ModelMatricies[i];
-            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.2f, 0.2f, 0.2f));
-            MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-            SetUniformMatrix4fv(Program.Id, "mvp", MVP);
-            DrawModel(Program.Id, Asteroid);
+            mesh Mesh = Asteroid.Meshes[MeshIndex];
+            glBindVertexArray(Mesh.VAO);
+            glBindTexture(GL_TEXTURE_2D, Mesh.Textures[0].Id);
+            glDrawElementsInstanced(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0, amount);
         }
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
         OutputErrorQueue();
+        FPS = 1 / FrameTime;
+        sprintf(FPS_OutputBuffer, "FPS: %d\n", FPS);
+        OutputDebugStringA(FPS_OutputBuffer);
+        memset(FPS_OutputBuffer, 0, sizeof(FPS_OutputBuffer));
     }
     
     return 0;
