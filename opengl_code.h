@@ -13,7 +13,7 @@ static void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
 static void SetUniform1f(int Program, char *Name, float Data);
 static void SetUniform1i(int Program, char *Name, int Data);
 
-struct opengl_buffer
+struct opengl_render_object
 {
     unsigned int VAO;
     unsigned int VBO;
@@ -36,45 +36,6 @@ struct material
     unsigned int DiffuseMapTexUnit;
     unsigned int SpecularMapTexUnit;
     float Shininess;
-};
-
-struct directional_light
-{
-    glm::vec3 Direction;
-    glm::vec3 Ambient;
-    glm::vec3 Diffuse;
-    glm::vec3 Specular;
-};
-
-struct point_light
-{
-    glm::vec3 Position;
-    glm::vec3 Ambient;
-    glm::vec3 Diffuse;
-    glm::vec3 Specular;
-    
-    // Attenuation 
-    float Constant;
-    float Linear;
-    float Quadratic;
-};
-
-struct spot_light
-{
-    glm::vec3 Position;
-    glm::vec3 Direction;
-    glm::vec3 Ambient;
-    glm::vec3 Diffuse;
-    glm::vec3 Specular;
-    
-    // Smoothing boundary
-    float NearRadius;
-    float FarRadius;
-    
-    // Attenuation 
-    float Constant;
-    float Linear;
-    float Quadratic;
 };
 
 // Personal NOTE: OpenGL guarentees at least 16 4-component vertex attributes (vetex shader input

@@ -24,6 +24,10 @@
 #include "opengl_code.cpp"
 #include "renderer.cpp"
 
+// NOTE: If the object's texture has an unexpected color, verify that the texture coordinate
+// varibles match across the shader program. This is NOT a link error; There are no error
+// messages for this bug.
+
 void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
@@ -60,9 +64,6 @@ int WinMain(HINSTANCE hInstance,
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     
-    
-    // TODO: Assimp is way too slow.
-    
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
     if(glfwInit())
@@ -95,8 +96,8 @@ int WinMain(HINSTANCE hInstance,
         // TODO: Do more initialization here?
         
         glEnable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        //glEnable(GL_BLEND);
+        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
     else
     {
@@ -114,173 +115,87 @@ int WinMain(HINSTANCE hInstance,
     }
     
     stbi_set_flip_vertically_on_load(true);
+    model Asteroid = LoadModel("models/rock/rock.obj");
+    model Planet = LoadModel("models/planet/planet.obj");
     
-    unsigned int SkyboxVAO, SkyboxVBO;
-    glGenVertexArrays(1, &SkyboxVAO);
-    glGenBuffers(1, &SkyboxVBO);
-    glBindVertexArray(SkyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, SkyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(SkyboxVertices), &SkyboxVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-    
-    unsigned int CubeVAO, CubeVBO;
-    glGenVertexArrays(1, &CubeVAO);
-    glGenBuffers(1, &CubeVBO);
-    glBindVertexArray(CubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), &CubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(5 * sizeof(float)));
-    
-    unsigned int ReflectiveCubeVAO, ReflectiveCubeVBO;
-    glGenVertexArrays(1, &ReflectiveCubeVAO);
-    glGenBuffers(1, &ReflectiveCubeVBO);
-    glBindVertexArray(ReflectiveCubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, ReflectiveCubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(ReflectiveCubeVertices), &ReflectiveCubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
-    
-    unsigned int PlaneVAO, PlaneVBO;
-    glGenVertexArrays(1, &PlaneVAO);
-    glGenBuffers(1, &PlaneVBO);
-    glBindVertexArray(PlaneVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, PlaneVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(PlaneVertices), &PlaneVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-    
-    unsigned int GrassVAO, GrassVBO;
-    glGenVertexArrays(1, &GrassVAO);
-    glGenBuffers(1, &GrassVBO);
-    glBindVertexArray(GrassVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, GrassVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GrassVertices), &GrassVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-    
-    unsigned int MirrorVAO, MirrorVBO;
-    glGenVertexArrays(1, &MirrorVAO);
-    glGenBuffers(1, &MirrorVBO);
-    glBindVertexArray(MirrorVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, MirrorVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(MirrorVertices), &MirrorVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
+    unsigned int VAO, VBO;
+    // CubeVerticies /3v, 2st, 3vn
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), &CubeVertices, GL_STATIC_DRAW);  
+    // vertex positions
+    glEnableVertexAttribArray(0);	
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)0);
+    // vertex normals
+    glEnableVertexAttribArray(1);	
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(sizeof(float) * 5));
+    // vertex texture coords
+    glEnableVertexAttribArray(2);	
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(sizeof(float) * 3));
     glBindVertexArray(0);
     
-    unsigned int ScreenVAO, ScreenVBO;
-    glGenVertexArrays(1, &ScreenVAO);
-    glGenBuffers(1, &ScreenVBO);
-    glBindVertexArray(ScreenVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, ScreenVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
-    glBindVertexArray(0);
     
-    unsigned int FrameBuffer;
-    glGenFramebuffers(1, &FrameBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-    
-    unsigned int ColorBuffer;
-    glGenTextures(1, &ColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, ColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WindowWidth, WindowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ColorBuffer, 0);
-    
-    unsigned int RBO; // Render buffer object
-    glGenRenderbuffers(1, &RBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WindowWidth, WindowHeight);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
-    
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        printf("ERROR: An error occured while creating render buffer\n");
-    }
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // The default framebuffer is now bound
-    
-    texture_unit CubeTexture = LoadTexture("textures/container.jpg");
-    texture_unit PlaneTexture = LoadTexture("textures/metal.jpg");
-    texture_unit WindowTexture = LoadTexture("textures/blending_transparent_window.png");
-    
-    cubemap_texture_paths CubemapPaths;
-    CubemapPaths.Left = "textures/skybox/left.jpg";
-    CubemapPaths.Right = "textures/skybox/right.jpg";
-    CubemapPaths.Top = "textures/skybox/top.jpg";
-    CubemapPaths.Bottom = "textures/skybox/bottom.jpg";
-    CubemapPaths.Back = "textures/skybox/back.jpg";
-    CubemapPaths.Front = "textures/skybox/front.jpg";
-    unsigned int SkyboxCubemap = LoadCubemap(CubemapPaths.Right, CubemapPaths.Left,
-                                             CubemapPaths.Top, CubemapPaths.Bottom,
-                                             CubemapPaths.Front, CubemapPaths.Back);
-    
+    // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
-    
-    VertexShaderID = LoadAndCompileShader("shaders/simple_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/simple_frag.c", GL_FRAGMENT_SHADER);
+    unsigned int GeometryShaderID;
+    VertexShaderID = LoadAndCompileShader("shaders/model_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/model_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    SetUniform1i(Program.Id, "Materials.DiffuseMaps[0]", 0);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/skybox_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/skybox_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program SkyboxProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    SetUniform1i(SkyboxProgram.Id, "cubemap", 0);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/reflective_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/reflective_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program ReflectiveProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    SetUniform1i(ReflectiveProgram.Id, "skybox", 0);
-    DebugPrintUniforms(ReflectiveProgram.Id);
-    
-    
+    DebugPrintUniforms(Program.Id);
     
     float SecondsElapsed;
     float PrevTime = 0;
     float FrameTime;
+    
+    // Asteroid position setup
+    unsigned int amount = 1000;
+    glm::mat4 *ModelMatricies = (glm::mat4 *)malloc(sizeof(glm::mat4) * amount);
+    memset(ModelMatricies, 0, sizeof(glm::mat4) * amount);
+    srand(glfwGetTime()); // initialize random seed	
+    float radius = 75.0;
+    float offset = 2.5f;
+    glm::mat4 model;
+    for(unsigned int i = 0; i < amount; i++)
+    {
+        model = glm::mat4(1.0f);
+        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // keep height of field smaller compared to width of x and z
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
+        
+        // 2. scale: scale between 0.05 and 0.25f
+        float scale = (rand() % 20) / 100.0f + 0.05;
+        model = glm::scale(model, glm::vec3(scale));
+        
+        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
+        float rotAngle = (rand() % 360);
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+        
+        // 4. now add to list of matrices
+        ModelMatricies[i] = model;
+    } 
     
     GlobalInput = {};
     GlobalInput.PrevMousePos.x = WindowWidth / 2;
     GlobalInput.PrevMousePos.y = WindowHeight / 2;
     
     // Camera
-    glm::vec3 CameraPos(0.0f, 0.0f, 0.0f);
+    // TODO: Set up a camera proper camera system
+    glm::vec3 CameraPos(0.0f, 0.0f, 45.0f);
     glm::vec3 CameraFront(0.0f, 0.0f, -1.0f);
     glm::vec3 CameraUp(0.0f, 1.0f, 0.0f);
     CameraOrientation = {};
     CameraOrientation.Yaw = -90.0f;
     CameraOrientation.LookSpeed = 0.1f;
-    CameraOrientation.PanSpeed = 2.0f;
+    CameraOrientation.PanSpeed = 10.0f;
     FieldOfView = 45.0f;
     
     glm::mat4 ModelMatrix;
@@ -288,15 +203,6 @@ int WinMain(HINSTANCE hInstance,
     glm::mat4 ViewSubMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
-    
-    glm::vec3 GrassPositions[] = 
-    {
-        glm::vec3(-1.5f,  0.0f, -0.48f),
-        glm::vec3( 1.5f,  0.0f,  0.51f),
-        glm::vec3( 0.0f,  0.0f,  0.7f),
-        glm::vec3(-0.3f,  0.0f, -2.3f),
-        glm::vec3( 0.5f,  0.0f, -0.6f) 
-    };
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -329,95 +235,26 @@ int WinMain(HINSTANCE hInstance,
         ProjectionMatrix = glm::perspective(glm::radians(FieldOfView), 
                                             WindowWidth / WindowHeight, 
                                             0.1f, 
-                                            100.0f);
-#if 0
-        glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+                                            1000.0f);
+        
+        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-        
-        glUseProgram(Program.Id);
-        // Floor
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -0.01f, 0.0f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(Program.Id, "mvp", MVP);
-        glBindVertexArray(PlaneVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, PlaneTexture.Id);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
-        
-        // Cubes
-        glBindVertexArray(CubeVAO);
-        glBindTexture(GL_TEXTURE_2D, CubeTexture.Id);
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-1.0f, 0.0f, -1.0f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(Program.Id, "mvp", MVP);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
         
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(2.0f, 0.0f, 0.0f));
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -3.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(6.5f, 6.5f, 6.5f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        DrawModel(Program.Id, Planet);
         
-        // Transparent objects
-        glBindVertexArray(GrassVAO);
-        glBindTexture(GL_TEXTURE_2D, WindowTexture.Id);
-        TransparencyDepthSort(&GrassPositions[0], ArrayCount(GrassPositions), CameraPos);
-        for(int i = 0; i < ArrayCount(GrassPositions); ++i)
+        for(int i = 0; i < amount; ++i)
         {
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::translate(ModelMatrix, GrassPositions[TransparentIndexBuffer[i]]);
+            ModelMatrix = ModelMatricies[i];
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.2f, 0.2f, 0.2f));
             MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
             SetUniformMatrix4fv(Program.Id, "mvp", MVP);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+            DrawModel(Program.Id, Asteroid);
         }
-        
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-        
-        glUseProgram(PostEffectsProgram.Id);
-        glDisable(GL_DEPTH_TEST); // So the screen buffer gets drawn in front of anything else
-        glBindVertexArray(ScreenVAO);
-        glBindTexture(GL_TEXTURE_2D, ColorBuffer);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        
-#endif
-        glEnable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        // Reflective Cube
-        glUseProgram(ReflectiveProgram.Id);
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, 3.0f, -2.0f));
-        SetUniformMatrix4fv(ReflectiveProgram.Id, "model", ModelMatrix);
-        SetUniformMatrix4fv(ReflectiveProgram.Id, "view", ViewMatrix);
-        SetUniformMatrix4fv(ReflectiveProgram.Id, "projection", ProjectionMatrix);
-        SetUniform3fv(ReflectiveProgram.Id, "uCameraPos", CameraPos);
-        glBindVertexArray(ReflectiveCubeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        
-        // Skybox
-        glDepthFunc(GL_LEQUAL);
-        glUseProgram(SkyboxProgram.Id);
-        ModelMatrix = glm::mat4(1.0f);
-        MVP = ProjectionMatrix * ViewSubMatrix * ModelMatrix;
-        SetUniformMatrix4fv(SkyboxProgram.Id, "mvp", MVP);
-        glBindVertexArray(SkyboxVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        glDepthFunc(GL_LESS);
-        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

@@ -74,4 +74,43 @@ Distance	Constant	Linear	Quadratic
 
 */
 
+struct directional_light
+{
+    glm::vec3 Direction;
+    glm::vec3 Ambient;
+    glm::vec3 Diffuse;
+    glm::vec3 Specular;
+};
+
+struct point_light
+{
+    glm::vec3 Position;
+    glm::vec3 Ambient;
+    glm::vec3 Diffuse;
+    glm::vec3 Specular;
+    
+    // Attenuation 
+    float Constant;
+    float Linear;
+    float Quadratic;
+};
+
+struct spot_light
+{
+    glm::vec3 Position;
+    glm::vec3 Direction;
+    glm::vec3 Ambient;
+    glm::vec3 Diffuse;
+    glm::vec3 Specular;
+    
+    // Smoothing boundary
+    float NearRadius;
+    float FarRadius;
+    
+    // Attenuation 
+    float Constant;
+    float Linear;
+    float Quadratic;
+};
+
 #endif //RENDERER_H

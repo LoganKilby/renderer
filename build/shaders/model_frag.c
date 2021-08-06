@@ -53,10 +53,9 @@ vec3 CalculateDirectionalLight(directional_light Light, vec3 FragmentPosition, v
 vec3 CalculatePointLight(point_light Light, vec3 FragmentPosition, vec3 SurfaceNormal,
                          vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor, float Shininess);
 
-in vec2 TexCoords;
+in vec2 TexCoord;
 
 out vec4 FragColor;
-
 
 uniform vec3 ViewPosition;
 uniform material Materials;
@@ -67,8 +66,7 @@ uniform directional_light DirectionalLight;
 
 void main()
 {
-    //FragColor = texture(Materials.DiffuseMaps[0], TexCoords);
-    FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    FragColor = texture(Materials.DiffuseMaps[0], TexCoord);
 }
 
 vec3 CalculateSpotLight(spot_light Light, vec3 FragmentPosition, vec3 SurfaceNormal, 

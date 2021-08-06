@@ -14,6 +14,9 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
         case GL_FRAGMENT_SHADER:
         ShaderTypeString = "GL_FRAGMENT_SHADER";
         break;
+        case GL_GEOMETRY_SHADER:
+        ShaderTypeString = "GL_GEOMETRY_SHADER";
+        break;
         default:
         {
             printf("WARNING: No Support for the shader type passed to CompileShader with filename %s\n", Filename);
@@ -44,10 +47,6 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
             
             free(LogBuffer);
         }
-        else
-        {
-            fprintf(stderr, "SHADER: %s compiled\n", Filename);
-        }
         
         free(ShaderSource);
     }
@@ -65,9 +64,28 @@ CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID)
     
     glAttachShader(Result.Id, VertexShaderID);
     glAttachShader(Result.Id, FragmentShaderID);
+    
     glLinkProgram(Result.Id);
     
-    // Shaders will only be flagged for deletion while attached to a program and not immediately deleted.
+    int LinkStatus;
+    glGetProgramiv(Result.Id, GL_LINK_STATUS, &LinkStatus);
+    if(LinkStatus == GL_FALSE)
+    {
+        fprintf(stderr, "ERROR: Shader link error (Program ID: %d)", Result.Id);
+        int LogLength;
+        glGetProgramiv(Result.Id, GL_INFO_LOG_LENGTH, &LogLength);
+        if(LogLength)
+        {
+            char *LogBuffer = (char *)malloc(LogLength);
+            memset(LogBuffer, 0, LogLength);
+            glGetProgramInfoLog(Result.Id, LogLength, NULL, LogBuffer);
+            fprintf(stderr, " %s", LogBuffer);
+            free(LogBuffer);
+        }
+    }
+    
+    // NOTE: glDeleteShader sets a flag for deletion. A shader won't be deleted while attached to a program.
+    
     glDeleteShader(VertexShaderID); 
     glDeleteShader(FragmentShaderID);
     
@@ -519,3 +537,4 @@ LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *
     
     return Result;
 }
+

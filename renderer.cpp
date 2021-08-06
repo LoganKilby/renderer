@@ -151,11 +151,10 @@ ProcessNode(model *Model, aiNode *Node, const aiScene *Scene)
 internal model
 LoadModel(char *Path)
 {
+    char TempPath[256] = {};
+    strcpy(TempPath, Path);
+    
     model Model = {};
-    
-    // TODO: Assimp is sooo slow
-    fprintf(stderr, "INFO: Loading model %s...\n", Path);
-    
     
     Assimp::Importer Importer;
     const aiScene *Scene = Importer.ReadFile(Path, aiProcess_Triangulate | aiProcess_FlipUVs);
@@ -180,28 +179,30 @@ LoadModel(char *Path)
         Model.Directory[PathIndex] = 0;
         PathIndex--;
     }
-    
     Model.DirectoryStrLen = PathIndex + 1;
     
     ProcessNode(&Model, Scene->mRootNode, Scene);
     
+    printf("INFO: Model loaded (%s)\n", TempPath);
     return Model;
 }
 
 internal void
 DrawMesh(unsigned int Program, mesh Mesh)
 {
-#if 1
-    glUseProgram(Program);
-    unsigned int DiffuseTexUnit = 1;
-    unsigned int SpecularTexUnit = 1;
+    // NOTE: This string insertion is only set up to insert a single digit number. If there are
+    // greater than 9 textures for a mesh, this will break. This isn't really a problem for me
+    // but maybe it will be in the future.
+    // "String[sizeof(String) - 3] = 48 + TexUnit"
+    unsigned int DiffuseTexUnit = 0;
+    unsigned int SpecularTexUnit = 0;
     
-    char DifString[] = "CrateMaterial.DiffuseMaps[ ]";
-    char SpecString[] = "CrateMaterial.SpecularMaps[ ]";
+    char DifString[] = "Materials.DiffuseMaps[ ]";
+    char SpecString[] = "Materials.SpecularMaps[ ]";
     
     texture_unit TexUnit;
     unsigned int TextureCount = Mesh.Textures.size();
-    Assert(TextureCount == 2);
+    //Assert(TextureCount == 2);
     for(unsigned int i = 0; i < TextureCount; ++i)
     {
         glActiveTexture(GL_TEXTURE0 + i);
@@ -210,12 +211,12 @@ DrawMesh(unsigned int Program, mesh Mesh)
         if(TexUnit.Type == DIFFUSE_MAP)
         {
             DifString[sizeof(DifString) - 3] = 48 + DiffuseTexUnit++;
-            SetUniform1i(Program, DifString, TexUnit.Id);
+            SetUniform1i(Program, DifString, i);
         }
         else if(TexUnit.Type == SPECULAR_MAP)
         {
             SpecString[sizeof(SpecString) - 3] = 48 + SpecularTexUnit++;
-            SetUniform1i(Program, SpecString, TexUnit.Id);
+            SetUniform1i(Program, SpecString, i);
         }
         else
         {
@@ -226,9 +227,18 @@ DrawMesh(unsigned int Program, mesh Mesh)
     }
     
     glActiveTexture(GL_TEXTURE0);
-#endif
     
     glBindVertexArray(Mesh.VAO);
     glDrawElements(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+}
+
+internal void
+DrawModel(unsigned int ProgramID, model Model)
+{
+    glUseProgram(ProgramID);
+    for(int MeshIndex = 0; MeshIndex < Model.Meshes.size(); ++MeshIndex)
+    {
+        DrawMesh(ProgramID, Model.Meshes[MeshIndex]);
+    }
 }
