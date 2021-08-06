@@ -71,7 +71,7 @@ CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID)
     glGetProgramiv(Result.Id, GL_LINK_STATUS, &LinkStatus);
     if(LinkStatus == GL_FALSE)
     {
-        fprintf(stderr, "ERROR: Shader link error (Program ID: %d)", Result.Id);
+        fprintf(stderr, "ERROR: Shader link error (Program ID: %d)\n", Result.Id);
         int LogLength;
         glGetProgramiv(Result.Id, GL_INFO_LOG_LENGTH, &LogLength);
         if(LogLength)
@@ -79,7 +79,7 @@ CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID)
             char *LogBuffer = (char *)malloc(LogLength);
             memset(LogBuffer, 0, LogLength);
             glGetProgramInfoLog(Result.Id, LogLength, NULL, LogBuffer);
-            fprintf(stderr, " %s", LogBuffer);
+            fprintf(stderr, "%s\n\n", LogBuffer);
             free(LogBuffer);
         }
     }
@@ -158,6 +158,7 @@ OutputErrorQueue()
     while(ErrorCode != GL_NO_ERROR)
     {
         OutputOpenglError(ErrorCode);
+        Assert(0);
         ErrorCode = glGetError();
     }
 }
