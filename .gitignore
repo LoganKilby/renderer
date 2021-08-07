@@ -1,5 +1,4 @@
 
-*.obj
 *.exe
 *.ilk
 *.pdb
@@ -11,3 +10,4 @@
 *.ipch
 *.db
 build/.vs/renderer/v16/.suo
+project.4coder
