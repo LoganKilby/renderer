@@ -45,7 +45,8 @@ void main()
     vec3 DiffuseColor = texture(Materials.DiffuseMaps[0], TexCoord).rgb;
     vec3 SpecularColor = vec3(0.01, 0.01, 0.01); // Add a specular map
     vec3 ViewDirection = normalize(ViewPosition - FragPos);
-    vec3 Result = CalculateDirectionalLight(DirectionalLight, FragPos, normalize(Normal), 
+    vec3 SurfaceNormal = normalize(Normal);
+    vec3 Result = CalculateDirectionalLight(DirectionalLight, FragPos, SurfaceNormal, 
                                             ViewDirection, DiffuseColor, SpecularColor, 32.0);
     FragColor = vec4(Result, 1.0);
 }
