@@ -40,6 +40,18 @@ struct cubemap_texture_paths
     char *Front;
 };
 
+// NOTE: This is for implementing MSAA without the help of a window library
+struct msaa_framebuffer
+{
+    unsigned int ScreenVAO;
+    unsigned int FrameBuffer;
+    unsigned int MSAA_ColorBuffer;
+    unsigned int RenderBuffer;
+    
+    unsigned int ResolvedFrameBuffer;
+    unsigned int DRAW_ColorBuffer;
+};
+
 struct mesh
 {
     std::vector<texture_unit> Textures;

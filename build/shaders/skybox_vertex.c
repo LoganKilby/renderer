@@ -3,13 +3,14 @@ layout (location = 0) in vec3 aPos;
 
 out vec3 TexCoords;
 
-uniform mat4 mvp;
+uniform mat4 projection;
+uniform mat4 view;
 
 void main()
 {
-    TexCoords = vec3(aPos.x, aPos.y, aPos.z);
+    TexCoords = aPos;
     
-    vec4 pos = mvp * vec4(aPos, 1.0);
+    vec4 pos = projection * view * vec4(aPos, 1.0);
     
     // NOTE: When the perspective divide happens, the z coordinate is guaranteed to be 1,
     // the maximum depth value. 

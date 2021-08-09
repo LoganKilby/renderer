@@ -444,7 +444,7 @@ SetUniformMatrix3fv(int Program, char *Name, glm::mat3 Data)
 }
 
 internal void 
-DebugPrintUniforms(GLuint ProgramID)
+DebugPrintUniforms(GLuint ProgramID, char *ProgramName)
 {
     int UniformCount;
     glGetProgramiv(ProgramID, GL_ACTIVE_UNIFORMS, &UniformCount);
@@ -455,7 +455,7 @@ DebugPrintUniforms(GLuint ProgramID)
     int Size;
     GLenum Type;
     
-    fprintf(stderr, "DEBUG INFO: Uniform Dump :: Program ID (%d)\n", ProgramID);
+    fprintf(stderr, "DEBUG INFO: Uniform Dump :: Program(\"%s\", %d)\n", ProgramName, ProgramID);
     for(unsigned int UniformID = 0; UniformID < UniformCount; ++UniformID)
     {
         glGetActiveUniform(ProgramID, UniformID, 100, &Length, &Size, &Type, &Buffer[0]);
@@ -539,3 +539,95 @@ LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *
     return Result;
 }
 
+internal offscreen_buffer
+CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
+{
+    offscreen_buffer Result;
+    
+    glGenFramebuffers(1, &Result.FrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffer);
+    
+    glGenTextures(1, &Result.ColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, Result.ColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WindowWidth, WindowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result.ColorBuffer, 0);
+    
+    glGenRenderbuffers(1, &Result.RenderBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WindowWidth, WindowHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result.RenderBuffer);
+    
+    GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if(FramebufferStatus != GL_FRAMEBUFFER_COMPLETE)
+    {
+        char *Message;
+        switch(FramebufferStatus)
+        {
+            case GL_FRAMEBUFFER_UNDEFINED: 
+            Message = "GL_FRAMEBUFFER_UNDEFINED"; break;
+            
+            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: 
+            Message = "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"; break;
+            
+            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            Message = "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"; break;
+            
+            case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+            Message = "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"; break;
+            
+            case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+            Message = "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"; break;
+            
+            case GL_FRAMEBUFFER_UNSUPPORTED:
+            Message = "GL_FRAMEBUFFER_UNSUPPORTED"; break;
+            
+            case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            Message = "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"; break;
+            
+            case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+            Message = "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"; break;
+            
+            default: Message = "Check OpenGL error queue";
+        }
+        
+        fprintf(stderr, "ERROR: Off-screen buffer creation failure (%s)\n", Message);
+    }
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    unsigned int VBO; // NOTE: I decided to not save this because I don't need it anywhere atm.
+    glGenVertexArrays(1, &Result.VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(Result.VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(DefaultScreenVertices), &DefaultScreenVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+    
+    return Result;
+}
+
+internal void
+DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
+{
+    AssertFrameBuf(OffScreen.FrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    glUseProgram(PostEffectsShader);
+    glBindVertexArray(OffScreen.VAO);
+    glDisable(GL_DEPTH_TEST);
+    glBindTexture(GL_TEXTURE_2D, OffScreen.ColorBuffer);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glEnable(GL_DEPTH_TEST);
+}

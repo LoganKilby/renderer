@@ -54,6 +54,8 @@ vec3 CalculatePointLight(point_light Light, vec3 FragmentPosition, vec3 SurfaceN
                          vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor, float Shininess);
 
 in vec2 TexCoord;
+in vec3 Normal;
+in vec3 FragPos;
 
 out vec4 FragColor;
 
@@ -66,18 +68,26 @@ uniform directional_light DirectionalLight;
 
 void main()
 {
-    FragColor = texture(Materials.DiffuseMaps[0], TexCoord);
+    vec3 ViewDirection = normalize(ViewPosition - FragPos);
+    vec3 SurfaceNormal = normalize(Normal);
+    vec3 DiffuseColor = texture(Materials.DiffuseMaps[0], TexCoord).rgb;
+    vec3 SpecularColor = vec3(1.0, 1.0, 1.0);
+    vec3 Result = CalculateDirectionalLight(DirectionalLight, FragPos, SurfaceNormal, 
+                                            ViewDirection, DiffuseColor, SpecularColor, 32.0);
+    FragColor = vec4(Result, 1.0);
 }
 
 vec3 CalculateSpotLight(spot_light Light, vec3 FragmentPosition, vec3 SurfaceNormal, 
                         vec3 ViewDirection, vec3 DiffuseColor, vec3 SpecularColor, float Shininess)
 {
     vec3 LightToFrag = normalize(Light.Position - FragmentPosition);
+    
     // Diffuse shading
-    float AngleOfIncidence = max(dot(SurfaceNormal, LightToFrag), 0.0);
+    float AngleOfIncidence = max(dot(LightToFrag, SurfaceNormal), 0.0);
+    
     // Specular shading
-    vec3 ReflectionDirection = reflect(-LightToFrag, SurfaceNormal);
-    float AngleToReflectedLight = pow(max(dot(ViewDirection, ReflectionDirection), 0.0), Shininess);
+    vec3 HalfwayReflecDir = normalize(LightToFrag + ViewDirection); // Phong-Blinn
+    float AngleToReflectedLight = pow(max(dot(SurfaceNormal, HalfwayReflecDir), 0.0), Shininess);
     
     // Attenuation
     float DistanceToFragment = length(Light.Position - FragmentPosition);
@@ -112,11 +122,11 @@ vec3 CalculateDirectionalLight(directional_light Light, vec3 FragmentPosition, v
     vec3 AmbientComponent = Light.Ambient * DiffuseColor;
     
     vec3 LightDirection = normalize(-Light.Direction);
-    float AngleOfIncidence = max(dot(SurfaceNormal, LightDirection), 0.0); // diffuse
+    float AngleOfIncidence = max(dot(SurfaceNormal, LightDirection), 0.0);
     vec3 DiffuseComponent = Light.Diffuse * AngleOfIncidence * DiffuseColor;
     
-    vec3 ReflectionDirection = reflect(-LightDirection, SurfaceNormal);
-    float AngleToReflectedLight = pow(max(dot(ViewDirection, ReflectionDirection), 0.0), Shininess);
+    vec3 ReflectDirection = reflect(-LightDirection, SurfaceNormal);
+    float AngleToReflectedLight = pow(max(dot(ViewDirection, ReflectDirection), 0.0), Shininess);
     vec3 SpecularComponent = Light.Specular * AngleToReflectedLight * SpecularColor;
     
     return AmbientComponent + DiffuseComponent + SpecularComponent;

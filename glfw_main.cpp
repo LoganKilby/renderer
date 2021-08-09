@@ -24,8 +24,8 @@
 #include "opengl_code.cpp"
 #include "renderer.cpp"
 
-// NOTE: If the object's texture has an unexpected color, verify that the texture coordinate
-// varibles match across the shader program. This is NOT a link error; There are no error
+// NOTE: If the object's texture has an unexpected color or is black, verify that the in/out 
+// varibles match across the shader program. This is NOT a link error; There are no error 
 // messages for this bug.
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
@@ -78,6 +78,7 @@ int WinMain(HINSTANCE hInstance,
         printf("ERROR: GLFW failed to initialize\n");
     }
     
+    glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
     glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
@@ -85,7 +86,8 @@ int WinMain(HINSTANCE hInstance,
     glfwSetCursorPosCallback(Window, GLFW_MouseCallback);
     glfwSetScrollCallback(Window, GLFW_MouseScrollCallback);
     glfwSetCursorPos(Window, WindowWidth / 2.0f, WindowHeight / 2.0f);
-    
+    GLFWmonitor *Monitor = glfwGetPrimaryMonitor();
+    const GLFWgammaramp *GammaRamp = glfwGetGammaRamp(Monitor);
     GLenum GlewError = glewInit();
     if(GlewError == GLEW_OK)
     {
@@ -93,9 +95,11 @@ int WinMain(HINSTANCE hInstance,
         printf("Vendor: "); printf((char *)glGetString(GL_VENDOR)); printf("\n");
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
         printf("Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
-        // TODO: Do more initialization here?
         
+        // TODO: Do more initialization here?
+        stbi_set_flip_vertically_on_load(true);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_MULTISAMPLE);
         //glEnable(GL_BLEND);
         //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -114,28 +118,25 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-    stbi_set_flip_vertically_on_load(true);
+    offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
     model Asteroid = LoadModel("models/rock/rock.obj");
     model Planet = LoadModel("models/planet/planet.obj");
+    unsigned int StarSkybox = LoadCubemap("textures/skybox/stars/right.png",
+                                          "textures/skybox/stars/left.png",
+                                          "textures/skybox/stars/top.png",
+                                          "textures/skybox/stars/bottom.png",
+                                          "textures/skybox/stars/back.png",
+                                          "textures/skybox/stars/front.png");
     
-    unsigned int VAO, VBO;
-    // CubeVerticies /3v, 2st, 3vn
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), &CubeVertices, GL_STATIC_DRAW);  
-    // vertex positions
-    glEnableVertexAttribArray(0);	
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)0);
-    // vertex normals
-    glEnableVertexAttribArray(1);	
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(sizeof(float) * 5));
-    // vertex texture coords
-    glEnableVertexAttribArray(2);	
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(sizeof(float) * 3));
+    unsigned int SkyboxVAO, SkyboxVBO;
+    glGenVertexArrays(1, &SkyboxVAO);
+    glGenBuffers(1, &SkyboxVBO);
+    glBindVertexArray(SkyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, SkyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(SkyboxVertices), &SkyboxVertices, GL_STATIC_DRAW);  
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
-    
     
     // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
@@ -145,12 +146,20 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/model_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/model_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    DebugPrintUniforms(Program.Id);
+    DebugPrintUniforms(Program.Id, "Program");
     
     VertexShaderID = LoadAndCompileShader("shaders/instanced_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/instanced_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program InstancedProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     
+    VertexShaderID = LoadAndCompileShader("shaders/skybox_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/skybox_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program SkyboxProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    SetUniform1i(SkyboxProgram.Id, "cubemap", 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -159,12 +168,13 @@ int WinMain(HINSTANCE hInstance,
     char FPS_OutputBuffer[20] = {};
     
     // Asteroid position setup
-    unsigned int amount = 100;
+    unsigned int amount = 10000;
     glm::mat4 *ModelMatricies = (glm::mat4 *)malloc(sizeof(glm::mat4) * amount);
     memset(ModelMatricies, 0, sizeof(glm::mat4) * amount);
     srand(glfwGetTime()); // initialize random seed	
     float radius = 100.0;
-    float offset = 10.0f;
+    float offset = 20.0f;
+    
     glm::mat4 model;
     for(unsigned int i = 0; i < amount; i++)
     {
@@ -236,6 +246,12 @@ int WinMain(HINSTANCE hInstance,
     CameraOrientation.PanSpeed = 10.0f;
     FieldOfView = 45.0f;
     
+    directional_light DirectionalLight;
+    DirectionalLight.Direction = glm::vec3(1.0f, 0.0f, 0.0f);
+    DirectionalLight.Ambient = glm::vec3(0.01f);
+    DirectionalLight.Diffuse = glm::vec3(0.5f);
+    DirectionalLight.Specular = glm::vec3(1.0f);
+    
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
     glm::mat4 ViewSubMatrix;
@@ -275,18 +291,25 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
-        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
+        glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
         
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -3.0f, 0.0f));
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(6.5f, 6.5f, 6.5f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(Program.Id, "mvp", MVP);
+        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
+        SetUniform3fv(Program.Id, "ViewPosition", CameraPos);
+        SetShaderDirectionalLight(Program.Id, "DirectionalLight", DirectionalLight);
         DrawModel(Program.Id, Planet);
         
         SetUniformMatrix4fv(InstancedProgram.Id, "view", ViewMatrix);
         SetUniformMatrix4fv(InstancedProgram.Id, "projection", ProjectionMatrix);
+        SetShaderDirectionalLight(InstancedProgram.Id, "DirectionalLight", DirectionalLight);
+        SetUniform3fv(InstancedProgram.Id, "ViewPosition", CameraPos);
         for(int MeshIndex = 0; MeshIndex < Asteroid.Meshes.size(); ++MeshIndex)
         {
             mesh Mesh = Asteroid.Meshes[MeshIndex];
@@ -294,6 +317,19 @@ int WinMain(HINSTANCE hInstance,
             glBindTexture(GL_TEXTURE_2D, Mesh.Textures[0].Id);
             glDrawElementsInstanced(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0, amount);
         }
+        
+        glDepthFunc(GL_LEQUAL);
+        glUseProgram(SkyboxProgram.Id);
+        SetUniformMatrix4fv(SkyboxProgram.Id, "view", ViewSubMatrix);
+        SetUniformMatrix4fv(SkyboxProgram.Id, "projection", ProjectionMatrix);
+        glBindVertexArray(SkyboxVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, StarSkybox);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+        glDepthFunc(GL_LESS);
+        
+        DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

@@ -143,7 +143,7 @@ float MirrorVertices[] =
 };
 
 
-float QuadVertices[] = 
+float DefaultScreenVertices[] = 
 {
     // positions   // texCoords
     -1.0f,  1.0f,  0.0f, 1.0f,
