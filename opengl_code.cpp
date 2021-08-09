@@ -620,6 +620,7 @@ DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
 {
     AssertFrameBuf(OffScreen.FrameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glEnable(GL_FRAMEBUFFER_SRGB);
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
     
@@ -630,4 +631,5 @@ DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     glEnable(GL_DEPTH_TEST);
+    glDisable(GL_FRAMEBUFFER_SRGB);
 }
