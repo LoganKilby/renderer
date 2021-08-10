@@ -67,7 +67,6 @@ uniform directional_light DirectionalLight;
 
 void main()
 {
-    //FragColor = texture(Materials.DiffuseMaps[0], TexCoords);
     FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }
 

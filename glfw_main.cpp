@@ -98,6 +98,7 @@ int WinMain(HINSTANCE hInstance,
         
         // TODO: Do more initialization here?
         stbi_set_flip_vertically_on_load(true);
+        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
         //glEnable(GL_BLEND);
@@ -119,14 +120,7 @@ int WinMain(HINSTANCE hInstance,
     }
     
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
-    model Asteroid = LoadModel("models/rock/rock.obj");
-    model Planet = LoadModel("models/planet/planet.obj");
-    unsigned int StarSkybox = LoadCubemap("textures/skybox/stars/right.png",
-                                          "textures/skybox/stars/left.png",
-                                          "textures/skybox/stars/top.png",
-                                          "textures/skybox/stars/bottom.png",
-                                          "textures/skybox/stars/back.png",
-                                          "textures/skybox/stars/front.png");
+    shadow_map ShadowMap = CreateShadowMap();
     
     unsigned int SkyboxVAO, SkyboxVBO;
     glGenVertexArrays(1, &SkyboxVAO);
@@ -138,28 +132,55 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
     
+    unsigned int CubeVAO, CubeVBO;
+    glGenVertexArrays(1, &CubeVAO);
+    glGenBuffers(1, &CubeVBO);
+    glBindVertexArray(CubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), &Vertices, GL_STATIC_DRAW);  
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(6 * sizeof(float)));
+    glBindVertexArray(0);
+    
+    unsigned int PlaneVAO, PlaneVBO;
+    glGenVertexArrays(1, &PlaneVAO);
+    glGenBuffers(1, &PlaneVBO);
+    glBindVertexArray(PlaneVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, PlaneVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(LargePlaneVertices), &LargePlaneVertices, GL_STATIC_DRAW);  
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(6 * sizeof(float)));
+    glBindVertexArray(0);
+    
     // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
     
-    VertexShaderID = LoadAndCompileShader("shaders/model_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/model_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program Program = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    DebugPrintUniforms(Program.Id, "Program");
-    
-    VertexShaderID = LoadAndCompileShader("shaders/instanced_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/instanced_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program InstancedProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/skybox_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/skybox_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program SkyboxProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    SetUniform1i(SkyboxProgram.Id, "cubemap", 0);
+    VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
     
     VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/depth_map_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/depth_map_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program DepthMapProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    
+    
+    
+    texture_unit FloorTexture = LoadTexture("textures/metal.jpg");
+    texture_unit MarbleTexture = LoadTexture("textures/marble.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -167,77 +188,13 @@ int WinMain(HINSTANCE hInstance,
     int FPS;
     char FPS_OutputBuffer[20] = {};
     
-    // Asteroid position setup
-    unsigned int amount = 10000;
-    glm::mat4 *ModelMatricies = (glm::mat4 *)malloc(sizeof(glm::mat4) * amount);
-    memset(ModelMatricies, 0, sizeof(glm::mat4) * amount);
-    srand(glfwGetTime()); // initialize random seed	
-    float radius = 100.0;
-    float offset = 20.0f;
-    
-    glm::mat4 model;
-    for(unsigned int i = 0; i < amount; i++)
-    {
-        model = glm::mat4(1.0f);
-        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
-        float angle = (float)i / (float)amount * 360.0f;
-        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float x = sin(angle) * radius + displacement;
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float y = displacement * 0.4f; // keep height of field smaller compared to width of x and z
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float z = cos(angle) * radius + displacement;
-        model = glm::translate(model, glm::vec3(x, y, z));
-        
-        // 2. scale: scale between 0.05 and 0.25f
-        float scale = (rand() % 20) / 100.0f + 0.05;
-        model = glm::scale(model, glm::vec3(scale));
-        
-        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
-        float rotAngle = (rand() % 360);
-        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
-        
-        // 4. now add to list of matrices
-        ModelMatricies[i] = model;
-    }
-    
-    unsigned int InstancedMatrixBuffer;
-    glGenBuffers(1, &InstancedMatrixBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, InstancedMatrixBuffer);
-    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &ModelMatricies[0], GL_STATIC_DRAW);
-    
-    size_t Vec4Size = sizeof(glm::vec4);
-    for(unsigned int MeshIndex = 0; MeshIndex < Asteroid.Meshes.size(); ++MeshIndex)
-    {
-        glBindVertexArray(Asteroid.Meshes[MeshIndex].VAO);
-        
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)0);
-        
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)Vec4Size);
-        
-        glEnableVertexAttribArray(5);
-        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)(2 * Vec4Size));
-        
-        glEnableVertexAttribArray(6);
-        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * Vec4Size, (void *)(3 * Vec4Size));
-        
-        glVertexAttribDivisor(3, 1);
-        glVertexAttribDivisor(4, 1);
-        glVertexAttribDivisor(5, 1);
-        glVertexAttribDivisor(6, 1);
-        
-        glBindVertexArray(0);
-    }
-    
     GlobalInput = {};
     GlobalInput.PrevMousePos.x = WindowWidth / 2;
     GlobalInput.PrevMousePos.y = WindowHeight / 2;
     
     // Camera
     // TODO: Set up a camera proper camera system
-    glm::vec3 CameraPos(0.0f, 0.0f, 45.0f);
+    glm::vec3 CameraPos(0.0f, 0.0f, 0.0f);
     glm::vec3 CameraFront(0.0f, 0.0f, -1.0f);
     glm::vec3 CameraUp(0.0f, 1.0f, 0.0f);
     CameraOrientation = {};
@@ -251,12 +208,26 @@ int WinMain(HINSTANCE hInstance,
     DirectionalLight.Ambient = glm::vec3(0.01f);
     DirectionalLight.Diffuse = glm::vec3(0.5f);
     DirectionalLight.Specular = glm::vec3(1.0f);
+    glm::vec3 LightPos(-2.0f, 4.0f, -1.0f);
+    float near_plane = 1.0f, far_plane = 7.5f;
+    glm::mat4 LightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane); 
+    glm::mat4 LightView = glm::lookAt(LightPos, glm::vec3(0.0f), glm::vec3( 0.0f, 1.0f,  0.0f));
+    glm::mat4 LightSpaceMatrix = LightProjection * LightView;
+    SetUniformMatrix4fv(ShadowProgram.Id, "lightSpaceMatrix", LightSpaceMatrix);
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
     glm::mat4 ViewSubMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
+    
+    glm::vec3 CubePositions[] =
+    {
+        glm::vec3(0.0f, 1.5f, 3.0f),
+        glm::vec3(2.0f, 0.01f, 1.0f),
+        glm::vec3(-1.0f, 0.01f, 2.0f)
+    };
+    
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -291,51 +262,65 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
-        glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
+        // TODO: Could this be calculated only once? 
+        glViewport(0, 0, ShadowMap.DepthBufferWidth, ShadowMap.DepthBufferHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, ShadowMap.FrameBuffer);
         
+        glClear(GL_DEPTH_BUFFER_BIT);
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -3.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(6.5f, 6.5f, 6.5f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(Program.Id, "mvp", MVP);
-        SetUniformMatrix4fv(Program.Id, "model", ModelMatrix);
-        SetUniform3fv(Program.Id, "ViewPosition", CameraPos);
-        SetShaderDirectionalLight(Program.Id, "DirectionalLight", DirectionalLight);
-        DrawModel(Program.Id, Planet);
+        SetUniformMatrix4fv(DepthMapProgram.Id, "model", ModelMatrix);
+        SetUniformMatrix4fv(DepthMapProgram.Id, "lightSpaceMatrix", LightSpaceMatrix);
+        glBindVertexArray(PlaneVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
         
-        SetUniformMatrix4fv(InstancedProgram.Id, "view", ViewMatrix);
-        SetUniformMatrix4fv(InstancedProgram.Id, "projection", ProjectionMatrix);
-        SetShaderDirectionalLight(InstancedProgram.Id, "DirectionalLight", DirectionalLight);
-        SetUniform3fv(InstancedProgram.Id, "ViewPosition", CameraPos);
-        for(int MeshIndex = 0; MeshIndex < Asteroid.Meshes.size(); ++MeshIndex)
+        glBindVertexArray(CubeVAO);
+        for(int CubeIndex = 0; CubeIndex < ArrayCount(CubePositions); ++CubeIndex)
         {
-            mesh Mesh = Asteroid.Meshes[MeshIndex];
-            glBindVertexArray(Mesh.VAO);
-            glBindTexture(GL_TEXTURE_2D, Mesh.Textures[0].Id);
-            glDrawElementsInstanced(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0, amount);
+            ModelMatrix = glm::mat4(1.0f);
+            ModelMatrix = glm::translate(ModelMatrix, CubePositions[CubeIndex]);
+            SetUniformMatrix4fv(DepthMapProgram.Id, "model", ModelMatrix);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         
-        glDepthFunc(GL_LEQUAL);
-        glUseProgram(SkyboxProgram.Id);
-        SetUniformMatrix4fv(SkyboxProgram.Id, "view", ViewSubMatrix);
-        SetUniformMatrix4fv(SkyboxProgram.Id, "projection", ProjectionMatrix);
-        glBindVertexArray(SkyboxVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, StarSkybox);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        glDepthFunc(GL_LESS);
-        
-        DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
+        {
+            glViewport(0, 0, WindowWidth, WindowHeight);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            //glEnable(GL_DEPTH_TEST);
+            
+            // Draw here
+            ModelMatrix = glm::mat4(1.0f);
+            SetUniformMatrix4fv(ShadowProgram.Id, "lightSpaceMatrix", LightSpaceMatrix);
+            SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
+            SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
+            SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+            SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
+            SetUniform3fv(ShadowProgram.Id, "lightPos", LightPos);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, ShadowMap.DepthBuffer);
+            glBindVertexArray(PlaneVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, MarbleTexture.Id);
+            glBindVertexArray(CubeVAO);
+            for(int CubeIndex = 0; CubeIndex < ArrayCount(CubePositions); ++CubeIndex)
+            {
+                ModelMatrix = glm::mat4(1.0f);
+                ModelMatrix = glm::translate(ModelMatrix, CubePositions[CubeIndex]);
+                SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+            
+            DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
+        }
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
         OutputErrorQueue();
         FPS = 1 / FrameTime;
-        sprintf(FPS_OutputBuffer, "FPS: %d\n", FPS);
         OutputDebugStringA(FPS_OutputBuffer);
         memset(FPS_OutputBuffer, 0, sizeof(FPS_OutputBuffer));
     }

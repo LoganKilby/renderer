@@ -118,6 +118,18 @@ float PlaneVertices[] = {
     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
 };
 
+float LargePlaneVertices[] =
+{
+    // positions            // normals         // texcoords
+    25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
+    -25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+    -25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
+    
+    25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
+    -25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
+    25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,  25.0f, 25.0f
+};
+
 float GrassVertices[] = 
 {
     // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
