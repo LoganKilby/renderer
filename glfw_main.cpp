@@ -262,6 +262,7 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
+        // TODO: NOT WORKING
         // TODO: Could this be calculated only once? 
         glViewport(0, 0, ShadowMap.DepthBufferWidth, ShadowMap.DepthBufferHeight);
         glBindFramebuffer(GL_FRAMEBUFFER, ShadowMap.FrameBuffer);
