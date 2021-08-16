@@ -20,6 +20,8 @@
 #include "opengl_code.h"
 #include "renderer.h"
 #include "vertices.h"
+#define STD_824S1 1
+#include "include/board_loading/board_loading.h"
 
 #include "opengl_code.cpp"
 #include "renderer.cpp"
