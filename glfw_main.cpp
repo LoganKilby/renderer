@@ -51,6 +51,8 @@ struct camera_orientation
     float PanSpeed;
 };
 
+// TODO: Write camera system
+
 global_variable global_input GlobalInput;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
@@ -69,6 +71,11 @@ int WinMain(HINSTANCE hInstance,
     SetConsoleTitle("Debug Console");
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    
+    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
+    raw_vertex_data BrdVertexData = GenerateVertexData(BoardData);
+    WriteRawVertexData("raw_brd_data.txt", BrdVertexData);
+    
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -125,15 +132,8 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
+    
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
-    shadow_map ShadowCubeMap = CreateShadowCubeMap();
-    float ShadowNearPlane = 1.0f;
-    float ShadowFarPlane = 25.0f;
-    float ShadowAspectRatio = ShadowCubeMap.DepthBufferWidth / ShadowCubeMap.DepthBufferHeight;
-    glm::mat4 ShadowProjectionMatrix = glm::perspective(glm::radians(90.0f),
-                                                        ShadowAspectRatio,
-                                                        ShadowNearPlane,
-                                                        ShadowFarPlane);
     
     unsigned int SkyboxVAO, SkyboxVBO;
     glGenVertexArrays(1, &SkyboxVAO);
@@ -149,20 +149,6 @@ int WinMain(HINSTANCE hInstance,
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
-    
-    VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/omnishadowmap_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/omnishadowmap_frag.c", GL_FRAGMENT_SHADER);
-    GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
-    opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
-    DebugPrintUniforms(OmniShadowProgram.Id, "OmniShadowProgram");
     
     texture_unit FloorTexture = LoadTexture("textures/metal.jpg");
     texture_unit MarbleTexture = LoadTexture("textures/metal.jpg");
@@ -204,9 +190,6 @@ int WinMain(HINSTANCE hInstance,
         glm::vec3(-1.0f, 0.01f, 2.0f)
     };
     
-    SetUniform1i(ShadowProgram.Id, "diffuseTexture", 0);
-    SetUniform1i(ShadowProgram.Id, "depthMap", 1);
-    
     while(!glfwWindowShouldClose(Window))
     {
         SecondsElapsed = glfwGetTime();
@@ -240,70 +223,6 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
-        glm::mat4 ShadowViewTransforms[] =
-        {
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3(-1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 1.0,  0.0), glm::vec3(0.0,  0.0,  1.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, -1.0, 0.0), glm::vec3(0.0,  0.0, -1.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 0.0,  1.0), glm::vec3(0.0, -1.0,  0.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 0.0, -1.0), glm::vec3(0.0, -1.0,  0.0))
-        };
-        
-        glViewport(0, 0, ShadowCubeMap.DepthBufferWidth, ShadowCubeMap.DepthBufferHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, ShadowCubeMap.FrameBuffer);
-        {
-            glClear(GL_DEPTH_BUFFER_BIT);
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[0]", ShadowViewTransforms[0]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[1]", ShadowViewTransforms[1]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[2]", ShadowViewTransforms[2]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[3]", ShadowViewTransforms[3]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[4]", ShadowViewTransforms[4]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[5]", ShadowViewTransforms[5]);
-            SetUniform1f(OmniShadowProgram.Id, "far_plane", ShadowFarPlane);
-            SetUniform3fv(OmniShadowProgram.Id, "lightPos", PointLight.Position);
-            
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-            //SetUniform1i(ShaderProgram, "reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-            RenderCube();
-            //SetUniform1i(ShaderProgram, "reverse_normals", 0); // and of course disable it
-            glEnable(GL_CULL_FACE);
-            RenderScene(OmniShadowProgram.Id); // the rest of the cubes
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        }
-        
-        // render scene again
-        glViewport(0, 0, WindowWidth, WindowHeight);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
-        {
-            SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
-            SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
-            SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
-            SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
-            SetUniform1i(ShadowProgram.Id, "shadows", 1);
-            SetUniform1f(ShadowProgram.Id, "far_plane", ShadowFarPlane);
-            // room cube
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
-            SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-            SetUniform1i(ShadowProgram.Id, "reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-            RenderCube();
-            SetUniform1i(ShadowProgram.Id, "reverse_normals", 0); // and of course disable it
-            glEnable(GL_CULL_FACE);
-            RenderScene(ShadowProgram.Id); // the rest of the cubes
-        }
-        
-        //DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
