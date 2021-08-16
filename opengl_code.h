@@ -59,6 +59,14 @@ struct shadow_map
     int DepthBufferHeight;
 };
 
+struct gl_viewport
+{
+    int PosX;
+    int PosY;
+    int Width;
+    int Height;
+};
+
 // Personal NOTE: OpenGL guarentees at least 16 4-component vertex attributes (vetex shader input
 // variables) per shader. This can be tested with glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max);
 

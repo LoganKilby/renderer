@@ -57,13 +57,17 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
 // TODO: Probably want to take an array of compiled shaders
 // TODO: Probably don't need a program struct
 internal opengl_shader_program
-CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID)
+CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID, GLuint GeometryShaderID)
 {
     opengl_shader_program Result;
     Result.Id = glCreateProgram();
     
     glAttachShader(Result.Id, VertexShaderID);
     glAttachShader(Result.Id, FragmentShaderID);
+    if(GeometryShaderID)
+    {
+        glAttachShader(Result.Id, GeometryShaderID);
+    }
     
     glLinkProgram(Result.Id);
     
@@ -657,6 +661,38 @@ CreateShadowMap()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, Result.DepthBuffer, 0);
     glDrawBuffer(GL_NONE); // NOTE: To specifiy that we're not using a color buffer
     glReadBuffer(GL_NONE); // NOTE: To specifiy that we're not using a color buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    return Result;
+}
+
+internal shadow_map
+CreateShadowCubeMap()
+{
+    shadow_map Result;
+    Result.DepthBufferWidth = 1024;
+    Result.DepthBufferHeight = 1024;
+    
+    glGenFramebuffers(1, &Result.FrameBuffer);
+    
+    glGenTextures(1, &Result.DepthBuffer);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, Result.DepthBuffer);
+    for(unsigned int i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
+                     Result.DepthBufferWidth, Result.DepthBufferHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    }
+    
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffer);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result.DepthBuffer, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     return Result;

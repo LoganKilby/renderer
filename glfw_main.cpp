@@ -32,6 +32,8 @@ void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
+void RenderCube();
+void RenderScene(unsigned int ShadowProgram);
 
 struct global_input
 {
@@ -51,6 +53,8 @@ global_variable global_input GlobalInput;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
 global_variable int TransparentIndexBuffer[5] = {};
+global_variable unsigned int CubeVAO;
+global_variable unsigned int CubeVBO;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -120,7 +124,14 @@ int WinMain(HINSTANCE hInstance,
     }
     
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
-    shadow_map ShadowMap = CreateShadowMap();
+    shadow_map ShadowCubeMap = CreateShadowCubeMap();
+    float ShadowNearPlane = 1.0f;
+    float ShadowFarPlane = 25.0f;
+    float ShadowAspectRatio = ShadowCubeMap.DepthBufferWidth / ShadowCubeMap.DepthBufferHeight;
+    glm::mat4 ShadowProjectionMatrix = glm::perspective(glm::radians(90.0f),
+                                                        ShadowAspectRatio,
+                                                        ShadowNearPlane,
+                                                        ShadowFarPlane);
     
     unsigned int SkyboxVAO, SkyboxVBO;
     glGenVertexArrays(1, &SkyboxVAO);
@@ -132,34 +143,6 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
     
-    unsigned int CubeVAO, CubeVBO;
-    glGenVertexArrays(1, &CubeVAO);
-    glGenBuffers(1, &CubeVBO);
-    glBindVertexArray(CubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), &Vertices, GL_STATIC_DRAW);  
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(6 * sizeof(float)));
-    glBindVertexArray(0);
-    
-    unsigned int PlaneVAO, PlaneVBO;
-    glGenVertexArrays(1, &PlaneVAO);
-    glGenBuffers(1, &PlaneVBO);
-    glBindVertexArray(PlaneVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, PlaneVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(LargePlaneVertices), &LargePlaneVertices, GL_STATIC_DRAW);  
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void*)(6 * sizeof(float)));
-    glBindVertexArray(0);
-    
     // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
@@ -167,20 +150,20 @@ int WinMain(HINSTANCE hInstance,
     
     VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
+    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
-    VertexShaderID = LoadAndCompileShader("shaders/depth_map_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/depth_map_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program DepthMapProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID);
-    
-    
+    VertexShaderID = LoadAndCompileShader("shaders/omnishadowmap_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/omnishadowmap_frag.c", GL_FRAGMENT_SHADER);
+    GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
+    opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
+    DebugPrintUniforms(OmniShadowProgram.Id, "OmniShadowProgram");
     
     texture_unit FloorTexture = LoadTexture("textures/metal.jpg");
-    texture_unit MarbleTexture = LoadTexture("textures/marble.jpg");
+    texture_unit MarbleTexture = LoadTexture("textures/metal.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -203,17 +186,8 @@ int WinMain(HINSTANCE hInstance,
     CameraOrientation.PanSpeed = 10.0f;
     FieldOfView = 45.0f;
     
-    directional_light DirectionalLight;
-    DirectionalLight.Direction = glm::vec3(1.0f, 0.0f, 0.0f);
-    DirectionalLight.Ambient = glm::vec3(0.01f);
-    DirectionalLight.Diffuse = glm::vec3(0.5f);
-    DirectionalLight.Specular = glm::vec3(1.0f);
-    glm::vec3 LightPos(-2.0f, 4.0f, -1.0f);
-    float near_plane = 1.0f, far_plane = 7.5f;
-    glm::mat4 LightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane); 
-    glm::mat4 LightView = glm::lookAt(LightPos, glm::vec3(0.0f), glm::vec3( 0.0f, 1.0f,  0.0f));
-    glm::mat4 LightSpaceMatrix = LightProjection * LightView;
-    SetUniformMatrix4fv(ShadowProgram.Id, "lightSpaceMatrix", LightSpaceMatrix);
+    point_light PointLight;
+    PointLight.Position = glm::vec3(0.0f);
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -228,6 +202,8 @@ int WinMain(HINSTANCE hInstance,
         glm::vec3(-1.0f, 0.01f, 2.0f)
     };
     
+    SetUniform1i(ShadowProgram.Id, "diffuseTexture", 0);
+    SetUniform1i(ShadowProgram.Id, "depthMap", 1);
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -262,71 +238,182 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
-        // TODO: NOT WORKING
-        // TODO: Could this be calculated only once? 
-        glViewport(0, 0, ShadowMap.DepthBufferWidth, ShadowMap.DepthBufferHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, ShadowMap.FrameBuffer);
-        
-        glClear(GL_DEPTH_BUFFER_BIT);
-        ModelMatrix = glm::mat4(1.0f);
-        SetUniformMatrix4fv(DepthMapProgram.Id, "model", ModelMatrix);
-        SetUniformMatrix4fv(DepthMapProgram.Id, "lightSpaceMatrix", LightSpaceMatrix);
-        glBindVertexArray(PlaneVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        
-        glBindVertexArray(CubeVAO);
-        for(int CubeIndex = 0; CubeIndex < ArrayCount(CubePositions); ++CubeIndex)
+        glm::mat4 ShadowViewTransforms[] =
         {
+            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
+            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3(-1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
+            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 1.0,  0.0), glm::vec3(0.0,  0.0,  1.0)),
+            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, -1.0, 0.0), glm::vec3(0.0,  0.0, -1.0)),
+            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 0.0,  1.0), glm::vec3(0.0, -1.0,  0.0)),
+            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 0.0, -1.0), glm::vec3(0.0, -1.0,  0.0))
+        };
+        
+        glViewport(0, 0, ShadowCubeMap.DepthBufferWidth, ShadowCubeMap.DepthBufferHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, ShadowCubeMap.FrameBuffer);
+        {
+            glClear(GL_DEPTH_BUFFER_BIT);
             ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::translate(ModelMatrix, CubePositions[CubeIndex]);
-            SetUniformMatrix4fv(DepthMapProgram.Id, "model", ModelMatrix);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
+            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[0]", ShadowViewTransforms[0]);
+            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[1]", ShadowViewTransforms[1]);
+            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[2]", ShadowViewTransforms[2]);
+            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[3]", ShadowViewTransforms[3]);
+            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[4]", ShadowViewTransforms[4]);
+            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[5]", ShadowViewTransforms[5]);
+            SetUniform1f(OmniShadowProgram.Id, "far_plane", ShadowFarPlane);
+            SetUniform3fv(OmniShadowProgram.Id, "lightPos", PointLight.Position);
+            
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
+            glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
+            //SetUniform1i(ShaderProgram, "reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
+            RenderCube();
+            //SetUniform1i(ShaderProgram, "reverse_normals", 0); // and of course disable it
+            glEnable(GL_CULL_FACE);
+            RenderScene(OmniShadowProgram.Id); // the rest of the cubes
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
         
-        glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
+        // render scene again
+        glViewport(0, 0, WindowWidth, WindowHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
         {
-            glViewport(0, 0, WindowWidth, WindowHeight);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            //glEnable(GL_DEPTH_TEST);
-            
-            // Draw here
-            ModelMatrix = glm::mat4(1.0f);
-            SetUniformMatrix4fv(ShadowProgram.Id, "lightSpaceMatrix", LightSpaceMatrix);
             SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
             SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
-            SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+            SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
             SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
-            SetUniform3fv(ShadowProgram.Id, "lightPos", LightPos);
+            SetUniform1i(ShadowProgram.Id, "shadows", 1);
+            SetUniform1f(ShadowProgram.Id, "far_plane", ShadowFarPlane);
+            // room cube
+            ModelMatrix = glm::mat4(1.0f);
+            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
+            SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, ShadowMap.DepthBuffer);
-            glBindVertexArray(PlaneVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, MarbleTexture.Id);
-            glBindVertexArray(CubeVAO);
-            for(int CubeIndex = 0; CubeIndex < ArrayCount(CubePositions); ++CubeIndex)
-            {
-                ModelMatrix = glm::mat4(1.0f);
-                ModelMatrix = glm::translate(ModelMatrix, CubePositions[CubeIndex]);
-                SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-            }
-            
-            DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
+            glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
+            SetUniform1i(ShadowProgram.Id, "reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
+            RenderCube();
+            SetUniform1i(ShadowProgram.Id, "reverse_normals", 0); // and of course disable it
+            glEnable(GL_CULL_FACE);
+            RenderScene(ShadowProgram.Id); // the rest of the cubes
         }
+        
+        //DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
         OutputErrorQueue();
-        FPS = 1 / FrameTime;
-        OutputDebugStringA(FPS_OutputBuffer);
-        memset(FPS_OutputBuffer, 0, sizeof(FPS_OutputBuffer));
     }
     
     return 0;
+}
+
+void RenderScene(unsigned int ShaderProgram)
+{
+    Assert(ShaderProgram);
+    // cubes
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
+    model = glm::scale(model, glm::vec3(0.5f));
+    SetUniformMatrix4fv(ShaderProgram, "model", model);
+    RenderCube();
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
+    model = glm::scale(model, glm::vec3(0.75f));
+    SetUniformMatrix4fv(ShaderProgram, "model", model);
+    RenderCube();
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
+    model = glm::scale(model, glm::vec3(0.5f));
+    SetUniformMatrix4fv(ShaderProgram, "model", model);
+    RenderCube();
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
+    model = glm::scale(model, glm::vec3(0.5f));
+    SetUniformMatrix4fv(ShaderProgram, "model", model);
+    RenderCube();
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
+    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    model = glm::scale(model, glm::vec3(0.75f));
+    SetUniformMatrix4fv(ShaderProgram, "model", model);
+    RenderCube();
+}
+
+void RenderCube()
+{
+    // initialize (if necessary)
+    if (CubeVAO == 0)
+    {
+        float vertices[] = {
+            // back face
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+            1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+            1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+            1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+            // front face
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+            1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+            // left face
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+            // right face
+            1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+            1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+            1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+            1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+            1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+            1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+            // bottom face
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+            1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+            1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+            1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+            // top face
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+            1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+            1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+            1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+        };
+        
+        glGenVertexArrays(1, &CubeVAO);
+        glGenBuffers(1, &CubeVBO);
+        // fill buffer
+        glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // link vertex attributes
+        glBindVertexArray(CubeVAO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    
+    // render Cube
+    glBindVertexArray(CubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 }
 
 struct transparent_sort_object
