@@ -265,11 +265,7 @@ int WinMain(HINSTANCE hInstance,
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-            //SetUniform1i(ShaderProgram, "reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-            RenderCube();
-            //SetUniform1i(ShaderProgram, "reverse_normals", 0); // and of course disable it
-            glEnable(GL_CULL_FACE);
+            
             RenderScene(OmniShadowProgram.Id); // the rest of the cubes
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
@@ -283,7 +279,6 @@ int WinMain(HINSTANCE hInstance,
             SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
             SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
             SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
-            SetUniform1i(ShadowProgram.Id, "shadows", 1);
             SetUniform1f(ShadowProgram.Id, "far_plane", ShadowFarPlane);
             // room cube
             ModelMatrix = glm::mat4(1.0f);
