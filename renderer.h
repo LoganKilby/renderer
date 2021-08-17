@@ -3,6 +3,8 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <vector>
+
 enum texture_map_enum
 {
     DIFFUSE_MAP = 1,

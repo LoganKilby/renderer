@@ -14,7 +14,6 @@
 #include "include/assimp/postprocess.h"
 #include "include/qpc/qpc.h"
 #include "stdio.h"
-#include <vector>
 #include "types.h"
 #include "utility.h"
 #include "opengl_code.h"
@@ -74,8 +73,7 @@ int WinMain(HINSTANCE hInstance,
     
     SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
     raw_vertex_data BrdVertexData = GenerateVertexData(BoardData);
-    WriteRawVertexData("raw_brd_data.txt", BrdVertexData);
-    
+    //WriteRawVertexData("raw_brd_data.txt", BrdVertexData);
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -135,12 +133,22 @@ int WinMain(HINSTANCE hInstance,
     
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
     
-    unsigned int SkyboxVAO, SkyboxVBO;
-    glGenVertexArrays(1, &SkyboxVAO);
-    glGenBuffers(1, &SkyboxVBO);
-    glBindVertexArray(SkyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, SkyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(SkyboxVertices), &SkyboxVertices, GL_STATIC_DRAW);  
+    unsigned int TopDataVAO, TopDataVBO;
+    glGenVertexArrays(1, &TopDataVAO);
+    glGenBuffers(1, &TopDataVBO);
+    glBindVertexArray(TopDataVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, TopDataVBO);
+    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.TopData.size() * sizeof(raw_vertex), (float *)&BrdVertexData.TopData[0], GL_STATIC_DRAW);  
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glBindVertexArray(0);
+    
+    unsigned int BottomDataVAO, BottomDataVBO;
+    glGenVertexArrays(1, &BottomDataVAO);
+    glGenBuffers(1, &BottomDataVBO);
+    glBindVertexArray(BottomDataVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, BottomDataVBO);
+    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(raw_vertex), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
@@ -149,9 +157,10 @@ int WinMain(HINSTANCE hInstance,
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
+    VertexShaderID = LoadAndCompileShader("shaders/board_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/board_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program BoardProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
-    texture_unit FloorTexture = LoadTexture("textures/metal.jpg");
-    texture_unit MarbleTexture = LoadTexture("textures/metal.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -171,7 +180,7 @@ int WinMain(HINSTANCE hInstance,
     CameraOrientation = {};
     CameraOrientation.Yaw = -90.0f;
     CameraOrientation.LookSpeed = 0.1f;
-    CameraOrientation.PanSpeed = 10.0f;
+    CameraOrientation.PanSpeed = 0.3f;
     FieldOfView = 45.0f;
     
     point_light PointLight;
@@ -208,6 +217,8 @@ int WinMain(HINSTANCE hInstance,
             CameraPos.y += CameraOrientation.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
             CameraPos.y -= CameraOrientation.PanSpeed * FrameTime;
+        if(glfwGetKey(Window, GLFW_KEY_SPACE) == GLFW_PRESS)
+            CameraPos.y += CameraOrientation.PanSpeed * FrameTime;
         
         glm::vec3 CameraAngle;
         CameraAngle.x = cos(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
@@ -223,10 +234,26 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        ModelMatrix = glm::mat4(1.0f);
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
         
+#if 0
+        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
+        glBindVertexArray(TopDataVAO);
+        glDrawArrays(GL_POINTS, 0, BrdVertexData.TopData.size());
+#endif
+        
+#if 1
+        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 0.0f, 1.0f));
+        glBindVertexArray(BottomDataVAO);
+        glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
+#endif
+        
+        OutputErrorQueue();
         glfwSwapBuffers(Window);
         glfwPollEvents();
-        OutputErrorQueue();
     }
     
     return 0;
