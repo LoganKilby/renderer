@@ -448,7 +448,7 @@ SetUniformMatrix3fv(int Program, char *Name, glm::mat3 Data)
 }
 
 internal void 
-DebugPrintUniforms(GLuint ProgramID, char *ProgramName)
+DebugPrintUniforms(GLuint ProgramID, char *ProgramName = "")
 {
     int UniformCount;
     glGetProgramiv(ProgramID, GL_ACTIVE_UNIFORMS, &UniformCount);

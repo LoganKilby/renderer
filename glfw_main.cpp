@@ -32,8 +32,9 @@ void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
-void RenderCube();
+void RenderCube(void);
 void RenderScene(unsigned int ShadowProgram);
+void DebugRenderQuad(void);
 
 struct global_input
 {
@@ -133,16 +134,6 @@ int WinMain(HINSTANCE hInstance,
                                                         ShadowNearPlane,
                                                         ShadowFarPlane);
     
-    unsigned int SkyboxVAO, SkyboxVBO;
-    glGenVertexArrays(1, &SkyboxVAO);
-    glGenBuffers(1, &SkyboxVBO);
-    glBindVertexArray(SkyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, SkyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(SkyboxVertices), &SkyboxVertices, GL_STATIC_DRAW);  
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
-    glBindVertexArray(0);
-    
     // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
@@ -151,6 +142,7 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    DebugPrintUniforms(ShadowProgram.Id, "ShadowProgram");
     
     VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
@@ -162,8 +154,8 @@ int WinMain(HINSTANCE hInstance,
     opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
     DebugPrintUniforms(OmniShadowProgram.Id, "OmniShadowProgram");
     
-    texture_unit FloorTexture = LoadTexture("textures/metal.jpg");
-    texture_unit MarbleTexture = LoadTexture("textures/metal.jpg");
+    texture_unit FloorTexture = LoadTexture("textures/brickwall.jpg");
+    texture_unit FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -187,7 +179,7 @@ int WinMain(HINSTANCE hInstance,
     FieldOfView = 45.0f;
     
     point_light PointLight;
-    PointLight.Position = glm::vec3(0.0f);
+    PointLight.Position = glm::vec3(0.5f, 1.0f, 0.3f);
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -230,6 +222,8 @@ int WinMain(HINSTANCE hInstance,
         CameraAngle.z = sin(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
         CameraFront = glm::normalize(CameraAngle);
         
+        PointLight.Position = CameraPos;
+        
         ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
         ViewSubMatrix = glm::mat4(glm::mat3(ViewMatrix));
         
@@ -238,6 +232,7 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
+#if 0
         glm::mat4 ShadowViewTransforms[] =
         {
             ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
@@ -265,35 +260,33 @@ int WinMain(HINSTANCE hInstance,
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            
-            RenderScene(OmniShadowProgram.Id); // the rest of the cubes
+            glUseProgram(OmniShadowProgram.Id);
+            glBindVertexArray(PlaneVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 2);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
-        
+#endif
         // render scene again
         glViewport(0, 0, WindowWidth, WindowHeight);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
         {
-            SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
-            SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
             SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
             SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
             SetUniform1f(ShadowProgram.Id, "far_plane", ShadowFarPlane);
-            // room cube
             ModelMatrix = glm::mat4(1.0f);
             ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
             SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+            SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
+            SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
+            
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
             glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
+            glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-            SetUniform1i(ShadowProgram.Id, "reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-            RenderCube();
-            SetUniform1i(ShadowProgram.Id, "reverse_normals", 0); // and of course disable it
-            glEnable(GL_CULL_FACE);
-            RenderScene(ShadowProgram.Id); // the rest of the cubes
+            DebugRenderQuad();
         }
         
         //DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
@@ -306,36 +299,93 @@ int WinMain(HINSTANCE hInstance,
     return 0;
 }
 
-void RenderScene(unsigned int ShaderProgram)
+void DebugRenderQuad()
 {
-    Assert(ShaderProgram);
-    // cubes
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
-    model = glm::scale(model, glm::vec3(0.75f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
-    model = glm::scale(model, glm::vec3(0.5f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
-    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    model = glm::scale(model, glm::vec3(0.75f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
+    static unsigned int quadVAO, quadVBO = 0;
+    if (quadVAO == 0)
+    {
+        // positions
+        glm::vec3 pos1(-1.0f,  1.0f, 0.0f);
+        glm::vec3 pos2(-1.0f, -1.0f, 0.0f);
+        glm::vec3 pos3( 1.0f, -1.0f, 0.0f);
+        glm::vec3 pos4( 1.0f,  1.0f, 0.0f);
+        // texture coordinates
+        glm::vec2 uv1(0.0f, 1.0f);
+        glm::vec2 uv2(0.0f, 0.0f);
+        glm::vec2 uv3(1.0f, 0.0f);  
+        glm::vec2 uv4(1.0f, 1.0f);
+        // normal vector
+        glm::vec3 nm(0.0f, 0.0f, 1.0f);
+        
+        // calculate tangent/bitangent vectors of both triangles
+        glm::vec3 tangent1, bitangent1;
+        glm::vec3 tangent2, bitangent2;
+        // triangle 1
+        // ----------
+        glm::vec3 edge1 = pos2 - pos1;
+        glm::vec3 edge2 = pos3 - pos1;
+        glm::vec2 deltaUV1 = uv2 - uv1;
+        glm::vec2 deltaUV2 = uv3 - uv1;
+        
+        float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+        
+        tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+        tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+        tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+        
+        bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+        bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+        bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+        
+        // triangle 2
+        // ----------
+        edge1 = pos3 - pos1;
+        edge2 = pos4 - pos1;
+        deltaUV1 = uv3 - uv1;
+        deltaUV2 = uv4 - uv1;
+        
+        f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+        
+        tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+        tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+        tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+        
+        
+        bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+        bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+        bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+        
+        
+        float quadVertices[] = {
+            // positions            // normal         // texcoords  // tangent                          // bitangent
+            pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+            pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+            pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+            
+            pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
+            pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
+            pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
+        };
+        // configure plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 }
 
 void RenderCube()
