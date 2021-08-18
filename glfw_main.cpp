@@ -19,8 +19,7 @@
 #include "opengl_code.h"
 #include "renderer.h"
 #include "vertices.h"
-#define STD_824S1 1
-#include "include/board_loading/board_loading.h"
+#include "include/board_processing/board_processing.h"
 
 #include "opengl_code.cpp"
 #include "renderer.cpp"
@@ -33,8 +32,7 @@ void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
-void RenderCube();
-void RenderScene(unsigned int ShadowProgram);
+void DebugRenderCube(void);
 
 struct global_input
 {
@@ -56,8 +54,6 @@ global_variable global_input GlobalInput;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
 global_variable int TransparentIndexBuffer[5] = {};
-global_variable unsigned int CubeVAO;
-global_variable unsigned int CubeVBO;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -70,10 +66,6 @@ int WinMain(HINSTANCE hInstance,
     SetConsoleTitle("Debug Console");
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-    
-    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
-    raw_vertex_data BrdVertexData = GenerateVertexData(BoardData);
-    //WriteRawVertexData("raw_brd_data.txt", BrdVertexData);
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -130,15 +122,31 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
+    QPC_StartCounter();
+    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
+    raw_vertex_data BrdVertexData = GenerateVertexData(BoardData);
+    std::vector<v3> FilteredData = FilterRawData(&BrdVertexData.BottomData, FloatLessThanEqual);
+    int FDataSize = FilteredData.size();
+    printf("INFO: Board data generated. %Lf ms\n", QPC_EndCounter() / 1000.0l);
     
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
+    
+    unsigned int FilteredDataVAO, FilteredDataVBO;
+    glGenVertexArrays(1, &FilteredDataVAO);
+    glGenBuffers(1, &FilteredDataVBO);
+    glBindVertexArray(FilteredDataVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, FilteredDataVBO);
+    glBufferData(GL_ARRAY_BUFFER, FilteredData.size() * sizeof(v3), (float *)&FilteredData[0], GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glBindVertexArray(0);
     
     unsigned int TopDataVAO, TopDataVBO;
     glGenVertexArrays(1, &TopDataVAO);
     glGenBuffers(1, &TopDataVBO);
     glBindVertexArray(TopDataVAO);
     glBindBuffer(GL_ARRAY_BUFFER, TopDataVBO);
-    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.TopData.size() * sizeof(raw_vertex), (float *)&BrdVertexData.TopData[0], GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.TopData.size() * sizeof(v3), (float *)&BrdVertexData.TopData[0], GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
@@ -148,7 +156,7 @@ int WinMain(HINSTANCE hInstance,
     glGenBuffers(1, &BottomDataVBO);
     glBindVertexArray(BottomDataVAO);
     glBindBuffer(GL_ARRAY_BUFFER, BottomDataVBO);
-    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(raw_vertex), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(v3), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
@@ -192,13 +200,6 @@ int WinMain(HINSTANCE hInstance,
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
     
-    glm::vec3 CubePositions[] =
-    {
-        glm::vec3(0.0f, 1.5f, 3.0f),
-        glm::vec3(2.0f, 0.01f, 1.0f),
-        glm::vec3(-1.0f, 0.01f, 2.0f)
-    };
-    
     while(!glfwWindowShouldClose(Window))
     {
         SecondsElapsed = glfwGetTime();
@@ -235,21 +236,33 @@ int WinMain(HINSTANCE hInstance,
                                             1000.0f);
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+#if 1
         ModelMatrix = glm::mat4(1.0f);
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
+        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 0.0f, 1.0f));
+        glBindVertexArray(BottomDataVAO);
+        glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
+#endif
         
 #if 0
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, {0.0f, 0.5f, 0.0f});
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
+        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
+        glBindVertexArray(FilteredDataVAO);
+        glDrawArrays(GL_POINTS, 0, FilteredData.size());
+        
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, 0.25f, 0.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
         SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
         glBindVertexArray(TopDataVAO);
         glDrawArrays(GL_POINTS, 0, BrdVertexData.TopData.size());
 #endif
         
-#if 1
-        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 0.0f, 1.0f));
-        glBindVertexArray(BottomDataVAO);
-        glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
-#endif
         
         OutputErrorQueue();
         glfwSwapBuffers(Window);
@@ -259,40 +272,11 @@ int WinMain(HINSTANCE hInstance,
     return 0;
 }
 
-void RenderScene(unsigned int ShaderProgram)
+void DebugRenderCube()
 {
-    Assert(ShaderProgram);
-    // cubes
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
-    model = glm::scale(model, glm::vec3(0.75f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
-    model = glm::scale(model, glm::vec3(0.5f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
-    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    model = glm::scale(model, glm::vec3(0.75f));
-    SetUniformMatrix4fv(ShaderProgram, "model", model);
-    RenderCube();
-}
-
-void RenderCube()
-{
+    local_persist unsigned int CubeVAO;
+    local_persist unsigned int CubeVBO;
+    
     // initialize (if necessary)
     if (CubeVAO == 0)
     {
