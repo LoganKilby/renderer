@@ -39,7 +39,6 @@ void main()
     // Diffuse
     vec3 surfaceNormal = normalize(Normal);
     vec3 lightDirection = normalize(light.position - FragPos);
-    //vec3 lightDirection = normalize(-dirLightDirection); (Directional Light)
     float angleOfIncidence = max(dot(surfaceNormal, lightDirection), 0.0);
     vec3 diffuseComponent = angleOfIncidence * light.diffuse * texture(material.diffuseMap, TexCoord).rgb;
     
