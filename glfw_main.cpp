@@ -142,7 +142,8 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    DebugPrintUniforms(ShadowProgram.Id, "ShadowProgram");
+    SetUniform1i(ShadowProgram.Id, "diffuseMap", 0);
+    SetUniform1i(ShadowProgram.Id, "normalMap", 1);
     
     VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
@@ -152,7 +153,6 @@ int WinMain(HINSTANCE hInstance,
     FragmentShaderID = LoadAndCompileShader("shaders/omnishadowmap_frag.c", GL_FRAGMENT_SHADER);
     GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
     opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
-    DebugPrintUniforms(OmniShadowProgram.Id, "OmniShadowProgram");
     
     texture_unit FloorTexture = LoadTexture("textures/brickwall.jpg");
     texture_unit FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
@@ -195,7 +195,6 @@ int WinMain(HINSTANCE hInstance,
     };
     
     SetUniform1i(ShadowProgram.Id, "diffuseTexture", 0);
-    SetUniform1i(ShadowProgram.Id, "depthMap", 1);
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -232,64 +231,23 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
-#if 0
-        glm::mat4 ShadowViewTransforms[] =
-        {
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3(-1.0, 0.0,  0.0), glm::vec3(0.0, -1.0,  0.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 1.0,  0.0), glm::vec3(0.0,  0.0,  1.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, -1.0, 0.0), glm::vec3(0.0,  0.0, -1.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 0.0,  1.0), glm::vec3(0.0, -1.0,  0.0)),
-            ShadowProjectionMatrix * glm::lookAt(PointLight.Position, PointLight.Position + glm::vec3( 0.0, 0.0, -1.0), glm::vec3(0.0, -1.0,  0.0))
-        };
         
-        glViewport(0, 0, ShadowCubeMap.DepthBufferWidth, ShadowCubeMap.DepthBufferHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, ShadowCubeMap.FrameBuffer);
-        {
-            glClear(GL_DEPTH_BUFFER_BIT);
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[0]", ShadowViewTransforms[0]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[1]", ShadowViewTransforms[1]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[2]", ShadowViewTransforms[2]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[3]", ShadowViewTransforms[3]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[4]", ShadowViewTransforms[4]);
-            SetUniformMatrix4fv(OmniShadowProgram.Id, "shadowMatrices[5]", ShadowViewTransforms[5]);
-            SetUniform1f(OmniShadowProgram.Id, "far_plane", ShadowFarPlane);
-            SetUniform3fv(OmniShadowProgram.Id, "lightPos", PointLight.Position);
-            
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            glUseProgram(OmniShadowProgram.Id);
-            glBindVertexArray(PlaneVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 2);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        }
-#endif
-        // render scene again
         glViewport(0, 0, WindowWidth, WindowHeight);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //glBindFramebuffer(GL_FRAMEBUFFER, OffscreenBuffer.FrameBuffer);
-        {
-            SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
-            SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
-            SetUniform1f(ShadowProgram.Id, "far_plane", ShadowFarPlane);
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
-            SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-            SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
-            SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
-            
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
-            glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, ShadowCubeMap.DepthBuffer);
-            DebugRenderQuad();
-        }
         
-        //DrawOffscreenBuffer(PostEffectsProgram.Id, OffscreenBuffer);
+        SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
+        SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
+        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
+        DebugRenderQuad();
+        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
@@ -304,67 +262,14 @@ void DebugRenderQuad()
     static unsigned int quadVAO, quadVBO = 0;
     if (quadVAO == 0)
     {
-        // positions
-        glm::vec3 pos1(-1.0f,  1.0f, 0.0f);
-        glm::vec3 pos2(-1.0f, -1.0f, 0.0f);
-        glm::vec3 pos3( 1.0f, -1.0f, 0.0f);
-        glm::vec3 pos4( 1.0f,  1.0f, 0.0f);
-        // texture coordinates
-        glm::vec2 uv1(0.0f, 1.0f);
-        glm::vec2 uv2(0.0f, 0.0f);
-        glm::vec2 uv3(1.0f, 0.0f);  
-        glm::vec2 uv4(1.0f, 1.0f);
-        // normal vector
-        glm::vec3 nm(0.0f, 0.0f, 1.0f);
-        
-        // calculate tangent/bitangent vectors of both triangles
-        glm::vec3 tangent1, bitangent1;
-        glm::vec3 tangent2, bitangent2;
-        // triangle 1
-        // ----------
-        glm::vec3 edge1 = pos2 - pos1;
-        glm::vec3 edge2 = pos3 - pos1;
-        glm::vec2 deltaUV1 = uv2 - uv1;
-        glm::vec2 deltaUV2 = uv3 - uv1;
-        
-        float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-        
-        tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-        
-        bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-        
-        // triangle 2
-        // ----------
-        edge1 = pos3 - pos1;
-        edge2 = pos4 - pos1;
-        deltaUV1 = uv3 - uv1;
-        deltaUV2 = uv4 - uv1;
-        
-        f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-        
-        tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-        
-        
-        bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-        
-        
         float quadVertices[] = {
-            // positions            // normal         // texcoords  // tangent                          // bitangent
-            pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-            pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-            pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-            
-            pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-            pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-            pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
+            // front face
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+            1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
         };
         // configure plane VAO
         glGenVertexArrays(1, &quadVAO);
@@ -373,16 +278,13 @@ void DebugRenderQuad()
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
         glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     }
+    
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
