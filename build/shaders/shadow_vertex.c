@@ -23,24 +23,10 @@ uniform mat4 model;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
-uniform bool reverse_normals;
-
 void main()
 {
     vs_out.FragPos = vec3(model * vec4(aPos, 1.0));   
     vs_out.TexCoords = aTexCoords;
     vs_out.Normal = aNormal;
-    
-    //mat3 normalMatrix = transpose(inverse(mat3(model)));
-    vec3 T = normalize(vec3(model * vec4(aTangent, 0)));
-    vec3 N = normalize(vec3(model * vec4(aNormal, 0)));
-    T = normalize(T - dot(T, N) * N);
-    vec3 B = cross(N, T);
-    
-    mat3 TBN = transpose(mat3(T, B, N));    
-    vs_out.TangentLightPos = TBN * lightPos;
-    vs_out.TangentViewPos  = TBN * viewPos;
-    vs_out.TangentFragPos  = TBN * vs_out.FragPos;
-    
     gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
