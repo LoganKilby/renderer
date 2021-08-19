@@ -82,6 +82,7 @@ int WinMain(HINSTANCE hInstance,
     }
     
     glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
+    QPC_StartCounter();
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
     glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
@@ -94,12 +95,11 @@ int WinMain(HINSTANCE hInstance,
     GLenum GlewError = glewInit();
     if(GlewError == GLEW_OK)
     {
-        printf("OpenGL Initialized\n");
+        printf("INFO: OpenGL Initialized. %Lf ms\n", QPC_EndCounter() / 1000.0l);
         printf("Vendor: "); printf((char *)glGetString(GL_VENDOR)); printf("\n");
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
-        printf("Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
+        printf("OpenGL Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
         
-        // TODO: Do more initialization here?
         stbi_set_flip_vertically_on_load(true);
         glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         glEnable(GL_DEPTH_TEST);
@@ -125,31 +125,9 @@ int WinMain(HINSTANCE hInstance,
     QPC_StartCounter();
     SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
     raw_vertex_data BrdVertexData = GenerateVertexData(BoardData);
-    std::vector<v3> FilteredData = FilterRawData(&BrdVertexData.BottomData, FloatLessThanEqual);
-    int FDataSize = FilteredData.size();
     printf("INFO: Board data generated. %Lf ms\n", QPC_EndCounter() / 1000.0l);
-    
+    int Size = BrdVertexData.BottomData.size();
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
-    
-    unsigned int FilteredDataVAO, FilteredDataVBO;
-    glGenVertexArrays(1, &FilteredDataVAO);
-    glGenBuffers(1, &FilteredDataVBO);
-    glBindVertexArray(FilteredDataVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, FilteredDataVBO);
-    glBufferData(GL_ARRAY_BUFFER, FilteredData.size() * sizeof(v3), (float *)&FilteredData[0], GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
-    glBindVertexArray(0);
-    
-    unsigned int TopDataVAO, TopDataVBO;
-    glGenVertexArrays(1, &TopDataVAO);
-    glGenBuffers(1, &TopDataVBO);
-    glBindVertexArray(TopDataVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, TopDataVBO);
-    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.TopData.size() * sizeof(v3), (float *)&BrdVertexData.TopData[0], GL_STATIC_DRAW);  
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
-    glBindVertexArray(0);
     
     unsigned int BottomDataVAO, BottomDataVBO;
     glGenVertexArrays(1, &BottomDataVAO);
@@ -168,7 +146,6 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/board_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/board_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BoardProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -237,32 +214,12 @@ int WinMain(HINSTANCE hInstance,
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-#if 1
         ModelMatrix = glm::mat4(1.0f);
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
         SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 0.0f, 1.0f));
         glBindVertexArray(BottomDataVAO);
         glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
-#endif
-        
-#if 0
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, {0.0f, 0.5f, 0.0f});
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
-        glBindVertexArray(FilteredDataVAO);
-        glDrawArrays(GL_POINTS, 0, FilteredData.size());
-        
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, 0.25f, 0.0f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
-        glBindVertexArray(TopDataVAO);
-        glDrawArrays(GL_POINTS, 0, BrdVertexData.TopData.size());
-#endif
-        
         
         OutputErrorQueue();
         glfwSwapBuffers(Window);
@@ -354,7 +311,8 @@ struct transparent_sort_object
     int Index;
 };
 
-internal void TransparencyDepthSort(glm::vec3 *TransparentObjects, int ArrayCount, glm::vec3 CameraPosition)
+internal void 
+TransparencyDepthSort(glm::vec3 *TransparentObjects, int ArrayCount, glm::vec3 CameraPosition)
 {
     // The depth buffer is too small to hold the objects
     Assert(ArrayCount <= ArrayCount(TransparentIndexBuffer));
