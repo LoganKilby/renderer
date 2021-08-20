@@ -11,8 +11,10 @@
 
 #if ASSERTIONS_ENABLED
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
+#define AssertMsgBreak(Msg) fprintf(stderr, Msg); Assert(0);
 #else
 #define Assert(Expression)
+#define AsserMsgBreak(Expression, Msg)
 #endif
 
 #define Kilobytes(Value) ((Value)*1024LL)
