@@ -3,32 +3,6 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
-struct image
-{
-    unsigned char *Data;
-    char *Filename;
-    int Width;
-    int Height;
-    int ColorChannels;
-};
-
-// NOTE: Requires STB_IMAGE_IMPLEMENTATION definition and stb_image.h
-static image
-LoadImage(char *Filename)
-{
-    image Result = {};
-    Result.Filename = Filename;
-    Result.Data = stbi_load(Filename,
-                            &Result.Width,
-                            &Result.Height,
-                            &Result.ColorChannels,
-                            0);
-    
-    fprintf(stderr, "%s\n", stbi_failure_reason());
-    
-    return Result;
-}
-
 static char *
 ReadEntireFileToString(char *Filename)
 {
