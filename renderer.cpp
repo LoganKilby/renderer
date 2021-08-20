@@ -40,6 +40,7 @@ internal std::vector<texture_unit>
 LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, texture_map_enum MapType)
 {
     std::vector<texture_unit> TextureUnits;
+    TextureUnits.reserve(Material->GetTextureCount(Type));
     
     char Path[256] = {};
     strcpy(Path, Model->Directory);
@@ -75,8 +76,7 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     mesh Result = {};
     
     std::vector<vertex> Vertices;
-    std::vector<unsigned int> Indices;
-    std::vector<texture_unit> Textures;
+    Vertices.reserve(Mesh->mNumVertices);
     
     vertex Vertex;
     for(unsigned int i = 0; i < Mesh->mNumVertices; ++i)
@@ -99,9 +99,16 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
             Vertex.TextureCoordinates = glm::vec2(0.0f);
         }
         
+        Vertex.Tangent.x = Mesh->mTangents[i].x;
+        Vertex.Tangent.y = Mesh->mTangents[i].y;
+        Vertex.Tangent.z = Mesh->mTangents[i].z;
+        
         Vertices.push_back(Vertex);
     }
     
+    // NOTE: Assimp doesn't tell me the total number of indices
+    std::vector<unsigned int> Indices;
+    Indices.reserve(Mesh->mNumFaces * 3);
     for(unsigned int i = 0; i < Mesh->mNumFaces; ++i)
     {
         aiFace Face = Mesh->mFaces[i];
@@ -113,6 +120,8 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     
     Result.IndexCount = Indices.size();
     
+    
+    std::vector<texture_unit> Textures;
     if(Mesh->mMaterialIndex >= 0)
     {
         aiMaterial *Material = Scene->mMaterials[Mesh->mMaterialIndex];
@@ -139,15 +148,14 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.size() * sizeof(unsigned int), 
                  &Indices[0], GL_STATIC_DRAW);
     
-    // vertex positions
-    glEnableVertexAttribArray(0);	
+    glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
-    // vertex normals
-    glEnableVertexAttribArray(1);	
+    glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, Normal));
-    // vertex texture coords
-    glEnableVertexAttribArray(2);	
+    glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, TextureCoordinates));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, Tangent));
     
     glBindVertexArray(0);
     
@@ -178,8 +186,10 @@ LoadModel(char *Path)
     
     model Model = {};
     
+    QPC_StartCounter();
     Assimp::Importer Importer;
     const aiScene *Scene = Importer.ReadFile(Path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    printf("Assimp file read performance (%s): %Lf ms\n", Path, QPC_EndCounter() / 1000.0l);
     
     if(!Scene || Scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !Scene->mRootNode)
     {

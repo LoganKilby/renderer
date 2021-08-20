@@ -5,9 +5,13 @@
 
 //#define FAST_OBJ_IMPLEMENTATION
 //#include "include/fast_obj/fast_obj.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
 #include "include/stb/stb_image.h"
+// NOTE: stbi_set_flip_vertically_on_load(true); OpenGL reads texture coordinates with the y (or v)
+// coordinate reversed from how textures are generally created. I think in most cases, normal maps
+// will need to be flipped vertically when loaded.
 
 #include "include/assimp/Importer.hpp"
 #include "include/assimp/scene.h"
