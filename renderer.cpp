@@ -1,17 +1,39 @@
-global_variable std::vector<texture_unit> TextureCache;
+#include "renderer.h"
+
+// TODO: Move this somewhere else. Maybe initialize it at startup
+global_variable texture_cache GlobalTextureCache;
 
 internal int
 CheckTextureCache(char *TexturePath)
 {
-    for(int i = 0; i < TextureCache.size(); ++i)
+    for(int i = 0; i < GlobalTextureCache.Count; ++i)
     {
-        if(strcmp(TexturePath, TextureCache[i].Path) == 0)
+        if(strcmp(TexturePath, GlobalTextureCache.Textures[i].Path) == 0)
         {
             return i;
         }
     }
     
     return -1;
+}
+
+internal void
+CacheTexture(texture_unit Texture)
+{
+    if(GlobalTextureCache.Count >= GlobalTextureCache.Size)
+    {
+        AssertMsgBreak("ERROR: Texture cache overflow");
+    }
+    
+    GlobalTextureCache.Textures[GlobalTextureCache.Count] = Texture;
+    GlobalTextureCache.Count++;
+}
+
+internal texture_unit
+GetCachedTexture(int TextureIndex)
+{
+    Assert(TextureIndex >= 0 && TextureIndex <= GlobalTextureCache.Count);
+    return GlobalTextureCache.Textures[TextureIndex];
 }
 
 internal std::vector<texture_unit>
@@ -31,14 +53,14 @@ LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, tex
         int TextureIndex = CheckTextureCache(Path);
         if(TextureIndex >= 0)
         {
-            TextureUnits.push_back(TextureCache[TextureIndex]);
+            TextureUnits.push_back(GetCachedTexture(TextureIndex));
         }
         else
         {
-            texture_unit TextureResult = LoadTexture(Path);
+            texture_unit TextureResult = UploadTextureFromFile(Path);
             TextureResult.Type = MapType;
             TextureUnits.push_back(TextureResult);
-            TextureCache.push_back(TextureResult);
+            CacheTexture(TextureResult);
         }
         
         memset(Path + Model->DirectoryStrLen, 0, TextureName.length);
@@ -157,7 +179,7 @@ LoadModel(char *Path)
     model Model = {};
     
     Assimp::Importer Importer;
-    const aiScene *Scene = Importer.ReadFile(Path, aiProcess_Triangulate | aiProcess_FlipUVs);
+    const aiScene *Scene = Importer.ReadFile(Path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
     
     if(!Scene || Scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !Scene->mRootNode)
     {

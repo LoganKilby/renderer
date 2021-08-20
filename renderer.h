@@ -3,22 +3,25 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+//#define FAST_OBJ_IMPLEMENTATION
+//#include "include/fast_obj/fast_obj.h"
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_FAILURE_USERMSG
+#include "include/stb/stb_image.h"
+
+#include "include/assimp/Importer.hpp"
+#include "include/assimp/scene.h"
+#include "include/assimp/postprocess.h"
+
+// TODO: I don't really need the entire "texture unit" in the mesh, just the Id.
+// I should store the texture unit in the texture cache and store the texture IDs 
+// in the mesh.
+
 enum texture_map_enum
 {
     DIFFUSE_MAP = 1,
     SPECULAR_MAP
 };
-
-struct vertex
-{
-    glm::vec3 Position;
-    glm::vec3 Normal;
-    glm::vec2 TextureCoordinates;
-};
-
-// TODO: I don't really need the entire "texture unit" in the mesh, just the Id.
-// I should store the texture unit in the texture cache and store the texture IDs 
-// in the mesh.
 
 struct texture_unit
 {
@@ -28,6 +31,21 @@ struct texture_unit
     int Height;
     int ColorChannels;
     char Path[256];
+};
+
+struct texture_cache
+{
+    texture_unit Textures[50];
+    int Count;
+    int Size;
+};
+
+struct vertex
+{
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec2 TextureCoordinates;
+    glm::vec3 Tangent;
 };
 
 struct cubemap_texture_paths

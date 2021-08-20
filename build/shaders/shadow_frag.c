@@ -17,7 +17,7 @@ uniform samplerCube depthMap;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
-uniform float far_plane;
+uniform float far_plane; // for shadows
 
 float ShadowCalculation(vec3 fragPos)
 {
@@ -48,19 +48,19 @@ void main()
     
     vec3 color = texture(diffuseMap, fs_in.TexCoords).rgb;
     vec3 normal = texture(normalMap, fs_in.TexCoords).rgb;
-    normal = normalize(normal * 2.0 - 1.0); // from [0, 1](texture) to [-1, 1]
+    normal = normalize(normal * 2.0 - 1.0); // from [0, 1](rgb is 0 to 255) to [-1, 1]
     vec3 lightColor = vec3(0.5);
     
     // ambient
     vec3 ambient = 0.1 * color;
     
     // diffuse
-    vec3 lightDir = normalize(lightPos - fs_in.FragPos);
+    vec3 lightDir = normalize(fs_in.TangentLightPos - fs_in.TangentFragPos);
     float diff = max(dot(lightDir, normal), 0.0);
     vec3 diffuse = diff * attenuation * color;
     
     // specular
-    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
+    vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
     vec3 specular = spec * attenuation * color * vec3(2.0);

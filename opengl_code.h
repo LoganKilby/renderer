@@ -14,6 +14,8 @@
 #define AssertFrameBuf(FB_ID)
 #endif
 
+#include "utility.h"
+
 static void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
 static void SetUniform1f(int Program, char *Name, float Data);
 static void SetUniform1i(int Program, char *Name, int Data);

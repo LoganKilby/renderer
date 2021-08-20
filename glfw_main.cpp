@@ -4,21 +4,13 @@
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "include/glm/gtc/type_ptr.hpp"
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_FAILURE_USERMSG
-#include "include/stb/stb_image.h"
 //#define FAST_OBJ_IMPLEMENTATION
 //#include "include/fast_obj/fast_obj.h"
-#include "include/assimp/Importer.hpp"
-#include "include/assimp/scene.h"
-#include "include/assimp/postprocess.h"
 #include "include/qpc/qpc.h"
 #include "stdio.h"
 #include <vector>
 #include "types.h"
 #include "utility.h"
-#include "opengl_code.h"
-#include "renderer.h"
 #include "vertices.h"
 
 #include "opengl_code.cpp"
@@ -32,9 +24,6 @@ void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
-void RenderCube(void);
-void RenderScene(unsigned int ShadowProgram);
-void DebugRenderQuad(void);
 
 struct global_input
 {
@@ -54,8 +43,6 @@ global_variable global_input GlobalInput;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
 global_variable int TransparentIndexBuffer[5] = {};
-global_variable unsigned int CubeVAO;
-global_variable unsigned int CubeVBO;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -91,8 +78,7 @@ int WinMain(HINSTANCE hInstance,
     glfwSetCursorPosCallback(Window, GLFW_MouseCallback);
     glfwSetScrollCallback(Window, GLFW_MouseScrollCallback);
     glfwSetCursorPos(Window, WindowWidth / 2.0f, WindowHeight / 2.0f);
-    GLFWmonitor *Monitor = glfwGetPrimaryMonitor();
-    const GLFWgammaramp *GammaRamp = glfwGetGammaRamp(Monitor);
+    
     GLenum GlewError = glewInit();
     if(GlewError == GLEW_OK)
     {
@@ -108,6 +94,9 @@ int WinMain(HINSTANCE hInstance,
         glEnable(GL_MULTISAMPLE);
         //glEnable(GL_BLEND);
         //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        
+        GlobalTextureCache = {};
+        GlobalTextureCache.Size = sizeof(GlobalTextureCache.Textures);
     }
     else
     {
@@ -154,8 +143,8 @@ int WinMain(HINSTANCE hInstance,
     GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
     opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
     
-    texture_unit FloorTexture = LoadTexture("textures/brickwall.jpg");
-    texture_unit FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
+    texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
+    texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -169,13 +158,14 @@ int WinMain(HINSTANCE hInstance,
     
     // Camera
     // TODO: Set up a camera proper camera system
-    glm::vec3 CameraPos(0.0f, 0.0f, 0.0f);
+    glm::vec3 CameraPos(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
     glm::vec3 CameraFront(0.0f, 0.0f, -1.0f);
     glm::vec3 CameraUp(0.0f, 1.0f, 0.0f);
     CameraOrientation = {};
     CameraOrientation.Yaw = -90.0f;
     CameraOrientation.LookSpeed = 0.1f;
     CameraOrientation.PanSpeed = 10.0f;
+    CameraOrientation.Pitch = -2.8f; // DEBUG VALUE
     FieldOfView = 45.0f;
     
     point_light PointLight;
@@ -183,16 +173,9 @@ int WinMain(HINSTANCE hInstance,
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
-    glm::mat4 ViewSubMatrix;
+    glm::mat3 NormalMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
-    
-    glm::vec3 CubePositions[] =
-    {
-        glm::vec3(0.0f, 1.5f, 3.0f),
-        glm::vec3(2.0f, 0.01f, 1.0f),
-        glm::vec3(-1.0f, 0.01f, 2.0f)
-    };
     
     SetUniform1i(ShadowProgram.Id, "diffuseTexture", 0);
     
@@ -224,13 +207,10 @@ int WinMain(HINSTANCE hInstance,
         PointLight.Position = CameraPos;
         
         ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
-        ViewSubMatrix = glm::mat4(glm::mat3(ViewMatrix));
-        
         ProjectionMatrix = glm::perspective(glm::radians(FieldOfView), 
                                             WindowWidth / WindowHeight, 
                                             0.1f, 
                                             1000.0f);
-        
         
         glViewport(0, 0, WindowWidth, WindowHeight);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -239,7 +219,9 @@ int WinMain(HINSTANCE hInstance,
         SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
+        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
         glActiveTexture(GL_TEXTURE0);
@@ -247,6 +229,13 @@ int WinMain(HINSTANCE hInstance,
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
         DebugRenderQuad();
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5.0f, 0.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
+        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+        DebugRenderQuad();
+        
         
         
         glfwSwapBuffers(Window);
@@ -255,112 +244,6 @@ int WinMain(HINSTANCE hInstance,
     }
     
     return 0;
-}
-
-void DebugRenderQuad()
-{
-    static unsigned int quadVAO, quadVBO = 0;
-    if (quadVAO == 0)
-    {
-        float quadVertices[] = {
-            // front face
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-            1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-        };
-        // configure plane VAO
-        glGenVertexArrays(1, &quadVAO);
-        glGenBuffers(1, &quadVBO);
-        glBindVertexArray(quadVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    }
-    
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
-}
-
-void RenderCube()
-{
-    // initialize (if necessary)
-    if (CubeVAO == 0)
-    {
-        float vertices[] = {
-            // back face
-            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-            1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-            1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-            1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-            // front face
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-            1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-            // left face
-            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-            // right face
-            1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-            1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-            1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-            1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-            1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-            1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-            // bottom face
-            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-            1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-            1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-            1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-            // top face
-            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-            1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-            1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-            1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-        };
-        
-        glGenVertexArrays(1, &CubeVAO);
-        glGenBuffers(1, &CubeVBO);
-        // fill buffer
-        glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        // link vertex attributes
-        glBindVertexArray(CubeVAO);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    
-    // render Cube
-    glBindVertexArray(CubeVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
 }
 
 struct transparent_sort_object
