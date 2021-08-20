@@ -388,7 +388,7 @@ UploadTextureFromFile(char *Filename)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         
         stbi_image_free(Data);
-        printf("INFO: Texture %s loaded. (Texture ID: %d)\n", Filename, Result.Id);
+        printf("INFO: Texture loaded. (Path: %s, Texture ID: %d)\n", Filename, Result.Id);
     }
     else
     {

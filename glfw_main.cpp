@@ -4,15 +4,13 @@
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "include/glm/gtc/type_ptr.hpp"
-//#define FAST_OBJ_IMPLEMENTATION
-//#include "include/fast_obj/fast_obj.h"
 #include "include/qpc/qpc.h"
 #include "stdio.h"
 #include <vector>
+
 #include "types.h"
 #include "utility.h"
 #include "vertices.h"
-
 #include "opengl_code.cpp"
 #include "renderer.cpp"
 
@@ -70,6 +68,7 @@ int WinMain(HINSTANCE hInstance,
         printf("ERROR: GLFW failed to initialize\n");
     }
     
+    // TODO: Figure out why glfw window creation is so SLOW!
     glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
@@ -87,8 +86,6 @@ int WinMain(HINSTANCE hInstance,
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
         printf("Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
         
-        // TODO: Do more initialization here?
-        stbi_set_flip_vertically_on_load(true);
         glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
@@ -143,6 +140,7 @@ int WinMain(HINSTANCE hInstance,
     GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
     opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
     
+    model BackpackModel = LoadModel("models/backpack/backpack.obj");
     texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
     texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
     
