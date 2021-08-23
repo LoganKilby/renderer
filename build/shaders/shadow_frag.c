@@ -12,6 +12,7 @@ in VS_OUT {
 
 uniform sampler2D diffuseMap;
 uniform sampler2D normalMap;
+uniform sampler2D specularMap;
 uniform samplerCube depthMap;
 
 uniform vec3 lightPos;
@@ -47,9 +48,9 @@ void main()
     float attenuation = 1.0 / (constant + (linear * pLightDistance) + (quadratic * (pLightDistance * pLightDistance)));
     
     vec3 color = texture(diffuseMap, fs_in.TexCoords).rgb;
+    vec3 specularColor = texture(specularMap, fs_in.TexCoords).rgb;
     vec3 normal = texture(normalMap, fs_in.TexCoords).rgb;
     normal = normalize(normal * 2.0 - 1.0); // from [0, 1](rgb is 0 to 255) to [-1, 1]
-    vec3 lightColor = vec3(0.5);
     
     // ambient
     vec3 ambient = 0.1 * color;
@@ -63,7 +64,7 @@ void main()
     vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-    vec3 specular = spec * attenuation * color * vec3(2.0);
+    vec3 specular = spec * attenuation * specularColor;
     
     vec3 lighting = ambient + diffuse + specular;    
     FragColor = vec4(lighting, 1.0);

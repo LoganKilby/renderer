@@ -45,6 +45,7 @@ LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, tex
     char Path[256] = {};
     strcpy(Path, Model->Directory);
     
+    int TextureCount = Material->GetTextureCount(Type);
     for(unsigned int i = 0; i < Material->GetTextureCount(Type); ++i)
     {
         aiString TextureName;
@@ -58,10 +59,12 @@ LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, tex
         }
         else
         {
+            
             texture_unit TextureResult = UploadTextureFromFile(Path);
             TextureResult.Type = MapType;
             TextureUnits.push_back(TextureResult);
             CacheTexture(TextureResult);
+            
         }
         
         memset(Path + Model->DirectoryStrLen, 0, TextureName.length);
@@ -120,7 +123,6 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     
     Result.IndexCount = Indices.size();
     
-    
     std::vector<texture_unit> Textures;
     if(Mesh->mMaterialIndex >= 0)
     {
@@ -131,6 +133,11 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
         
         std::vector<texture_unit> SpecularMaps = LoadMaterialTextures(Model, Material, aiTextureType_SPECULAR, SPECULAR_MAP);
         Result.Textures.insert(Result.Textures.end(), SpecularMaps.begin(), SpecularMaps.end());
+        
+        // NOTE: For the Assmip .obj loader, normal maps must be identified by "map_Kn" in the .mtl file
+        // otherwise Assimp won't load them. TODO: Get rid of Assimp
+        std::vector<texture_unit> NormalMaps = LoadMaterialTextures(Model, Material, aiTextureType_NORMALS, NORMAL_MAP);
+        Result.Textures.insert(Result.Textures.end(), NormalMaps.begin(), NormalMaps.end());
     }
     
     Assert(Indices.size() > 0);
@@ -222,43 +229,34 @@ LoadModel(char *Path)
 internal void
 DrawMesh(unsigned int Program, mesh Mesh)
 {
-    // NOTE: This string insertion is only set up to insert a single digit number. If there are
-    // greater than 9 textures for a mesh, this will break. This isn't really a problem for me
-    // but maybe it will be in the future.
-    // "String[sizeof(String) - 3] = 48 + TexUnit"
-    unsigned int DiffuseTexUnit = 0;
-    unsigned int SpecularTexUnit = 0;
-    
-    char DifString[] = "Materials.DiffuseMaps[ ]";
-    char SpecString[] = "Materials.SpecularMaps[ ]";
+    // NOTE: Defined in shadow_frag.c (8/22/2021)
+    // DiffuseUnit: 0
+    // NormalUnit: 1
+    // SpecularUnit: 2
+    // DepthUnit: 3
     
     texture_unit TexUnit;
-    unsigned int TextureCount = Mesh.Textures.size();
-    //Assert(TextureCount == 2);
+    int TextureCount = Mesh.Textures.size();
     for(unsigned int i = 0; i < TextureCount; ++i)
     {
-        glActiveTexture(GL_TEXTURE0 + i);
-        
         TexUnit = Mesh.Textures[i];
+        
         if(TexUnit.Type == DIFFUSE_MAP)
         {
-            DifString[sizeof(DifString) - 3] = 48 + DiffuseTexUnit++;
-            SetUniform1i(Program, DifString, i);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, TexUnit.Id);
         }
         else if(TexUnit.Type == SPECULAR_MAP)
         {
-            SpecString[sizeof(SpecString) - 3] = 48 + SpecularTexUnit++;
-            SetUniform1i(Program, SpecString, i);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, TexUnit.Id);
         }
-        else
+        else if(TexUnit.Type == NORMAL_MAP)
         {
-            Assert(0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, TexUnit.Id);
         }
-        
-        glBindTexture(GL_TEXTURE_2D, TexUnit.Id);
     }
-    
-    glActiveTexture(GL_TEXTURE0);
     
     glBindVertexArray(Mesh.VAO);
     glDrawElements(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0);

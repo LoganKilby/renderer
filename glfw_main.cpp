@@ -130,6 +130,8 @@ int WinMain(HINSTANCE hInstance,
     opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     SetUniform1i(ShadowProgram.Id, "diffuseMap", 0);
     SetUniform1i(ShadowProgram.Id, "normalMap", 1);
+    SetUniform1i(ShadowProgram.Id, "specularMap", 2);
+    SetUniform1i(ShadowProgram.Id, "depthMap", 3);
     
     VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
@@ -140,7 +142,17 @@ int WinMain(HINSTANCE hInstance,
     GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
     opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
     
+    VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program DefaultProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    SetUniform1i(ShadowProgram.Id, "diffuseMap", 0);
+    SetUniform1i(ShadowProgram.Id, "normalMap", 1);
+    SetUniform1i(ShadowProgram.Id, "specularMap", 2);
+    
+    fast_mesh *TestMesh = fast_obj_read("models/backpack/backpack.obj");
+    stbi_set_flip_vertically_on_load(true);
     model BackpackModel = LoadModel("models/backpack/backpack.obj");
+    stbi_set_flip_vertically_on_load(false);
     texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
     texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
     
@@ -174,8 +186,6 @@ int WinMain(HINSTANCE hInstance,
     glm::mat3 NormalMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
-    
-    SetUniform1i(ShadowProgram.Id, "diffuseTexture", 0);
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -226,6 +236,9 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        
         DebugRenderQuad();
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5.0f, 0.0f, 0.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -234,7 +247,12 @@ int WinMain(HINSTANCE hInstance,
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         DebugRenderQuad();
         
-        
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(25.0f, 0.0f, 0.0f));
+        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
+        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+        DrawModel(ShadowProgram.Id, BackpackModel);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

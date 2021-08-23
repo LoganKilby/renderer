@@ -3,8 +3,9 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-//#define FAST_OBJ_IMPLEMENTATION
-//#include "include/fast_obj/fast_obj.h"
+#define FAST_OBJ_IMPLEMENTATION
+#include "include/fast_obj/fast_obj.h"
+typedef fastObjMesh fast_mesh;
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
@@ -24,7 +25,8 @@
 enum texture_map_enum
 {
     DIFFUSE_MAP = 1,
-    SPECULAR_MAP
+    SPECULAR_MAP,
+    NORMAL_MAP
 };
 
 struct texture_unit
