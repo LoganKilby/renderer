@@ -74,4 +74,32 @@ long long QPC_EndCounter()
     return Result;
 }
 
+
+long long QPC_EndCounterPrint(char *Message)
+{
+    long long Result;
+    
+    if(QPC_CounterCount)
+    {
+        LARGE_INTEGER EndingTime;
+        QueryPerformanceCounter(&EndingTime);
+        
+        qpc_counter Counter = QPC_CounterQueue[QPC_CounterCount - 1];
+        QPC_CounterQueue[QPC_CounterCount - 1] = {};
+        QPC_CounterCount--;
+        
+        LARGE_INTEGER ElapsedMicroseconds = {};
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - Counter.StartingTime.QuadPart;
+        Result = (ElapsedMicroseconds.QuadPart * 1000000) / Counter.Frequency.QuadPart;
+    }
+    else
+    {
+        Result = 0;
+    }
+    
+    printf("%s %Lf ms\n", Message, Result / 1000.0l);
+    
+    return Result;
+}
+
 #endif //QPC_H

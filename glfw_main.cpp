@@ -149,12 +149,15 @@ int WinMain(HINSTANCE hInstance,
     SetUniform1i(ShadowProgram.Id, "normalMap", 1);
     SetUniform1i(ShadowProgram.Id, "specularMap", 2);
     
-    fast_mesh *TestMesh = fast_obj_read("models/backpack/backpack.obj");
+    /*
     stbi_set_flip_vertically_on_load(true);
     model BackpackModel = LoadModel("models/backpack/backpack.obj");
     stbi_set_flip_vertically_on_load(false);
+    */
+    
     texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
     texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
+    texture_unit FloorSpecTexture = UploadTextureFromFile("textures/brickwall_grayscale.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -237,7 +240,7 @@ int WinMain(HINSTANCE hInstance,
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         
         DebugRenderQuad();
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5.0f, 0.0f, 0.0f));
@@ -246,13 +249,6 @@ int WinMain(HINSTANCE hInstance,
         SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         DebugRenderQuad();
-        
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(25.0f, 0.0f, 0.0f));
-        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
-        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
-        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-        DrawModel(ShadowProgram.Id, BackpackModel);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

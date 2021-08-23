@@ -346,58 +346,6 @@ SetShaderDirectionalLight(GLuint Program, char *StructName, directional_light Li
     free(UniformName);
 }
 
-internal texture_unit
-UploadTextureFromFile(char *Filename)
-{
-    texture_unit Result = {};
-    unsigned char *Data = stbi_load(Filename, &Result.Width, &Result.Height, &Result.ColorChannels, 0);
-    if(Data)
-    {
-        strcpy(Result.Path, Filename);
-        
-        GLenum PixelFormat;
-        GLenum TexParam;
-        switch(Result.ColorChannels)
-        {
-            // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
-            case 4: 
-            {
-                PixelFormat = GL_RGBA; 
-                TexParam = GL_CLAMP_TO_EDGE;
-            } break;
-            case 3:
-            {
-                PixelFormat = GL_RGB;
-                TexParam = GL_REPEAT;
-            } break;
-            default: 
-            {
-                printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
-                // TODO: Return a default texture
-                return Result;
-            }
-        }
-        
-        glGenTextures(1, &Result.Id);
-        glBindTexture(GL_TEXTURE_2D, Result.Id);
-        glTexImage2D(GL_TEXTURE_2D, 0, PixelFormat, Result.Width, Result.Height, 0, PixelFormat, GL_UNSIGNED_BYTE, Data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, TexParam);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, TexParam);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        
-        stbi_image_free(Data);
-        printf("INFO: Texture loaded. (Path: %s, Texture ID: %d)\n", Filename, Result.Id);
-    }
-    else
-    {
-        printf("WARNING: Failed to load image %s\n", Filename);
-    }
-    
-    return Result;
-}
-
 // NOTE: Saving the uniform locations is better than looking them up every time.
 // Some uniforms are set every frame. So maybe in the future I can just assert that
 // the uniform location passed as an argument is valid

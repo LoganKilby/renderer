@@ -88,4 +88,16 @@ ReadEntireFile(char *Filename, unsigned long int *TotalBytesRead)
     return FileBuffer;
 }
 
+internal char *
+Extension(char *FilePath)
+{
+    char *Result = FilePath;
+    while(*Result && *Result != '.')
+    {
+        Result++;
+    }
+    
+    return Result;
+}
+
 #endif //UTILITY_H

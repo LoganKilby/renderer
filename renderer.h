@@ -5,7 +5,7 @@
 
 #define FAST_OBJ_IMPLEMENTATION
 #include "include/fast_obj/fast_obj.h"
-typedef fastObjMesh fast_mesh;
+typedef fastObjMesh fast_obj_mesh;
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
