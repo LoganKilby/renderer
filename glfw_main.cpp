@@ -4,14 +4,6 @@
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "include/glm/gtc/type_ptr.hpp"
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_FAILURE_USERMSG
-#include "include/stb/stb_image.h"
-//#define FAST_OBJ_IMPLEMENTATION
-//#include "include/fast_obj/fast_obj.h"
-#include "include/assimp/Importer.hpp"
-#include "include/assimp/scene.h"
-#include "include/assimp/postprocess.h"
 #include "include/qpc/qpc.h"
 #include "stdio.h"
 #include "types.h"
@@ -100,7 +92,6 @@ int WinMain(HINSTANCE hInstance,
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
         printf("OpenGL Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
         
-        stbi_set_flip_vertically_on_load(true);
         glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
@@ -124,7 +115,9 @@ int WinMain(HINSTANCE hInstance,
     
     QPC_StartCounter();
     SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
-    raw_vertex_data BrdVertexData = GenerateVertexData(BoardData);
+    
+    std::vector<v3> ProfileVerts = ProcessProfileData(BoardData);
+    raw_vertex_data BrdVertexData = GenerateVertexDataFromRaw(BoardData);
     printf("INFO: Board data generated. %Lf ms\n", QPC_EndCounter() / 1000.0l);
     int Size = BrdVertexData.BottomData.size();
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
@@ -135,6 +128,16 @@ int WinMain(HINSTANCE hInstance,
     glBindVertexArray(BottomDataVAO);
     glBindBuffer(GL_ARRAY_BUFFER, BottomDataVBO);
     glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(v3), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glBindVertexArray(0);
+    
+    unsigned int ProfilePointsVAO, ProfilePointsVBO;
+    glGenVertexArrays(1, &ProfilePointsVAO);
+    glGenBuffers(1, &ProfilePointsVBO);
+    glBindVertexArray(ProfilePointsVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ProfilePointsVBO);
+    glBufferData(GL_ARRAY_BUFFER, ProfileVerts.size() * sizeof(v3), &ProfileVerts[0], GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
     glBindVertexArray(0);
@@ -215,11 +218,22 @@ int WinMain(HINSTANCE hInstance,
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.05f, 3.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
         SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 0.0f, 1.0f));
         glBindVertexArray(BottomDataVAO);
         glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
+        
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(1.0f, 0.0f, 0.0f));
+        //ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.05f, 3.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
+        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
+        glBindVertexArray(ProfilePointsVAO);
+        glDrawArrays(GL_POINTS, 0, ProfileVerts.size());
+        
         
         OutputErrorQueue();
         glfwSwapBuffers(Window);
@@ -234,7 +248,6 @@ void DebugRenderCube()
     local_persist unsigned int CubeVAO;
     local_persist unsigned int CubeVBO;
     
-    // initialize (if necessary)
     if (CubeVAO == 0)
     {
         float vertices[] = {
@@ -284,10 +297,8 @@ void DebugRenderCube()
         
         glGenVertexArrays(1, &CubeVAO);
         glGenBuffers(1, &CubeVBO);
-        // fill buffer
         glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        // link vertex attributes
         glBindVertexArray(CubeVAO);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
@@ -299,7 +310,6 @@ void DebugRenderCube()
         glBindVertexArray(0);
     }
     
-    // render Cube
     glBindVertexArray(CubeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);

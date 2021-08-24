@@ -12,6 +12,7 @@ struct image
     int ColorChannels;
 };
 
+#ifdef STB_IMAGE_IMPLEMENTATION
 // NOTE: Requires STB_IMAGE_IMPLEMENTATION definition and stb_image.h
 static image
 LoadImage(char *Filename)
@@ -28,6 +29,7 @@ LoadImage(char *Filename)
     
     return Result;
 }
+#endif
 
 static char *
 ReadEntireFileToString(char *Filename)

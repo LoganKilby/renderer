@@ -346,6 +346,7 @@ SetShaderDirectionalLight(GLuint Program, char *StructName, directional_light Li
     free(UniformName);
 }
 
+#ifdef STB_IMAGE_IMPLEMENTATION
 internal texture_unit
 LoadTexture(char *Filename)
 {
@@ -397,6 +398,7 @@ LoadTexture(char *Filename)
     
     return Result;
 }
+#endif
 
 // NOTE: Saving the uniform locations is better than looking them up every time.
 // Some uniforms are set every frame. So maybe in the future I can just assert that
@@ -468,6 +470,7 @@ DebugPrintUniforms(GLuint ProgramID, char *ProgramName)
     }
 }
 
+#ifdef STB_IMAGE_IMPLEMENTATION
 internal unsigned int
 LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *Front)
 {
@@ -542,6 +545,7 @@ LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *
     
     return Result;
 }
+#endif
 
 internal offscreen_buffer
 CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
