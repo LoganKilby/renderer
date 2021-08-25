@@ -3,16 +3,14 @@
 #ifndef QPC_H
 #define QPC_H
 
-//#include "windows.h"
-//#include "profileapi.h"
+#include "windows.h"
 
 // Basic usage:
 //   QPC_StartCounter();
 //   long long Result = QPC_EndCounter();
 //
-//   printf("%lld\n", Result); in microseconds
-//   printf("%lld\n", Result); in microseconds
-//   printf("%Lf\n", Result / 1000.0l); in milliseconds
+//   printf("%lld\n", Result); print microseconds
+//   printf("%Lf\n", Result / 1000.0l); print milliseconds
 
 // Simple LIFO: EndCounter returns the time elapsed since the most recent call to StartCounter
 
@@ -21,9 +19,10 @@
 // You may change MAX_COUNTER_CALLS to any value you like.
 
 void QPC_StartCounter(void);
-long long QPC_EndCounter(long long *Dest); // In microseconds
+long long QPC_EndCounter(void); // Returns microseconds since last StartCounter
+void QPC_EndCounterPrint(char *Message); // Prints Your message followed by the time elapsed in ms
 
-// -------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
 
 struct qpc_counter
 {
@@ -34,7 +33,7 @@ struct qpc_counter
 qpc_counter QPC_CounterQueue[MAX_COUNTER_CALLS] = {};
 int QPC_CounterCount = 0;
 
-static void QPC_AddCounter(qpc_counter Counter)
+void QPC_AddCounter(qpc_counter Counter)
 {
     if(QPC_CounterCount < MAX_COUNTER_CALLS)
     {
@@ -53,7 +52,7 @@ void QPC_StartCounter(void)
 
 long long QPC_EndCounter()
 {
-    long long Result;
+    long long Result = 0;
     
     if(QPC_CounterCount)
     {
@@ -68,12 +67,30 @@ long long QPC_EndCounter()
         ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - Counter.StartingTime.QuadPart;
         Result = (ElapsedMicroseconds.QuadPart * 1000000) / Counter.Frequency.QuadPart;
     }
-    else
-    {
-        Result = 0;
-    }
     
     return Result;
+}
+
+void QPC_EndCounterPrint(char *Message)
+{
+    if(QPC_CounterCount)
+    {
+        LARGE_INTEGER EndingTime;
+        QueryPerformanceCounter(&EndingTime);
+        
+        qpc_counter Counter = QPC_CounterQueue[QPC_CounterCount - 1];
+        QPC_CounterQueue[QPC_CounterCount - 1] = {};
+        QPC_CounterCount--;
+        
+        LARGE_INTEGER ElapsedMicroseconds = {};
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - Counter.StartingTime.QuadPart;
+        long long Result = (ElapsedMicroseconds.QuadPart * 1000000) / Counter.Frequency.QuadPart;
+        printf("%s %Lf ms\n", Message, Result / 1000.0l);
+    }
+    else
+    {
+        printf("QPC: No counter data to print.\n");
+    }
 }
 
 #endif //QPC_H
