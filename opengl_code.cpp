@@ -1,6 +1,15 @@
 #include "opengl_code.h"
 #include "renderer.h"
 
+// Maybe I could use a namespace in the future if I decide
+// to implement DirectX as well
+namespace OpenGL
+{
+    //internal GLuint LoadAndCompileShader(char *Filename, GLenum ShaderType);
+}
+
+//using namespace OpenGL;
+
 internal GLuint
 LoadAndCompileShader(char *Filename, GLenum ShaderType)
 {
@@ -97,7 +106,7 @@ CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID, GLuint Geome
 }
 
 internal void
-OutputOpenglError(int ErrorCode)
+OpenGL_PrintErrorCode(int ErrorCode)
 {
     char *Message;
     
@@ -148,7 +157,7 @@ CheckErrorCode()
     int ErrorCode = glGetError();
     if(ErrorCode != GL_NO_ERROR)
     {
-        OutputOpenglError(ErrorCode);
+        OpenGL_PrintErrorCode(ErrorCode);
         Result = true;
     }
     
@@ -156,12 +165,12 @@ CheckErrorCode()
 }
 
 internal void
-OutputErrorQueue()
+OpenGL_OutputErrorQueue()
 {
     GLenum ErrorCode = glGetError();
     while(ErrorCode != GL_NO_ERROR)
     {
-        OutputOpenglError(ErrorCode);
+        OpenGL_PrintErrorCode(ErrorCode);
         Assert(0);
         ErrorCode = glGetError();
     }
@@ -417,7 +426,7 @@ DebugPrintUniforms(GLuint ProgramID, char *ProgramName = "")
 }
 
 internal unsigned int
-LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *Front)
+OpenGL_LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *Front)
 {
     char *Paths[6] = 
     {
@@ -491,6 +500,32 @@ LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *
     return Result;
 }
 
+internal hdr_render_target
+HDR_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
+{
+    hdr_render_target Result = {};
+    glGenFramebuffers(1, &Result.FrameBufferID);
+    
+    glGenTextures(1, &Result.ColorBufferID);
+    glBindTexture(GL_TEXTURE_2D, Result.ColorBufferID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, ScreenWidth, ScreenWidth, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glGenRenderbuffers(1, &Result.RenderTargetID);
+    glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderTargetID);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, ScreenWidth, ScreenHeight);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, Result.RenderTargetID);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result.ColorBufferID, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, Result.RenderTargetID);
+    
+    GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    AssertMsgBreak(FramebufferStatus != GL_FRAMEBUFFER_COMPLETE, "OpenGL Error: Render buffer creation error");
+    
+    return Result;
+}
+
 internal offscreen_buffer
 CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
 {
@@ -552,12 +587,23 @@ CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    unsigned int VBO; // NOTE: I decided to not save this because I don't need it anywhere atm.
+    float ScreenRenderQuad[] = 
+    {
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+    };
+    
     glGenVertexArrays(1, &Result.VAO);
-    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &Result.VBO);
     glBindVertexArray(Result.VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(DefaultScreenVertices), &DefaultScreenVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, Result.VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(ScreenRenderQuad), &ScreenRenderQuad, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
@@ -822,4 +868,34 @@ void DebugRenderCube()
     glBindVertexArray(CubeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
+}
+
+internal unsigned int
+GetScreenRenderQuad()
+{
+    float ScreenRenderQuad[] = 
+    {
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+    };
+    
+    unsigned int VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(ScreenRenderQuad), &ScreenRenderQuad, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+    
+    return VAO;
 }

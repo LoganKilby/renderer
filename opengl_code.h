@@ -20,6 +20,18 @@ static void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
 static void SetUniform1f(int Program, char *Name, float Data);
 static void SetUniform1i(int Program, char *Name, int Data);
 
+struct hdr_buffer_config
+{
+    GLenum TextureFormat = GL_RGBA16F;
+};
+
+struct hdr_render_target // Floating point buffer for storing HDR color values
+{
+    unsigned int FrameBufferID; 
+    unsigned int ColorBufferID; // GL_RGBA16F 16 bits per pixel
+    unsigned int RenderTargetID; 
+};
+
 struct opengl_render_object
 {
     unsigned int VAO;
@@ -51,6 +63,7 @@ struct offscreen_buffer
     unsigned int ColorBuffer; // NOTE: Bind this texture to the default framebuffer after drawing
     unsigned int RenderBuffer;
     unsigned int VAO;
+    unsigned int VBO;
 };
 
 struct shadow_map

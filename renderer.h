@@ -18,9 +18,13 @@ typedef fastObjMesh fast_obj_mesh;
 #include "include/assimp/scene.h"
 #include "include/assimp/postprocess.h"
 
-// TODO: I don't really need the entire "texture unit" in the mesh, just the Id.
-// I should store the texture unit in the texture cache and store the texture IDs 
-// in the mesh.
+struct scene_attributes
+{
+    // Reinhard tone mapping: vec3 color = HDR_Color / (HDR_Color + vec3(1.0))
+    // Exposure tone mapping: vec3 color = vec3(1.0) - exp(-HDR_Color * exposure); exp == e^x
+    float ToneCurve;
+    float Exposure;
+};
 
 enum texture_map_enum
 {
@@ -76,6 +80,9 @@ struct msaa_framebuffer
     unsigned int DRAW_ColorBuffer;
 };
 
+// TODO: I don't really need the entire "texture unit" in the mesh, just the Id.
+// I should store the texture unit in the texture cache and store the texture IDs 
+// in the mesh.
 struct mesh
 {
     std::vector<texture_unit> Textures;

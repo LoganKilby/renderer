@@ -54,8 +54,8 @@ int WinMain(HINSTANCE hInstance,
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     
-    float WindowWidth = 1280.0f;
-    float WindowHeight = 720.0f;
+    int WindowWidth = 1280.0f;
+    int WindowHeight = 720.0f;
     if(glfwInit())
     {
         printf("GLFW Initialized\n");
@@ -110,6 +110,7 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
+    hdr_render_target HDR_RenderTarget = HDR_CreateRenderTarget(WindowWidth, WindowWidth);
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
     shadow_map ShadowCubeMap = CreateShadowCubeMap();
     float ShadowNearPlane = 1.0f;
@@ -119,6 +120,8 @@ int WinMain(HINSTANCE hInstance,
                                                         ShadowAspectRatio,
                                                         ShadowNearPlane,
                                                         ShadowFarPlane);
+    
+    unsigned int ScreenVAO = GetScreenRenderQuad();
     
     // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
@@ -131,29 +134,11 @@ int WinMain(HINSTANCE hInstance,
     SetUniform1i(ShadowProgram.Id, "diffuseMap", 0);
     SetUniform1i(ShadowProgram.Id, "normalMap", 1);
     SetUniform1i(ShadowProgram.Id, "specularMap", 2);
-    SetUniform1i(ShadowProgram.Id, "depthMap", 3);
+    //SetUniform1i(ShadowProgram.Id, "depthMap", 3);
     
-    VertexShaderID = LoadAndCompileShader("shaders/post_effects_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/post_effects_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program PostEffectsProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/omnishadowmap_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/omnishadowmap_frag.c", GL_FRAGMENT_SHADER);
-    GeometryShaderID = LoadAndCompileShader("shaders/omnishadowmap_geometry.c", GL_GEOMETRY_SHADER);
-    opengl_shader_program OmniShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, GeometryShaderID);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program DefaultProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    SetUniform1i(ShadowProgram.Id, "diffuseMap", 0);
-    SetUniform1i(ShadowProgram.Id, "normalMap", 1);
-    SetUniform1i(ShadowProgram.Id, "specularMap", 2);
-    
-    
-    stbi_set_flip_vertically_on_load(true);
-    model BackpackModel = LoadModel("models/backpack/backpack.obj");
-    stbi_set_flip_vertically_on_load(false);
-    
+    VertexShaderID = LoadAndCompileShader("shaders/blit_screen_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/blit_screen_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program BlitShader = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
     texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
@@ -219,11 +204,13 @@ int WinMain(HINSTANCE hInstance,
         
         ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
         ProjectionMatrix = glm::perspective(glm::radians(FieldOfView), 
-                                            WindowWidth / WindowHeight, 
+                                            (float)WindowWidth / (float)WindowHeight, 
                                             0.1f, 
                                             1000.0f);
         
-        glViewport(0, 0, WindowWidth, WindowHeight);
+        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBufferID);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
@@ -252,19 +239,18 @@ int WinMain(HINSTANCE hInstance,
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         DebugRenderQuad();
         
-#if 1
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(5.0f, 0.0f, 0.0f));
-        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
-        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
-        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-        DrawModel(BackpackModel, ShadowProgram.Id);
-#endif
-        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glUseProgram(BlitShader.Id);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBufferID);
+        glBindVertexArray(ScreenVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBindVertexArray(0);
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
-        OutputErrorQueue();
+        OpenGL_OutputErrorQueue();
     }
     
     return 0;
@@ -278,7 +264,6 @@ struct transparent_sort_object
 
 internal void TransparencyDepthSort(glm::vec3 *TransparentObjects, int ArrayCount, glm::vec3 CameraPosition)
 {
-    // The depth buffer is too small to hold the objects
     Assert(ArrayCount <= ArrayCount(TransparentIndexBuffer));
     memset(TransparentIndexBuffer, 0, sizeof(TransparentIndexBuffer));
     

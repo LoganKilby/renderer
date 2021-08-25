@@ -22,11 +22,8 @@ CacheTexture(texture_unit Texture)
 {
     if(CheckTextureCache(Texture.Path) == -1)
     {
-        if(GlobalTextureCache.Count >= GlobalTextureCache.Size)
-        {
-            AssertMsgBreak("ERROR: Texture cache overflow");
-        }
-        
+        AssertMsgBreak(GlobalTextureCache.Count >= GlobalTextureCache.Size, 
+                       "ERROR: Texture cache overflow");
         GlobalTextureCache.Textures[GlobalTextureCache.Count] = Texture;
         GlobalTextureCache.Count++;
     }
@@ -337,18 +334,13 @@ LoadObjModel(char *PathToDotObjFile)
     QPC_StartCounter();
     
     char *Ext = Extension(PathToDotObjFile);
-    if(strcmp(Ext, ".obj"))
-    {
-        // TODO: Return a debug model so the program doesn't just crash
-        AssertMsgBreakEx("ERROR: Invalid obj file (%s)", PathToDotObjFile);
-    }
+    // TODO: Return a debug model so the program doesn't just crash
+    AssertMsgBreakEx(strcmp(Ext, ".obj"), "ERROR: Invalid obj file (%s)", PathToDotObjFile);
+    
     
     fast_obj_mesh *Mesh = fast_obj_read(PathToDotObjFile);
-    if(!Mesh)
-    {
-        // TODO: Return a debug model so the program doesn't just crash
-        AssertMsgBreakEx("ERROR: Unable to open file (%s)", PathToDotObjFile);
-    }
+    // TODO: Return a debug model so the program doesn't just crash
+    AssertMsgBreakEx(Mesh, "ERROR: Unable to open file (%s)", PathToDotObjFile);
     
     model Result;
     vertex FaceVertexBuffer[5]; // NOTE: I'm assuming there's no more than 5 vertices per face
