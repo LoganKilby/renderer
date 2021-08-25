@@ -312,10 +312,17 @@ DrawMesh(unsigned int Program, mesh Mesh)
     glBindVertexArray(Mesh.VAO);
     glDrawElements(GL_TRIANGLES, Mesh.IndexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 internal void
-DrawModel(unsigned int ProgramID, model Model)
+DrawModel(model Model, unsigned int ProgramID)
 {
     glUseProgram(ProgramID);
     for(int MeshIndex = 0; MeshIndex < Model.Meshes.size(); ++MeshIndex)

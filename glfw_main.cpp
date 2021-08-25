@@ -149,11 +149,11 @@ int WinMain(HINSTANCE hInstance,
     SetUniform1i(ShadowProgram.Id, "normalMap", 1);
     SetUniform1i(ShadowProgram.Id, "specularMap", 2);
     
-    /*
+    
     stbi_set_flip_vertically_on_load(true);
     model BackpackModel = LoadModel("models/backpack/backpack.obj");
     stbi_set_flip_vertically_on_load(false);
-    */
+    
     
     texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
     texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
@@ -228,27 +228,39 @@ int WinMain(HINSTANCE hInstance,
         
         SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
         SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
+        SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
+        
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
         NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
-        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
-        SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
-        SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
-        
         DebugRenderQuad();
+        
+        ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5.0f, 0.0f, 0.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
         SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         DebugRenderQuad();
+        
+#if 1
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(5.0f, 0.0f, 0.0f));
+        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
+        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+        DrawModel(BackpackModel, ShadowProgram.Id);
+#endif
+        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
