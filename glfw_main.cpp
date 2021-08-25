@@ -11,8 +11,8 @@
 #include "opengl_code.h"
 #include "renderer.h"
 #include "vertices.h"
-#include "include/board_processing/board_processing.h"
 
+#include "board_processing.cpp"
 #include "opengl_code.cpp"
 #include "renderer.cpp"
 
@@ -113,12 +113,13 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-    QPC_StartCounter();
-    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board36.brd");
+    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board39.brd");
     
-    std::vector<v3> ProfileVerts = ProcessProfileData(BoardData);
+    QPC_StartCounter();
+    std::vector<v6> ProfileVerts = ProcessProfileData(BoardData, 8);
+    QPC_EndCounterPrint("Vertices processed");
+    
     raw_vertex_data BrdVertexData = GenerateVertexDataFromRaw(BoardData);
-    printf("INFO: Board data generated. %Lf ms\n", QPC_EndCounter() / 1000.0l);
     int Size = BrdVertexData.BottomData.size();
     offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
     
@@ -127,9 +128,11 @@ int WinMain(HINSTANCE hInstance,
     glGenBuffers(1, &BottomDataVBO);
     glBindVertexArray(BottomDataVAO);
     glBindBuffer(GL_ARRAY_BUFFER, BottomDataVBO);
-    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(v3), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(v6), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     
     unsigned int ProfilePointsVAO, ProfilePointsVBO;
@@ -137,9 +140,11 @@ int WinMain(HINSTANCE hInstance,
     glGenBuffers(1, &ProfilePointsVBO);
     glBindVertexArray(ProfilePointsVAO);
     glBindBuffer(GL_ARRAY_BUFFER, ProfilePointsVBO);
-    glBufferData(GL_ARRAY_BUFFER, ProfileVerts.size() * sizeof(v3), &ProfileVerts[0], GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, ProfileVerts.size() * sizeof(v6), &ProfileVerts[0], GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     
     // TODO: Can I streamline shader loading and compiltion?
@@ -217,20 +222,20 @@ int WinMain(HINSTANCE hInstance,
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
+#if 0
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.05f, 3.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 0.0f, 1.0f));
         glBindVertexArray(BottomDataVAO);
         glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
+#endif
         
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(1.0f, 0.0f, 0.0f));
-        //ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.05f, 3.0f));
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(1.25f, 0.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.1f, 3.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        SetUniform3fv(BoardProgram.Id, "color", glm::vec3(0.0f, 1.0f, 0.0f));
         glBindVertexArray(ProfilePointsVAO);
         glDrawArrays(GL_POINTS, 0, ProfileVerts.size());
         
