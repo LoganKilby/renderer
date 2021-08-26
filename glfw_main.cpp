@@ -121,19 +121,6 @@ int WinMain(HINSTANCE hInstance,
     
     raw_vertex_data BrdVertexData = GenerateVertexDataFromRaw(BoardData);
     int Size = BrdVertexData.BottomData.size();
-    offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
-    
-    unsigned int BottomDataVAO, BottomDataVBO;
-    glGenVertexArrays(1, &BottomDataVAO);
-    glGenBuffers(1, &BottomDataVBO);
-    glBindVertexArray(BottomDataVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, BottomDataVBO);
-    glBufferData(GL_ARRAY_BUFFER, BrdVertexData.BottomData.size() * sizeof(v6), &BrdVertexData.BottomData[0], GL_STATIC_DRAW);  
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
     
     unsigned int ProfilePointsVAO, ProfilePointsVBO;
     glGenVertexArrays(1, &ProfilePointsVAO);
@@ -167,7 +154,7 @@ int WinMain(HINSTANCE hInstance,
     
     // Camera
     // TODO: Set up a camera proper camera system
-    glm::vec3 CameraPos(0.0f, 0.0f, 0.0f);
+    glm::vec3 CameraPos(1.49f, 1.40f, 2.80f);
     glm::vec3 CameraFront(0.0f, 0.0f, -1.0f);
     glm::vec3 CameraUp(0.0f, 1.0f, 0.0f);
     CameraOrientation = {};
@@ -222,18 +209,9 @@ int WinMain(HINSTANCE hInstance,
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-#if 0
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.05f, 3.0f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        glBindVertexArray(BottomDataVAO);
-        glDrawArrays(GL_POINTS, 0, BrdVertexData.BottomData.size());
-#endif
-        
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(1.25f, 0.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.1f, 3.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.2f, 1.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
         glBindVertexArray(ProfilePointsVAO);

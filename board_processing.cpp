@@ -137,11 +137,13 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
     
     int StartIndex = BoardData->last_board_data.implement_data.beg_ele;
     int EndIndex = BoardData->last_board_data.implement_data.end_ele + 1;
-    float MinX = BoardData->last_board_data.profile_data[StartIndex].lead_edge_x;
-    float MaxX = MinX;
-    float MinY = BoardData->last_board_data.profile_data[StartIndex].lead_edge_y;
-    float MaxY = MinY;
+    
+    float MinX = 0;
+    float MaxX = 32000.0f;
+    float MinY = -4000.0f;
+    float MaxY = 4000.0f;
     float MaxZ = ZOffsetPerProfile * ProfileCount;
+    float MinZ = 0.0f;
     
     std::vector<v6> Result;
     Result.reserve(EndIndex - StartIndex);
@@ -154,10 +156,19 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
             int LeadEdgeX = Profiles[ProfileIndex].lead_edge_x;
             int LeadEdgeY = Profiles[ProfileIndex].lead_edge_y;
             int TrailEdgeX = Profiles[ProfileIndex].trail_edge_x;
-            int GradeMinX = Profiles[ProfileIndex].grade_thick[Grade].lead_thick_x;
-            int GradeMaxX = Profiles[ProfileIndex].grade_thick[Grade].trail_thick_x;
             
-            float XOffset = (TrailEdgeX - LeadEdgeX) / 2300;
+            // NOTE: regions of coloration
+            //       vne    red
+            //       vne1   orange
+            //       thick  yellow
+            //       scant  (not implemented)
+            int YellowRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_thick_x;
+            int YellowRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_thick_x;
+            int OrangeRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne1_x;
+            int OrangeRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne1_x;
+            int RedRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne_x;
+            int RedRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne_x;
+            
             int SampleCount = 0;
             for(int SampleIndex = 0; SampleIndex < 2300; ++SampleIndex) // thk_array[]
             {
@@ -172,47 +183,43 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
                     
                     // NOTE: grade_thick for each grade (represented by color) can be unique
                     // per-profile.
-                    if((Vertex.x >= GradeMinX) && (Vertex.x <= GradeMaxX))
+                    if((Vertex.x >= YellowRegionStartX) && (Vertex.x <= YellowRegionEndX))
                     {
                         Vertex.r = 1.0f;
                         Vertex.g = 1.0f;
                         Vertex.b = 0;
                     }
-                    else
+                    else if((Vertex.x >= OrangeRegionStartX) && (Vertex.x <= OrangeRegionEndX))
                     {
                         Vertex.r = 1.0f;
-                        Vertex.g = 0;
+                        Vertex.g = 0.65f;
                         Vertex.b = 0;
                     }
+                    else if((Vertex.x >= RedRegionStartX) && (Vertex.x <= RedRegionEndX))
+                    {
+                        Vertex.r = 1.0f;
+                        Vertex.g = 0.0f;
+                        Vertex.b = 0.0f;
+                    }
                     
+                    for(int i = 0; i < 5; ++i)
+                    {
+                        if(Vertex.x == Profiles[ProfileIndex].cut[i])
+                        {
+                            Vertex.r = 0.0f;
+                            Vertex.g = 1.0f;
+                            Vertex.b = 0.0f;
+                        }
+                    }
+                    
+                    Vertex.x = Map(Vertex.x, 0, 32000, -1, 1);
+                    Vertex.y = Map(Vertex.y, -4000, 4000, -1, 1);
+                    Vertex.z = Map(Vertex.z, 0, MaxZ, -1, 1);
                     Result.push_back(Vertex);
-                    
-                    if(Vertex.x > MaxX) MaxX = Vertex.x;
-                    if(Vertex.x < MinX) MinX = Vertex.x;
-                    if(Vertex.y > MaxY) MaxY = Vertex.y;
-                    if(Vertex.y < MinY) MinY = Vertex.y;
-                    
-                    // TODO: x values are still greater than trail_edge_x
-                    //Assert(Vertex.x <= TrailEdgeX);
-                    Assert(Vertex.y <= 8000);
                 }
             }
         }
     }
-    
-    // TODO: For more accurate results, results should be mapped to actual phyiscal dimensional
-    // limitation of the machine. What is the tallest(MaxY)/widest(MaxX) board that can go through
-    // the machine?
-    for(int VertexIndex = 0; VertexIndex < Result.size(); ++VertexIndex)
-    {
-        Result[VertexIndex].x = Map(Result[VertexIndex].x, MinX, MaxX, -1, 1);
-        Result[VertexIndex].y = Map(Result[VertexIndex].y, MinY, MaxY, -1, 1);
-        Result[VertexIndex].z = Map(Result[VertexIndex].z, 0, MaxZ, -1, 1);
-    }
-    
-    printf("MinX: %f, MaxX: %f\n", MinX, MaxX);
-    printf("MinY: %f, MaxY: %f\n", MinY, MaxY);
-    printf("MinZ: %f, MaxZ: %f\n", 0.0f, MaxZ);
     
     return Result;
 }

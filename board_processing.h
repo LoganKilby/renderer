@@ -9,11 +9,25 @@
 #define STD_824S1 1
 #include "include/board_processing/hi_tech.h"
 
+// Idk
 struct v3
 {
-    float x;
-    float y;
-    float z;
+    union
+    {
+        struct 
+        {
+            float x;
+            float y;
+            float z;
+        };
+        
+        struct
+        {
+            float r;
+            float g;
+            float b;
+        };
+    };
 };
 
 struct v6
@@ -21,15 +35,10 @@ struct v6
     float x;
     float y;
     float z;
+    
     float r;
     float g;
     float b;
-};
-
-struct color_range
-{
-    float Low;
-    float High;
 };
 
 struct raw_vertex_data
