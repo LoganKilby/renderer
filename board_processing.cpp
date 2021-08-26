@@ -1,6 +1,40 @@
 #include "board_processing.h"
 
-static void *ReadFile(char *Filename)
+internal void
+PushVertex(vertex_buffer *Buffer, v6 Element)
+{
+    Assert(Buffer->ElementCount < Buffer->ElementCapacity);
+    Buffer->Memory[Buffer->ElementCount++] = Element;
+}
+
+internal void
+ClearVertexBuffer(vertex_buffer *Buffer)
+{
+    int CapacityInBytes = Buffer->ElementCapacity * sizeof(v6);
+    memset(Buffer->Memory, 0, CapacityInBytes);
+    Buffer->ElementCount = 0;
+}
+
+internal vertex_buffer
+CreateVertexBuffer(int ElementsToAllocate)
+{
+    vertex_buffer Result = {};
+    Result.ElementCapacity = ElementsToAllocate;
+    Result.Memory = (v6 *)malloc(Result.ElementCapacity * sizeof(v6));
+    
+    return Result;
+}
+
+internal void
+UploadBufferedVertices(vertex_buffer Buffer, unsigned int VertexAttributeObject)
+{
+    glBindVertexArray(VertexAttributeObject);
+    int BufferedBytes = Buffer.ElementCount * sizeof(v6);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, BufferedBytes, Buffer.Memory);
+    glBindVertexArray(0);
+}
+
+internal void *ReadFile(char *Filename)
 {
     FILE *FileHandle = fopen(Filename, "rb");
     fseek(FileHandle, 0L, SEEK_END);
@@ -14,7 +48,7 @@ static void *ReadFile(char *Filename)
     return Result;
 }
 
-static float
+internal float
 Map(float Value, float L1, float H1, float L2, float H2)
 {
     float Result = L2 + (Value - L1) * (H2 - L2) / (H1 - L1);
@@ -22,7 +56,7 @@ Map(float Value, float L1, float H1, float L2, float H2)
     return Result;
 };
 
-static void
+internal void
 YValueTest(SBoardData *BoardData)
 {
     int BeginIndex = BoardData->last_board_data.implement_data.beg_ele;
@@ -46,7 +80,7 @@ YValueTest(SBoardData *BoardData)
     printf("min count in thk_array: %d\n", MinThkArrayCount);
 }
 
-static raw_vertex_data
+internal raw_vertex_data
 GenerateVertexDataFromRaw(SBoardData *BoardData)
 {
     float ToInches = 1.0f / 1000.0f; // Raw laser data points are given in 1000ths of an inch
@@ -111,8 +145,8 @@ GenerateVertexDataFromRaw(SBoardData *BoardData)
 // MAX_NUM_FT_OF_LIGHT_CURTAIN = MAX_LEN_BRD + 1
 // NUM_LIGHT_CURTAIN_ELEMENTS_FT = 48
 
-internal std::vector<v6>
-ProcessProfileData(SBoardData *BoardData, int Grade)
+internal void
+ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade)
 {
     PROFILE_DATA_STN *Profiles = &BoardData->last_board_data.profile_data[0];
     
@@ -145,8 +179,6 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
     float MaxZ = ZOffsetPerProfile * ProfileCount;
     float MinZ = 0.0f;
     
-    std::vector<v6> Result;
-    Result.reserve(EndIndex - StartIndex);
     v6 Vertex;
     for(int ProfileIndex = StartIndex; ProfileIndex < EndIndex; ++ProfileIndex) // profiles[]
     {
@@ -162,8 +194,10 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
             //       vne1   orange
             //       thick  yellow
             //       scant  (not implemented)
-            int YellowRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_thick_x;
-            int YellowRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_thick_x;
+            int YellowRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_scant_t;
+            int YellowRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_scant_t;
+            int LightOrangeRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_thick_x;
+            int LightOrangeRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_thick_x;
             int OrangeRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne1_x;
             int OrangeRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne1_x;
             int RedRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne_x;
@@ -175,8 +209,8 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
                 SampleY = Profiles[ProfileIndex].thk_array[SampleIndex];
                 if(SampleY)
                 {
-                    // NOTE: By incrementing distance for every valid non-zero y-value
-                    // the visual result looks much more accurate. TBD
+                    // NOTE: By incrementing distance for every valid y-value instead of for every
+                    // possible y-value the result looks more reasonable
                     Vertex.x = LeadEdgeX + (SampleCount++ * XOffsetPerSample);
                     Vertex.y = LeadEdgeY + SampleY;
                     Vertex.z = ProfileOffset;
@@ -188,6 +222,12 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
                         Vertex.r = 1.0f;
                         Vertex.g = 1.0f;
                         Vertex.b = 0;
+                    }
+                    else if((Vertex.x >= LightOrangeRegionStartX) && (Vertex.x <= LightOrangeRegionEndX))
+                    {
+                        Vertex.r = 0.0f;
+                        Vertex.g = 1.0f;
+                        Vertex.b = 0.0f;
                     }
                     else if((Vertex.x >= OrangeRegionStartX) && (Vertex.x <= OrangeRegionEndX))
                     {
@@ -202,6 +242,7 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
                         Vertex.b = 0.0f;
                     }
                     
+#if 0
                     for(int i = 0; i < 5; ++i)
                     {
                         if(Vertex.x == Profiles[ProfileIndex].cut[i])
@@ -211,20 +252,19 @@ ProcessProfileData(SBoardData *BoardData, int Grade)
                             Vertex.b = 0.0f;
                         }
                     }
+#endif
                     
                     Vertex.x = Map(Vertex.x, 0, 32000, -1, 1);
                     Vertex.y = Map(Vertex.y, -4000, 4000, -1, 1);
                     Vertex.z = Map(Vertex.z, 0, MaxZ, -1, 1);
-                    Result.push_back(Vertex);
+                    PushVertex(VertexBuffer, Vertex);
                 }
             }
         }
     }
-    
-    return Result;
 }
 
-static void
+internal void
 WriteRawVertexData(char *Filename, v3 *Data, int Count)
 {
     FILE *FileHandle = fopen(Filename, "w+");
@@ -243,19 +283,19 @@ WriteRawVertexData(char *Filename, v3 *Data, int Count)
     fclose(FileHandle);
 }
 
-static bool
+internal bool
 FloatLessThanEqual(float A, float B)
 {
     return A <= B ? true : false;
 }
 
-static bool
+internal bool
 FloatGreaterThanEqual(float A, float B)
 {
     return A >= B ? true : false;
 }
 
-static std::vector<v3>
+internal std::vector<v3>
 FilterRawData(std::vector<v3> *RawData, bool CompareFunction(float, float))
 {
     std::vector<v3> Result;

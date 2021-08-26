@@ -47,4 +47,17 @@ struct raw_vertex_data
     std::vector<v6> BottomData;
 };
 
+struct vertex_buffer
+{
+    v6 *Memory;
+    int ElementCapacity;
+    int ElementCount;
+};
+
+struct board_render_config
+{
+    int GradeSelection; // NOTE: There's typically 10 out of 40 active in my experience: Index 0-9
+    int DrawCuts;
+};
+
 #endif //BOARD_LOADING_H

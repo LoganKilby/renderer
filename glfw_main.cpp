@@ -40,12 +40,10 @@ struct camera_orientation
     float PanSpeed;
 };
 
-// TODO: Write camera system
-
 global_variable global_input GlobalInput;
 global_variable camera_orientation CameraOrientation;
 global_variable float FieldOfView;
-global_variable int TransparentIndexBuffer[5] = {};
+global_variable board_render_config DrawConfig;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -113,28 +111,31 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board39.brd");
+    int ProfileCount = MAX_NUM_LASERS + 1;
+    int SamplesPerProfile = MAX_NUM_CNTS_PER_LUG;
+    int MaxVertexCount = ProfileCount * SamplesPerProfile;
+    vertex_buffer GlobalVertexStorage = CreateVertexBuffer(MaxVertexCount);
     
-    QPC_StartCounter();
-    std::vector<v6> ProfileVerts = ProcessProfileData(BoardData, 8);
-    QPC_EndCounterPrint("Vertices processed");
-    
-    raw_vertex_data BrdVertexData = GenerateVertexDataFromRaw(BoardData);
-    int Size = BrdVertexData.BottomData.size();
-    
+    int VertexBufferSize = GlobalVertexStorage.ElementCapacity * sizeof(v6);
     unsigned int ProfilePointsVAO, ProfilePointsVBO;
     glGenVertexArrays(1, &ProfilePointsVAO);
     glGenBuffers(1, &ProfilePointsVBO);
     glBindVertexArray(ProfilePointsVAO);
     glBindBuffer(GL_ARRAY_BUFFER, ProfilePointsVBO);
-    glBufferData(GL_ARRAY_BUFFER, ProfileVerts.size() * sizeof(v6), &ProfileVerts[0], GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, VertexBufferSize, 0, GL_STATIC_DRAW);  
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     
-    // TODO: Can I streamline shader loading and compiltion?
+    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board39.brd");
+    
+    QPC_StartCounter();
+    ProcessProfileData(&GlobalVertexStorage, BoardData, 8);
+    UploadBufferedVertices(GlobalVertexStorage, ProfilePointsVAO);
+    QPC_EndCounterPrint("Vertices processed");
+    
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
@@ -215,8 +216,7 @@ int WinMain(HINSTANCE hInstance,
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
         glBindVertexArray(ProfilePointsVAO);
-        glDrawArrays(GL_POINTS, 0, ProfileVerts.size());
-        
+        glDrawArrays(GL_POINTS, 0, GlobalVertexStorage.ElementCount);
         
         OutputErrorQueue();
         glfwSwapBuffers(Window);
@@ -303,50 +303,6 @@ struct transparent_sort_object
     float Length;
     int Index;
 };
-
-internal void 
-TransparencyDepthSort(glm::vec3 *TransparentObjects, int ArrayCount, glm::vec3 CameraPosition)
-{
-    // The depth buffer is too small to hold the objects
-    Assert(ArrayCount <= ArrayCount(TransparentIndexBuffer));
-    memset(TransparentIndexBuffer, 0, sizeof(TransparentIndexBuffer));
-    
-    transparent_sort_object TempLengths[5] = {};
-    
-    float Length;
-    for(int i = 0; i < ArrayCount; ++i)
-    {
-        Length = glm::length(CameraPosition - TransparentObjects[i]);
-        TempLengths[i].Length = Length;
-        TempLengths[i].Index = i;
-    }
-    
-    while(true)
-    {
-        int SwapCount = 0;
-        
-        for(int i = 0; i < 4; i++)
-        {
-            if(TempLengths[i].Length < TempLengths[i + 1].Length)
-            {
-                transparent_sort_object Temp = TempLengths[i];
-                TempLengths[i] = TempLengths[i + 1];
-                TempLengths[i + 1] = Temp;
-                SwapCount++;
-            }
-        }
-        
-        if(SwapCount == 0)
-        {
-            break;
-        }
-    }
-    
-    for(int i = 0; i < 5; ++i)
-    {
-        TransparentIndexBuffer[i] = TempLengths[i].Index;
-    }
-}
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
 {
