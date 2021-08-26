@@ -68,7 +68,7 @@ int WinMain(HINSTANCE hInstance,
         printf("ERROR: GLFW failed to initialize\n");
     }
     
-    // TODO: Figure out why glfw window creation is so SLOW!
+    // TODO: With O2 optimizations turned on, GLFW isn't AS slow, but still bad.
     glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
@@ -93,7 +93,6 @@ int WinMain(HINSTANCE hInstance,
         //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
         GlobalTextureCache = {};
-        GlobalTextureCache.Size = sizeof(GlobalTextureCache.Textures);
     }
     else
     {
@@ -110,8 +109,8 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-    hdr_render_target HDR_RenderTarget = HDR_CreateRenderTarget(WindowWidth, WindowWidth);
-    offscreen_buffer OffscreenBuffer = CreateOffscreenBuffer(WindowWidth, WindowHeight);
+    render_target HDR_RenderTarget = HDR_CreateRenderTarget(WindowWidth, WindowHeight);
+    render_target PFX_RenderTarget = PFX_CreateRenderTarget(WindowWidth, WindowHeight);
     shadow_map ShadowCubeMap = CreateShadowCubeMap();
     float ShadowNearPlane = 1.0f;
     float ShadowFarPlane = 25.0f;
@@ -121,7 +120,7 @@ int WinMain(HINSTANCE hInstance,
                                                         ShadowNearPlane,
                                                         ShadowFarPlane);
     
-    unsigned int ScreenVAO = GetScreenRenderQuad();
+    unsigned int ScreenVAO = CreateScreenRenderQuad();
     
     // TODO: Can I streamline shader loading and compiltion?
     unsigned int VertexShaderID;
@@ -210,7 +209,7 @@ int WinMain(HINSTANCE hInstance,
         
         glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         
-        glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBufferID);
+        glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
@@ -239,14 +238,26 @@ int WinMain(HINSTANCE hInstance,
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
         DebugRenderQuad();
         
+        // HDR pass
+        glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glUseProgram(BlitShader.Id);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBuffer);
+        glBindVertexArray(ScreenVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBindVertexArray(0);
+        
+        // PFX pass
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(BlitShader.Id);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBufferID);
+        glBindTexture(GL_TEXTURE_2D, PFX_RenderTarget.ColorBuffer);
         glBindVertexArray(ScreenVAO);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
+        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

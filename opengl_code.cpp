@@ -500,43 +500,48 @@ OpenGL_LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back,
     return Result;
 }
 
-internal hdr_render_target
+internal render_target
 HDR_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
 {
-    hdr_render_target Result = {};
-    glGenFramebuffers(1, &Result.FrameBufferID);
+    render_target Result = {};
+    Result.Type = HDR;
+    glGenFramebuffers(1, &Result.FrameBuffer);
     
-    glGenTextures(1, &Result.ColorBufferID);
-    glBindTexture(GL_TEXTURE_2D, Result.ColorBufferID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, ScreenWidth, ScreenWidth, 0, GL_RGBA, GL_FLOAT, NULL);
+    glGenTextures(1, &Result.ColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, Result.ColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, ScreenWidth, ScreenHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    glGenRenderbuffers(1, &Result.RenderTargetID);
-    glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderTargetID);
+    glGenRenderbuffers(1, &Result.RenderBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderBuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, ScreenWidth, ScreenHeight);
     
-    glBindFramebuffer(GL_FRAMEBUFFER, Result.RenderTargetID);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result.ColorBufferID, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, Result.RenderTargetID);
+    glBindFramebuffer(GL_FRAMEBUFFER, Result.RenderBuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result.ColorBuffer, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, Result.RenderBuffer);
     
     GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    AssertMsgBreak(FramebufferStatus != GL_FRAMEBUFFER_COMPLETE, "OpenGL Error: Render buffer creation error");
+    if(FramebufferStatus != GL_FRAMEBUFFER_COMPLETE)
+        AssertMsgBreak("OpenGL Error: Render buffer creation error");
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     return Result;
 }
 
-internal offscreen_buffer
-CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
+internal render_target
+PFX_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
 {
-    offscreen_buffer Result;
+    render_target Result;
+    Result.Type = PFX;
     
     glGenFramebuffers(1, &Result.FrameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffer);
     
     glGenTextures(1, &Result.ColorBuffer);
     glBindTexture(GL_TEXTURE_2D, Result.ColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WindowWidth, WindowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, ScreenWidth, ScreenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -545,91 +550,16 @@ CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
     
     glGenRenderbuffers(1, &Result.RenderBuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WindowWidth, WindowHeight);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, ScreenWidth, ScreenHeight);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result.RenderBuffer);
     
     GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if(FramebufferStatus != GL_FRAMEBUFFER_COMPLETE)
-    {
-        char *Message;
-        switch(FramebufferStatus)
-        {
-            case GL_FRAMEBUFFER_UNDEFINED: 
-            Message = "GL_FRAMEBUFFER_UNDEFINED"; break;
-            
-            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: 
-            Message = "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"; break;
-            
-            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            Message = "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"; break;
-            
-            case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-            Message = "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"; break;
-            
-            case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-            Message = "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"; break;
-            
-            case GL_FRAMEBUFFER_UNSUPPORTED:
-            Message = "GL_FRAMEBUFFER_UNSUPPORTED"; break;
-            
-            case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-            Message = "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"; break;
-            
-            case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-            Message = "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"; break;
-            
-            default: Message = "Check OpenGL error queue";
-        }
-        
-        fprintf(stderr, "ERROR: Off-screen buffer creation failure (%s)\n", Message);
-    }
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    
-    float ScreenRenderQuad[] = 
-    {
-        // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f,  1.0f, 1.0f
-    };
-    
-    glGenVertexArrays(1, &Result.VAO);
-    glGenBuffers(1, &Result.VBO);
-    glBindVertexArray(Result.VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, Result.VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(ScreenRenderQuad), &ScreenRenderQuad, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glBindVertexArray(0);
+    AssertMsgBreakEx(FramebufferStatus == GL_FRAMEBUFFER_COMPLETE,
+                     "ERROR: (OpenGL) Render buffer creation error: %s",
+                     GetFramebufferStatusMsg(FramebufferStatus));
     
     return Result;
-}
-
-internal void
-DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
-{
-    AssertFrameBuf(OffScreen.FrameBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glEnable(GL_FRAMEBUFFER_SRGB);
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    glUseProgram(PostEffectsShader);
-    glBindVertexArray(OffScreen.VAO);
-    glDisable(GL_DEPTH_TEST);
-    glBindTexture(GL_TEXTURE_2D, OffScreen.ColorBuffer);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_FRAMEBUFFER_SRGB);
 }
 
 internal shadow_map
@@ -692,7 +622,9 @@ CreateShadowCubeMap()
     return Result;
 }
 
-void DebugRenderQuad()
+// NOTE: Example of calculating tangent and bitanent vectors
+internal void 
+DebugRenderQuad()
 {
     static unsigned int quadVAO, quadVBO = 0;
     if (quadVAO == 0)
@@ -871,18 +803,14 @@ void DebugRenderCube()
 }
 
 internal unsigned int
-GetScreenRenderQuad()
+CreateScreenRenderQuad()
 {
-    float ScreenRenderQuad[] = 
-    {
-        // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        1.0f, -1.0f,  1.0f, 0.0f,
-        1.0f,  1.0f,  1.0f, 1.0f
+    float ScreenRenderQuad[] = {
+        // positions        // texture Coords
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
     };
     
     unsigned int VAO, VBO;
@@ -892,10 +820,100 @@ GetScreenRenderQuad()
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(ScreenRenderQuad), &ScreenRenderQuad, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     
     return VAO;
+}
+
+internal char *
+GetFramebufferStatusMsg(GLenum FramebufferStatusCode)
+{
+    char *Message;
+    switch(FramebufferStatusCode)
+    {
+        case GL_FRAMEBUFFER_UNDEFINED: 
+        Message = "GL_FRAMEBUFFER_UNDEFINED"; break;
+        
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: 
+        Message = "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"; break;
+        
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        Message = "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"; break;
+        
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+        Message = "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"; break;
+        
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+        Message = "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"; break;
+        
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+        Message = "GL_FRAMEBUFFER_UNSUPPORTED"; break;
+        
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+        Message = "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"; break;
+        
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+        Message = "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"; break;
+        
+        case GL_FRAMEBUFFER_COMPLETE:
+        Message = "GL_FRAMEBUFFER_COMPLETE"; break;
+        
+        default:
+        Message = "Unkown frame buffer status code.";
+    }
+    
+    return Message;
+}
+
+internal void
+PFX_ResizeTarget(render_target Target, int NewWidth, int NewHeight)
+{
+    Assert(NewWidth <= GL_MAX_RENDERBUFFER_SIZE && NewHeight <= GL_MAX_RENDERBUFFER_SIZE);
+    Assert(NewWidth <= GL_MAX_TEXTURE_SIZE && NewHeight <= GL_MAX_TEXTURE_SIZE);
+    glBindFramebuffer(GL_FRAMEBUFFER, Target.FrameBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, NewWidth, NewHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, NewWidth, NewHeight);
+    
+    GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    AssertMsgBreakEx(FramebufferStatus == GL_FRAMEBUFFER_COMPLETE,
+                     "ERROR: (OpenGL) Render buffer creation error: %s",
+                     GetFramebufferStatusMsg(FramebufferStatus));
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+internal void
+HDR_ResizeTarget(render_target *Target)
+{
+    glDeleteFramebuffers(2, &Target->FrameBuffer);
+}
+
+internal void
+ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeight)
+{
+    for(int i = 0; i < Count; ++i)
+    {
+        switch(Targets[i].Type)
+        {
+            case HDR:
+            {
+                HDR_ResizeTarget(&Targets[i]);
+            } break;
+            
+            case PFX:
+            {
+                PFX_ResizeTarget(Targets[i], NewWidth, NewHeight);
+            } break;
+            
+            default:
+            {
+                // NOTE: SHADOW_MAP does not need to be resized as far as I can tell
+                AssertMsgBreak("ERROR: Undefined framebuffer type resizing");
+            }
+        }
+    }
 }

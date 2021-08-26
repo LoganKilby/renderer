@@ -22,8 +22,9 @@ CacheTexture(texture_unit Texture)
 {
     if(CheckTextureCache(Texture.Path) == -1)
     {
-        AssertMsgBreak(GlobalTextureCache.Count >= GlobalTextureCache.Size, 
-                       "ERROR: Texture cache overflow");
+        if(GlobalTextureCache.Count >= ArrayCount(GlobalTextureCache.Textures))
+            AssertMsgBreak("ERROR: Texture cache overflow");
+        
         GlobalTextureCache.Textures[GlobalTextureCache.Count] = Texture;
         GlobalTextureCache.Count++;
     }

@@ -11,13 +11,13 @@
 
 #if ASSERTIONS_ENABLED
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
-#define AssertMsgBreak(Expression, Msg) if(!(Expression)) {fprintf(stderr, Msg); *(int *)0 = 0;}
+#define AssertMsgBreak(Msg) {fprintf(stderr, Msg); Assert(0);}
 #define AssertMsgBreakEx(Expression, Msg, MsgParam) \
-if(!(Expression)) {fprintf(stderr, Msg, MsgParam); Assert(0);}
+{if(!(Expression)){fprintf(stderr, Msg, MsgParam); Assert(0);}}
 #else
 #define Assert(Expression)
 #define AssertMsgBreak(Expression, Msg)
-#define AssertMsgBreakEx(Expression, Msg, MsgParam)
+#define AssertMsgBreakEx(Msg, MsgParam)
 #endif
 
 #define Kilobytes(Value) ((Value)*1024LL)

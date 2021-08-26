@@ -47,7 +47,6 @@ struct texture_cache
 {
     texture_unit Textures[50];
     int Count;
-    int Size;
 };
 
 struct vertex
