@@ -42,7 +42,7 @@ float ShadowCalculation(vec3 fragPos)
 void main()
 {
     float constant = 1.0;
-    float linear = 0.027;
+    float linear = 0.0274;
     float quadratic = 0.0028;
     float pLightDistance = length(lightPos - fs_in.FragPos);
     float attenuation = 1.0 / (constant + (linear * pLightDistance) + (quadratic * (pLightDistance * pLightDistance)));

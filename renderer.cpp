@@ -18,7 +18,7 @@ CheckTextureCache(char *TexturePath)
 }
 
 internal void
-CacheTexture(texture_unit Texture)
+CacheTexture(texture Texture)
 {
     if(CheckTextureCache(Texture.Path) == -1)
     {
@@ -30,17 +30,81 @@ CacheTexture(texture_unit Texture)
     }
 }
 
-internal texture_unit
+internal texture
 GetCachedTexture(int TextureIndex)
 {
     Assert(TextureIndex >= 0 && TextureIndex <= GlobalTextureCache.Count);
     return GlobalTextureCache.Textures[TextureIndex];
 }
 
-internal texture_unit
-UploadTextureFromFile(char *Filename)
+internal texture
+LoadTextureToLinear(char *Filename)
 {
-    texture_unit Result = {};
+    texture Result = {};
+    Result.ColorSpace = SRGB;
+    
+    int TextureIndex = CheckTextureCache(Filename);
+    if(TextureIndex >= 0)
+    {
+        return GetCachedTexture(TextureIndex);
+    }
+    
+    unsigned char *Data = stbi_load(Filename, &Result.Width, &Result.Height, &Result.ColorChannels, 0);
+    if(Data)
+    {
+        strcpy(Result.Path, Filename);
+        
+        GLenum CurrentPixelFormat;
+        GLenum StorePixelFormat;
+        GLenum TexParam;
+        switch(Result.ColorChannels)
+        {
+            // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
+            case 4: 
+            {
+                StorePixelFormat = GL_SRGB_ALPHA;
+                CurrentPixelFormat = GL_RGBA;
+                TexParam = GL_CLAMP_TO_EDGE;
+            } break;
+            case 3:
+            {
+                StorePixelFormat = GL_SRGB;
+                CurrentPixelFormat = GL_RGB;
+                TexParam = GL_REPEAT;
+            } break;
+            default: 
+            {
+                printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
+                // TODO: Return a default texture
+                return Result;
+            }
+        }
+        
+        glGenTextures(1, &Result.Id);
+        glBindTexture(GL_TEXTURE_2D, Result.Id);
+        glTexImage2D(GL_TEXTURE_2D, 0, StorePixelFormat, Result.Width, Result.Height, 0, CurrentPixelFormat, GL_UNSIGNED_BYTE, Data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, TexParam);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, TexParam);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        
+        stbi_image_free(Data);
+        printf("INFO: Texture loaded. (Path: %s, Texture ID: %d)\n", Filename, Result.Id);
+        CacheTexture(Result);
+    }
+    else
+    {
+        printf("WARNING: Failed to load image %s\n", Filename);
+    }
+    
+    return Result;
+}
+
+internal texture
+LoadTexture(char *Filename)
+{
+    texture Result = {};
     
     int CachedIndex = CheckTextureCache(Filename);
     if(CachedIndex >= 0)
@@ -97,11 +161,11 @@ UploadTextureFromFile(char *Filename)
     return Result;
 }
 
-internal std::vector<texture_unit>
-LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, texture_map_enum MapType)
+internal std::vector<texture>
+LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, texture_map_type MapType)
 {
-    std::vector<texture_unit> TextureUnits;
-    TextureUnits.reserve(Material->GetTextureCount(Type));
+    std::vector<texture> Textures;
+    Textures.reserve(Material->GetTextureCount(Type));
     
     char Path[256] = {};
     strcpy(Path, Model->Directory);
@@ -113,13 +177,22 @@ LoadMaterialTextures(model *Model, aiMaterial *Material, aiTextureType Type, tex
         Material->GetTexture(Type, i, &TextureName);
         strcat(Path, TextureName.C_Str());
         
-        texture_unit TextureResult = UploadTextureFromFile(Path);
+        texture TextureResult;
+        if(MapType == DIFFUSE_MAP)
+        {
+            TextureResult = LoadTextureToLinear(Path);
+        }
+        else
+        {
+            TextureResult = LoadTexture(Path);
+        }
+        
         TextureResult.Type = MapType;
-        TextureUnits.push_back(TextureResult);
+        Textures.push_back(TextureResult);
         memset(Path + Model->DirectoryStrLen, 0, TextureName.length);
     }
     
-    return TextureUnits;
+    return Textures;
 }
 
 internal mesh
@@ -172,20 +245,20 @@ ProcessMesh(model *Model, aiMesh *Mesh, const aiScene *Scene)
     
     Result.IndexCount = Indices.size();
     
-    std::vector<texture_unit> Textures;
+    std::vector<texture> Textures;
     if(Mesh->mMaterialIndex >= 0)
     {
         aiMaterial *Material = Scene->mMaterials[Mesh->mMaterialIndex];
         
-        std::vector<texture_unit> DiffuseMaps = LoadMaterialTextures(Model, Material, aiTextureType_DIFFUSE, DIFFUSE_MAP);
+        std::vector<texture> DiffuseMaps = LoadMaterialTextures(Model, Material, aiTextureType_DIFFUSE, DIFFUSE_MAP);
         Result.Textures.insert(Result.Textures.end(), DiffuseMaps.begin(), DiffuseMaps.end());
         
-        std::vector<texture_unit> SpecularMaps = LoadMaterialTextures(Model, Material, aiTextureType_SPECULAR, SPECULAR_MAP);
+        std::vector<texture> SpecularMaps = LoadMaterialTextures(Model, Material, aiTextureType_SPECULAR, SPECULAR_MAP);
         Result.Textures.insert(Result.Textures.end(), SpecularMaps.begin(), SpecularMaps.end());
         
         // NOTE: For the Assmip .obj loader, normal maps must be identified by "map_Kn" in the .mtl file
         // otherwise Assimp won't load them. TODO: Get rid of Assimp
-        std::vector<texture_unit> NormalMaps = LoadMaterialTextures(Model, Material, aiTextureType_NORMALS, NORMAL_MAP);
+        std::vector<texture> NormalMaps = LoadMaterialTextures(Model, Material, aiTextureType_NORMALS, NORMAL_MAP);
         Result.Textures.insert(Result.Textures.end(), NormalMaps.begin(), NormalMaps.end());
     }
     
@@ -284,7 +357,7 @@ DrawMesh(unsigned int Program, mesh Mesh)
     // SpecularUnit: 2
     // DepthUnit: 3
     
-    texture_unit TexUnit;
+    texture TexUnit;
     int TextureCount = Mesh.Textures.size();
     for(unsigned int i = 0; i < TextureCount; ++i)
     {
@@ -413,17 +486,17 @@ LoadObjModel(char *PathToDotObjFile)
         Assert(Mesh->material_count == 1);
         if(Mesh->materials[0].map_Kd.path)
         {
-            NewMesh.Textures.push_back(UploadTextureFromFile(Mesh->materials[0].map_Kd.path));
+            NewMesh.Textures.push_back(LoadTextureToLinear(Mesh->materials[0].map_Kd.path));
         }
         
         if(Mesh->materials[0].map_Ks.path)
         {
-            NewMesh.Textures.push_back(UploadTextureFromFile(Mesh->materials[0].map_Ks.path));
+            NewMesh.Textures.push_back(LoadTexture(Mesh->materials[0].map_Ks.path));
         }
         
         if(Mesh->materials[0].map_bump.path)
         {
-            NewMesh.Textures.push_back(UploadTextureFromFile(Mesh->materials[0].map_bump.path));
+            NewMesh.Textures.push_back(LoadTexture(Mesh->materials[0].map_bump.path));
         }
         
         glGenVertexArrays(1, &NewMesh.VAO);

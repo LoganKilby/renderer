@@ -18,6 +18,39 @@ typedef fastObjMesh fast_obj_mesh;
 #include "include/assimp/scene.h"
 #include "include/assimp/postprocess.h"
 
+#include <vector> // TODO: Handle memory
+
+enum texture_map_type
+{
+    DIFFUSE_MAP = 1,
+    SPECULAR_MAP,
+    NORMAL_MAP
+};
+
+enum color_space
+{
+    LINEAR,
+    SRGB
+};
+
+struct texture
+{
+    unsigned int Id;
+    texture_map_type Type;
+    color_space ColorSpace;
+    int Width;
+    int Height;
+    int ColorChannels;
+    char Path[256];
+};
+
+// NOTE: Loads a texture converted to linear color space. To achieve gamma-corection, diffuse
+// textures should be converted to linear color space.
+internal texture LoadTextureToLinear(char *Filename);
+
+// NOTE: Loads a texture with no color space conversion
+internal texture LoadTexture(char *Filename);
+
 struct scene_attributes
 {
     // Reinhard tone mapping: vec3 color = HDR_Color / (HDR_Color + vec3(1.0))
@@ -26,26 +59,9 @@ struct scene_attributes
     float Exposure;
 };
 
-enum texture_map_enum
-{
-    DIFFUSE_MAP = 1,
-    SPECULAR_MAP,
-    NORMAL_MAP
-};
-
-struct texture_unit
-{
-    unsigned int Id;
-    texture_map_enum Type;
-    int Width;
-    int Height;
-    int ColorChannels;
-    char Path[256];
-};
-
 struct texture_cache
 {
-    texture_unit Textures[50];
+    texture Textures[50];
     int Count;
 };
 
@@ -84,7 +100,7 @@ struct msaa_framebuffer
 // in the mesh.
 struct mesh
 {
-    std::vector<texture_unit> Textures;
+    std::vector<texture> Textures;
     int IndexCount;
     unsigned int VAO;
     unsigned int VBO;

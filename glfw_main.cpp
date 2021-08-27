@@ -6,41 +6,33 @@
 #include "include/glm/gtc/type_ptr.hpp"
 #include "include/qpc/qpc.h"
 #include "stdio.h"
-#include <vector>
-
 #include "types.h"
 #include "utility.h"
 #include "vertices.h"
+
 #include "opengl_code.cpp"
 #include "renderer.cpp"
+#include "camera.cpp"
+#include "input.cpp"
 
-// NOTE: If the object's texture has an unexpected color or is black, verify that the in/out 
-// varibles match across the shader program. This is NOT a link error; There are no error 
+// NOTE: (On frustrating shader bugs)
+// If the object's texture has an unexpected color or is black, verify that the in/out 
+// varible names match across the shader program. This is NOT a link error; There are no error 
 // messages for this bug.
+// If the textured geometry is a solid color, look at the vertex data and confirm that it aligns
+// with the vertex attributes. Also, the default value for unspecified texture coordinate
+// attributes is a value that results in the bottom left corner of the bound texture being sampled;
+// This would result in the geometry being textured as a solid color, the color of the bottom-left
+// texel.
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 
-struct global_input
-{
-    glm::vec2 PrevMousePos;
-};
-
-struct camera_orientation
-{
-    float Yaw;
-    float Pitch;
-    float Roll;
-    float LookSpeed;
-    float PanSpeed;
-};
-
+// TODO: I think it would be neat to support multiple cameras.
+global_variable camera PrimaryCamera;
 global_variable global_input GlobalInput;
-global_variable camera_orientation CameraOrientation;
-global_variable float FieldOfView;
-global_variable int TransparentIndexBuffer[5] = {};
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -88,9 +80,10 @@ int WinMain(HINSTANCE hInstance,
         
         glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
         glEnable(GL_DEPTH_TEST);
+        
+        // NOTE: GLFW provides the multisample buffers by calling glfwWindowHint with
+        // GLFW_SAMPLES, 4 (# of samples). Anti-aliasing is enabled here
         glEnable(GL_MULTISAMPLE);
-        //glEnable(GL_BLEND);
-        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
         GlobalTextureCache = {};
     }
@@ -139,9 +132,20 @@ int WinMain(HINSTANCE hInstance,
     FragmentShaderID = LoadAndCompileShader("shaders/blit_screen_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BlitShader = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
-    texture_unit FloorTexture = UploadTextureFromFile("textures/brickwall.jpg");
-    texture_unit FloorNormalMap = UploadTextureFromFile("textures/brickwall_normal.jpg");
-    texture_unit FloorSpecTexture = UploadTextureFromFile("textures/brickwall_grayscale.jpg");
+    VertexShaderID = LoadAndCompileShader("shaders/hdr_pass_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/hdr_pass_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program GammaProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/blit_texture_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/blit_texture_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program BlitTextureProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
+    texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
+    texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
+    texture FloorSpecTexture = LoadTexture("textures/brickwall_grayscale.jpg");
+    
+    texture LinearTexture = LoadTextureToLinear("textures/container.jpg");
+    texture GammaTexture = LoadTexture("textures/container.jpg");
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -155,24 +159,21 @@ int WinMain(HINSTANCE hInstance,
     
     // Camera
     // TODO: Set up a camera proper camera system
-    glm::vec3 CameraPos(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
-    glm::vec3 CameraFront(0.0f, 0.0f, -1.0f);
-    glm::vec3 CameraUp(0.0f, 1.0f, 0.0f);
-    CameraOrientation = {};
-    CameraOrientation.Yaw = -90.0f;
-    CameraOrientation.LookSpeed = 0.1f;
-    CameraOrientation.PanSpeed = 10.0f;
-    CameraOrientation.Pitch = -2.8f; // DEBUG VALUE
-    FieldOfView = 45.0f;
-    
-    point_light PointLight;
-    PointLight.Position = glm::vec3(0.5f, 1.0f, 0.3f);
+    PrimaryCamera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
+    PrimaryCamera.Orientation.Yaw = -90.0f;
+    PrimaryCamera.Orientation.Pitch = -2.8f; // DEBUG VALUE
+    PrimaryCamera.LookSpeed = 0.1f;
+    PrimaryCamera.PanSpeed = 10.0f;
+    PrimaryCamera.FieldOfView = 45.0f;
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
     glm::mat3 NormalMatrix;
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
+    
+    float Exposure = 1.0f;
+    float Gamma = 2.2f;
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -181,39 +182,56 @@ int WinMain(HINSTANCE hInstance,
         PrevTime = SecondsElapsed;
         
         if(glfwGetKey(Window, GLFW_KEY_W) == GLFW_PRESS)
-            CameraPos += CameraFront * CameraOrientation.PanSpeed * FrameTime;
+            PrimaryCamera.Position += PrimaryCamera.Front * PrimaryCamera.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_S) == GLFW_PRESS)
-            CameraPos -= CameraFront * CameraOrientation.PanSpeed * FrameTime;
+            PrimaryCamera.Position -= PrimaryCamera.Front * PrimaryCamera.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_A) == GLFW_PRESS)
-            CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * CameraOrientation.PanSpeed * FrameTime;
+            PrimaryCamera.Position -= glm::normalize(glm::cross(PrimaryCamera.Front, PrimaryCamera.Up)) * 
+            PrimaryCamera.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
-            CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * CameraOrientation.PanSpeed * FrameTime;
+            PrimaryCamera.Position += glm::normalize(glm::cross(PrimaryCamera.Front, PrimaryCamera.Up)) * 
+            PrimaryCamera.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_Q) == GLFW_PRESS)
-            CameraPos.y += CameraOrientation.PanSpeed * FrameTime;
+            PrimaryCamera.Position.y += PrimaryCamera.PanSpeed * FrameTime;
         if(glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
-            CameraPos.y -= CameraOrientation.PanSpeed * FrameTime;
+            PrimaryCamera.Position.y -= PrimaryCamera.PanSpeed * FrameTime;
+        if(glfwGetKey(Window, GLFW_KEY_UP) == GLFW_PRESS)
+        {
+            Exposure += 0.1f;
+            printf("eposure: %f\n", Exposure);
+        }
         
-        glm::vec3 CameraAngle;
-        CameraAngle.x = cos(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
-        CameraAngle.y = sin(glm::radians(CameraOrientation.Pitch));
-        CameraAngle.z = sin(glm::radians(CameraOrientation.Yaw)) * cos(glm::radians(CameraOrientation.Pitch));
-        CameraFront = glm::normalize(CameraAngle);
+        if(glfwGetKey(Window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        {
+            Exposure -= 0.1f;
+            printf("eposure: %f\n", Exposure);
+        }
         
-        PointLight.Position = CameraPos;
+        if(glfwGetKey(Window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        {
+            printf("gamma: %f\n", Gamma);
+            Gamma += 0.1f;
+        }
         
-        ViewMatrix = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
-        ProjectionMatrix = glm::perspective(glm::radians(FieldOfView), 
+        if(glfwGetKey(Window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        {
+            printf("gamma: %f\n", Gamma);
+            Gamma -= 0.1f;
+        }
+        
+        ViewMatrix = GetViewMatrix(PrimaryCamera);
+        ProjectionMatrix = glm::perspective(glm::radians(PrimaryCamera.FieldOfView), 
                                             (float)WindowWidth / (float)WindowHeight, 
                                             0.1f, 
                                             1000.0f);
         
-        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
+        glClearColor(0.01f, 0.01f, 0.01f, 0.01f);
         
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        SetUniform3fv(ShadowProgram.Id, "lightPos", PointLight.Position);
-        SetUniform3fv(ShadowProgram.Id, "viewPos", CameraPos);
+        SetUniform3fv(ShadowProgram.Id, "lightPos", PrimaryCamera.Position);
+        SetUniform3fv(ShadowProgram.Id, "viewPos", PrimaryCamera.Position);
         SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
         
@@ -230,18 +248,12 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         DebugRenderQuad();
         
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5.0f, 0.0f, 0.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
-        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
-        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-        DebugRenderQuad();
-        
-        // HDR pass
+        // HDR pass: HDR and Gamma Correction
         glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glUseProgram(BlitShader.Id);
+        glUseProgram(GammaProgram.Id);
+        SetUniform1f(GammaProgram.Id, "exposure", Exposure);
+        SetUniform1f(GammaProgram.Id, "gamma", Gamma);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBuffer);
         glBindVertexArray(ScreenVAO);
@@ -258,61 +270,12 @@ int WinMain(HINSTANCE hInstance,
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
         
-        
         glfwSwapBuffers(Window);
         glfwPollEvents();
         OpenGL_OutputErrorQueue();
     }
     
     return 0;
-}
-
-struct transparent_sort_object
-{
-    float Length;
-    int Index;
-};
-
-internal void TransparencyDepthSort(glm::vec3 *TransparentObjects, int ArrayCount, glm::vec3 CameraPosition)
-{
-    Assert(ArrayCount <= ArrayCount(TransparentIndexBuffer));
-    memset(TransparentIndexBuffer, 0, sizeof(TransparentIndexBuffer));
-    
-    transparent_sort_object TempLengths[5] = {};
-    
-    float Length;
-    for(int i = 0; i < ArrayCount; ++i)
-    {
-        Length = glm::length(CameraPosition - TransparentObjects[i]);
-        TempLengths[i].Length = Length;
-        TempLengths[i].Index = i;
-    }
-    
-    while(true)
-    {
-        int SwapCount = 0;
-        
-        for(int i = 0; i < 4; i++)
-        {
-            if(TempLengths[i].Length < TempLengths[i + 1].Length)
-            {
-                transparent_sort_object Temp = TempLengths[i];
-                TempLengths[i] = TempLengths[i + 1];
-                TempLengths[i + 1] = Temp;
-                SwapCount++;
-            }
-        }
-        
-        if(SwapCount == 0)
-        {
-            break;
-        }
-    }
-    
-    for(int i = 0; i < 5; ++i)
-    {
-        TransparentIndexBuffer[i] = TempLengths[i].Index;
-    }
 }
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
@@ -322,26 +285,24 @@ void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
 
 void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
 {
-    FieldOfView -= (float)YOffset;
-    if(FieldOfView < 1.0f)
-        FieldOfView = 1;
-    if(FieldOfView > 45.0f)
-        FieldOfView = 45.0f;
+    // TODO: Move to input function
+    
+    PrimaryCamera.FieldOfView -= (float)YOffset;
+    if(PrimaryCamera.FieldOfView < 1.0f)
+        PrimaryCamera.FieldOfView = 1;
+    if(PrimaryCamera.FieldOfView > 45.0f)
+        PrimaryCamera.FieldOfView = 45.0f;
 }
 
 void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
-    float XOffset = (XPos - GlobalInput.PrevMousePos.x) * CameraOrientation.LookSpeed;
-    float YOffset = (GlobalInput.PrevMousePos.y - YPos) * CameraOrientation.LookSpeed;
+    // TODO: All of this can be calculated in the global input function
+    float YawOffset = (XPos - GlobalInput.PrevMousePos.x) * PrimaryCamera.LookSpeed;
+    float PitchOffset = (GlobalInput.PrevMousePos.y - YPos) * PrimaryCamera.LookSpeed;
     
     GlobalInput.PrevMousePos.x = XPos;
     GlobalInput.PrevMousePos.y = YPos;
     
-    CameraOrientation.Yaw += XOffset;
-    CameraOrientation.Pitch += YOffset;
-    
-    if (CameraOrientation.Pitch > 89.0f) 
-        CameraOrientation.Pitch = 89.0f;
-    if (CameraOrientation.Pitch < -89.0f)
-        CameraOrientation.Pitch = -89.0f;
+    // TODO: Send this to input function and let it decide to update the camera
+    RotateCamera(&PrimaryCamera, YawOffset, PitchOffset);
 }
