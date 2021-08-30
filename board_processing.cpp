@@ -146,20 +146,9 @@ GenerateVertexDataFromRaw(SBoardData *BoardData)
 // NUM_LIGHT_CURTAIN_ELEMENTS_FT = 48
 
 internal void
-ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade)
+ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade, board_color_segments ColorSegments)
 {
     PROFILE_DATA_STN *Profiles = &BoardData->last_board_data.profile_data[0];
-    
-    int CutCount = 0;
-    int CutPositions[5];
-    for(int i = 0; i < 5; ++i)
-    {
-        if(Profiles[0].cut[i])
-        {
-            CutPositions[i] = Profiles[0].cut[i];
-            CutCount++;
-        }
-    }
     
     float ZOffsetPerProfile = 25.0f;
     float XOffsetPerSample = (1.0f / 64.0f) * 1000; // in 1000th's of an inch
@@ -194,14 +183,14 @@ ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade
             //       vne1   orange
             //       thick  yellow
             //       scant  (not implemented)
-            int YellowRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_scant_t;
-            int YellowRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_scant_t;
-            int LightOrangeRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_thick_x;
-            int LightOrangeRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_thick_x;
-            int OrangeRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne1_x;
-            int OrangeRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne1_x;
-            int RedRegionStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne_x;
-            int RedRegionEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne_x;
+            int ScantStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_scant_t;
+            int ScantEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_scant_t;
+            int ThickStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_thick_x;
+            int ThickEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_thick_x;
+            int VNE1StartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne1_x;
+            int VNE1EndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne1_x;
+            int VNEStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne_x;
+            int VNEEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne_x;
             
             int SampleCount = 0;
             for(int SampleIndex = 0; SampleIndex < 2300; ++SampleIndex) // thk_array[]
@@ -217,42 +206,30 @@ ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade
                     
                     // NOTE: grade_thick for each grade (represented by color) can be unique
                     // per-profile.
-                    if((Vertex.x >= YellowRegionStartX) && (Vertex.x <= YellowRegionEndX))
+                    if((Vertex.x >= ScantStartX) && (Vertex.x <= ScantEndX))
                     {
-                        Vertex.r = 1.0f;
-                        Vertex.g = 1.0f;
-                        Vertex.b = 0;
+                        Vertex.r = ColorSegments.scant.r;
+                        Vertex.g = ColorSegments.scant.g;
+                        Vertex.b = ColorSegments.scant.b;
                     }
-                    else if((Vertex.x >= LightOrangeRegionStartX) && (Vertex.x <= LightOrangeRegionEndX))
+                    else if((Vertex.x >= ThickStartX) && (Vertex.x <= ThickEndX))
                     {
-                        Vertex.r = 0.0f;
-                        Vertex.g = 1.0f;
-                        Vertex.b = 0.0f;
+                        Vertex.r = ColorSegments.thick.r;
+                        Vertex.g = ColorSegments.thick.g;
+                        Vertex.b = ColorSegments.thick.b;
                     }
-                    else if((Vertex.x >= OrangeRegionStartX) && (Vertex.x <= OrangeRegionEndX))
+                    else if((Vertex.x >= VNE1StartX) && (Vertex.x <= VNE1EndX))
                     {
-                        Vertex.r = 1.0f;
-                        Vertex.g = 0.65f;
-                        Vertex.b = 0;
+                        Vertex.r = ColorSegments.vne_1.r;
+                        Vertex.g = ColorSegments.vne_1.g;
+                        Vertex.b = ColorSegments.vne_1.b;
                     }
-                    else if((Vertex.x >= RedRegionStartX) && (Vertex.x <= RedRegionEndX))
+                    else if((Vertex.x >= VNEStartX) && (Vertex.x <= VNEEndX))
                     {
-                        Vertex.r = 1.0f;
-                        Vertex.g = 0.0f;
-                        Vertex.b = 0.0f;
+                        Vertex.r = ColorSegments.vne.r;
+                        Vertex.g = ColorSegments.vne.g;
+                        Vertex.b = ColorSegments.vne.b;
                     }
-                    
-#if 0
-                    for(int i = 0; i < 5; ++i)
-                    {
-                        if(Vertex.x == Profiles[ProfileIndex].cut[i])
-                        {
-                            Vertex.r = 0.0f;
-                            Vertex.g = 1.0f;
-                            Vertex.b = 0.0f;
-                        }
-                    }
-#endif
                     
                     Vertex.x = Map(Vertex.x, 0, 32000, -1, 1);
                     Vertex.y = Map(Vertex.y, -4000, 4000, -1, 1);

@@ -30,6 +30,14 @@ struct v3
     };
 };
 
+struct board_color_segments
+{
+    v3 vne;
+    v3 vne_1;
+    v3 thick;
+    v3 scant;
+};
+
 struct v6
 {
     float x;
