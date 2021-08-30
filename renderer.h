@@ -4,6 +4,9 @@
 #define RENDERER_H
 
 #include <vector>
+#include "opengl_code.h"
+#include "vertices.h"
+#include "camera.h"
 
 enum texture_map_enum
 {
