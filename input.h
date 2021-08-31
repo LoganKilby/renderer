@@ -3,20 +3,56 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-struct global_input
+enum key_state
 {
-    glm::vec2 PrevMousePos;
-    float FrameTime;
-    
-    // TODO: Add multiple camera modes
-    //       Modelling Camera
-    //       Fly Camera
-    bool32 CameraMode;
-    
-    
-    // I want to be able to manage frame time and process keyboard input in intervals and not
-    // every single frame.
+    PRESSED,
+    RELEASED,
+    REPEAT,
+    NEUTRAL
 };
 
+enum device
+{
+    MOUSE,
+    KEYBOARD,
+    GAMEPAD
+};
+
+struct input_command
+{
+    int Key;
+    key_state Action;
+    int Mods;
+    device Device;
+};
+
+struct input_command_buffer
+{
+    input_command Commands[15];
+    int Count;
+};
+
+// Key state lookup table for GLFW key enumerations
+struct key_table
+{
+    key_state Keys[359] = { NEUTRAL };
+};
+
+struct input_state
+{
+    float dt;
+    float FPS;
+    float SecondsElapsed;
+    
+    // TODO: I need a gesture command buffer / syste that's not integrated with the keyboard input
+    // Raw mouse input
+    glm::vec2 PrevMousePos;
+    glm::vec2 MouseFrameMovement;
+    bool32 MouseMovedThisFrame;
+    float MouseFrameScrollOffset; // FOV will be FOV -= MouseFrameScrollOffset this frame
+    bool32 MouseScrolledThisFrame;
+    
+    input_command_buffer CommandBuffer;
+};
 
 #endif //INPUT_H

@@ -25,14 +25,17 @@
 // This would result in the geometry being textured as a solid color, the color of the bottom-left
 // texel.
 
-void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
-void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
-void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
-void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
+internal void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int, int);
+internal void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
+internal void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
+internal void GLFW_MouseButtonCallback(GLFWwindow *Window, int Button, int Action, int Mods);
+internal void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 
 // TODO: I think it would be neat to support multiple cameras.
 global_variable camera PrimaryCamera;
-global_variable global_input GlobalInput;
+global_variable input_state GlobalInputState;
+global_variable key_table GlobalKeyTable;
+global_variable key_table GlobalMouseButtonTable;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -86,6 +89,10 @@ int WinMain(HINSTANCE hInstance,
         glEnable(GL_MULTISAMPLE);
         
         GlobalTextureCache = {};
+        PrimaryCamera = {};
+        GlobalInputState = {};
+        GlobalKeyTable = {};
+        GlobalMouseButtonTable = {};
     }
     else
     {
@@ -153,9 +160,9 @@ int WinMain(HINSTANCE hInstance,
     int FPS;
     char FPS_OutputBuffer[20] = {};
     
-    GlobalInput = {};
-    GlobalInput.PrevMousePos.x = WindowWidth / 2;
-    GlobalInput.PrevMousePos.y = WindowHeight / 2;
+    GlobalInputState = {};
+    GlobalInputState.PrevMousePos.x = WindowWidth / 2;
+    GlobalInputState.PrevMousePos.y = WindowHeight / 2;
     
     // Camera
     // TODO: Set up a camera proper camera system
@@ -177,24 +184,22 @@ int WinMain(HINSTANCE hInstance,
     
     while(!glfwWindowShouldClose(Window))
     {
-        SecondsElapsed = glfwGetTime();
-        FrameTime = SecondsElapsed - PrevTime;
-        PrevTime = SecondsElapsed;
+        UpdateClock(&GlobalInputState);
         
         if(glfwGetKey(Window, GLFW_KEY_W) == GLFW_PRESS)
-            PrimaryCamera.Position += PrimaryCamera.Front * PrimaryCamera.PanSpeed * FrameTime;
+            PrimaryCamera.Position += PrimaryCamera.Front * PrimaryCamera.PanSpeed * GlobalInputState.dt;
         if(glfwGetKey(Window, GLFW_KEY_S) == GLFW_PRESS)
-            PrimaryCamera.Position -= PrimaryCamera.Front * PrimaryCamera.PanSpeed * FrameTime;
+            PrimaryCamera.Position -= PrimaryCamera.Front * PrimaryCamera.PanSpeed * GlobalInputState.dt;
         if(glfwGetKey(Window, GLFW_KEY_A) == GLFW_PRESS)
             PrimaryCamera.Position -= glm::normalize(glm::cross(PrimaryCamera.Front, PrimaryCamera.Up)) * 
-            PrimaryCamera.PanSpeed * FrameTime;
+            PrimaryCamera.PanSpeed * GlobalInputState.dt;
         if(glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
             PrimaryCamera.Position += glm::normalize(glm::cross(PrimaryCamera.Front, PrimaryCamera.Up)) * 
-            PrimaryCamera.PanSpeed * FrameTime;
+            PrimaryCamera.PanSpeed * GlobalInputState.dt;
         if(glfwGetKey(Window, GLFW_KEY_Q) == GLFW_PRESS)
-            PrimaryCamera.Position.y += PrimaryCamera.PanSpeed * FrameTime;
+            PrimaryCamera.Position.y += PrimaryCamera.PanSpeed * GlobalInputState.dt;
         if(glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
-            PrimaryCamera.Position.y -= PrimaryCamera.PanSpeed * FrameTime;
+            PrimaryCamera.Position.y -= PrimaryCamera.PanSpeed * GlobalInputState.dt;
         if(glfwGetKey(Window, GLFW_KEY_UP) == GLFW_PRESS)
         {
             Exposure += 0.1f;
@@ -278,12 +283,14 @@ int WinMain(HINSTANCE hInstance,
     return 0;
 }
 
-void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
+internal void 
+GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
 {
     glViewport(0, 0, Width, Height);
 }
 
-void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
+internal void 
+GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
 {
     // TODO: Move to input function
     
@@ -294,15 +301,20 @@ void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset
         PrimaryCamera.FieldOfView = 45.0f;
 }
 
-void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
+internal void 
+GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
-    // TODO: All of this can be calculated in the global input function
-    float YawOffset = (XPos - GlobalInput.PrevMousePos.x) * PrimaryCamera.LookSpeed;
-    float PitchOffset = (GlobalInput.PrevMousePos.y - YPos) * PrimaryCamera.LookSpeed;
-    
-    GlobalInput.PrevMousePos.x = XPos;
-    GlobalInput.PrevMousePos.y = YPos;
-    
-    // TODO: Send this to input function and let it decide to update the camera
-    RotateCamera(&PrimaryCamera, YawOffset, PitchOffset);
+    RegisterMouseMovement(&GlobalInputState, XPos, YPos);
+}
+
+internal void
+GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods)
+{
+    RegisterKeyboardInput(&GlobalInputState, &GlobalKeyTable, Key, Scancode, Action, Mods);
+}
+
+internal void
+GLFW_MouseButtonCallback(GLFWwindow *Window, int Button, int Action, int Mods)
+{
+    RegisterMouseButtonInput(&GlobalInputState, &GlobalMouseButtonTable, Button, Action, Mods);
 }

@@ -15,7 +15,7 @@ struct camera
     euler_angles Orientation;
     float LookSpeed;
     float PanSpeed;
-    float FieldOfView= 45.0f;
+    float FieldOfView = 45.0f;
     glm::vec3 Position = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 Front = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 Up = glm::vec3(0.0f, 1.0f, 0.0f);
