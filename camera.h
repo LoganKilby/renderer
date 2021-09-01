@@ -10,8 +10,15 @@ struct euler_angles
     float Roll;
 };
 
+enum camera_mode
+{
+    FREE,
+    PAN
+};
+
 struct camera
 {
+    camera_mode Mode;
     euler_angles Orientation;
     float LookSpeed;
     float PanSpeed;

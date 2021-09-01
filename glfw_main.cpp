@@ -31,11 +31,11 @@ internal void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, doubl
 internal void GLFW_MouseButtonCallback(GLFWwindow *Window, int Button, int Action, int Mods);
 internal void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 
-// TODO: I think it would be neat to support multiple cameras.
+// TODO: I would like to support multiple cameras.
 global_variable camera PrimaryCamera;
 global_variable input_state GlobalInputState;
-global_variable key_table GlobalKeyTable;
-global_variable key_table GlobalMouseButtonTable;
+global_variable key_table GlobalKeyState;
+global_variable mouse_button_table GlobalMouseButtonState;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -85,14 +85,15 @@ int WinMain(HINSTANCE hInstance,
         glEnable(GL_DEPTH_TEST);
         
         // NOTE: GLFW provides the multisample buffers by calling glfwWindowHint with
-        // GLFW_SAMPLES, 4 (# of samples). Anti-aliasing is enabled here
+        // GLFW_SAMPLES, 4 (# of samples). "Anti-aliasing" is enabled here, but I want
+        // to enable my own custom version eventually
         glEnable(GL_MULTISAMPLE);
         
         GlobalTextureCache = {};
         PrimaryCamera = {};
         GlobalInputState = {};
-        GlobalKeyTable = {};
-        GlobalMouseButtonTable = {};
+        GlobalKeyState = {};
+        GlobalMouseButtonState = {};
     }
     else
     {
@@ -169,7 +170,7 @@ int WinMain(HINSTANCE hInstance,
     PrimaryCamera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
     PrimaryCamera.Orientation.Yaw = -90.0f;
     PrimaryCamera.Orientation.Pitch = -2.8f; // DEBUG VALUE
-    PrimaryCamera.LookSpeed = 0.1f;
+    PrimaryCamera.LookSpeed = 50.0f;
     PrimaryCamera.PanSpeed = 10.0f;
     PrimaryCamera.FieldOfView = 45.0f;
     
@@ -186,45 +187,26 @@ int WinMain(HINSTANCE hInstance,
     {
         UpdateClock(&GlobalInputState);
         
-        if(glfwGetKey(Window, GLFW_KEY_W) == GLFW_PRESS)
-            PrimaryCamera.Position += PrimaryCamera.Front * PrimaryCamera.PanSpeed * GlobalInputState.dt;
-        if(glfwGetKey(Window, GLFW_KEY_S) == GLFW_PRESS)
-            PrimaryCamera.Position -= PrimaryCamera.Front * PrimaryCamera.PanSpeed * GlobalInputState.dt;
-        if(glfwGetKey(Window, GLFW_KEY_A) == GLFW_PRESS)
-            PrimaryCamera.Position -= glm::normalize(glm::cross(PrimaryCamera.Front, PrimaryCamera.Up)) * 
-            PrimaryCamera.PanSpeed * GlobalInputState.dt;
-        if(glfwGetKey(Window, GLFW_KEY_D) == GLFW_PRESS)
-            PrimaryCamera.Position += glm::normalize(glm::cross(PrimaryCamera.Front, PrimaryCamera.Up)) * 
-            PrimaryCamera.PanSpeed * GlobalInputState.dt;
-        if(glfwGetKey(Window, GLFW_KEY_Q) == GLFW_PRESS)
-            PrimaryCamera.Position.y += PrimaryCamera.PanSpeed * GlobalInputState.dt;
-        if(glfwGetKey(Window, GLFW_KEY_E) == GLFW_PRESS)
-            PrimaryCamera.Position.y -= PrimaryCamera.PanSpeed * GlobalInputState.dt;
-        if(glfwGetKey(Window, GLFW_KEY_UP) == GLFW_PRESS)
+        gesture FrameGesture;
+        while(PopGesture(&GlobalInputState.GestureBuffer, &FrameGesture))
         {
-            Exposure += 0.1f;
-            printf("eposure: %f\n", Exposure);
+            if(FrameGesture.Type == MOVE)
+            {
+                RotateFreeCamera(&PrimaryCamera, FrameGesture.Offset, GlobalInputState.dt);
+            }
         }
         
-        if(glfwGetKey(Window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        input_command FrameInput;
+        while(PopInputCommand(&GlobalKeyState, &GlobalInputState.CommandBuffer, &FrameInput))
         {
-            Exposure -= 0.1f;
-            printf("eposure: %f\n", Exposure);
+            if(PrimaryCamera.Mode == FREE && FrameInput.Action == PRESSED)
+            {
+                MoveCameraByKey(&PrimaryCamera, FrameInput.Key, GlobalInputState.dt);
+            }
+            
         }
         
-        if(glfwGetKey(Window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-        {
-            printf("gamma: %f\n", Gamma);
-            Gamma += 0.1f;
-        }
-        
-        if(glfwGetKey(Window, GLFW_KEY_LEFT) == GLFW_PRESS)
-        {
-            printf("gamma: %f\n", Gamma);
-            Gamma -= 0.1f;
-        }
-        
-        ViewMatrix = GetViewMatrix(PrimaryCamera);
+        ViewMatrix = GetCameraViewMatrix(PrimaryCamera);
         ProjectionMatrix = glm::perspective(glm::radians(PrimaryCamera.FieldOfView), 
                                             (float)WindowWidth / (float)WindowHeight, 
                                             0.1f, 
@@ -286,35 +268,39 @@ int WinMain(HINSTANCE hInstance,
 internal void 
 GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
 {
+    // TODO: Resize rendering buffers
     glViewport(0, 0, Width, Height);
 }
 
 internal void 
 GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
 {
-    // TODO: Move to input function
+    RegisterMouseScroll(&GlobalInputState, XOffset, YOffset);
     
+    // TODO: Implement fov calc elsewhere
+    /*
     PrimaryCamera.FieldOfView -= (float)YOffset;
     if(PrimaryCamera.FieldOfView < 1.0f)
         PrimaryCamera.FieldOfView = 1;
     if(PrimaryCamera.FieldOfView > 45.0f)
         PrimaryCamera.FieldOfView = 45.0f;
+*/
 }
 
 internal void 
 GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
-    RegisterMouseMovement(&GlobalInputState, XPos, YPos);
+    RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, YPos);
 }
 
 internal void
 GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods)
 {
-    RegisterKeyboardInput(&GlobalInputState, &GlobalKeyTable, Key, Scancode, Action, Mods);
+    RegisterKeyboardInput(&GlobalInputState, &GlobalKeyState, Key, Scancode, Action, Mods);
 }
 
 internal void
 GLFW_MouseButtonCallback(GLFWwindow *Window, int Button, int Action, int Mods)
 {
-    RegisterMouseButtonInput(&GlobalInputState, &GlobalMouseButtonTable, Button, Action, Mods);
+    RegisterMouseButtonInput(&GlobalInputState, &GlobalMouseButtonState, Button, Action, Mods);
 }
