@@ -72,9 +72,9 @@ RegisterKeyboardInput(input_state *Input, key_table *KeyTable,
         // NOTE: GLFW key actions can be GLFW_PRESS, GLFW_RELEASE, or GLFW_REPEAT
         case GLFW_PRESS:
         {
-            *KeyState = PRESSED;
             if(*KeyState == NEUTRAL)
             {
+                *KeyState = PRESSED;
                 Command.Key = Key;
                 Command.Action = PRESSED;
                 Command.Mods = Mods;
@@ -149,7 +149,7 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
     glm::vec2 PrevMousePos = Input->MousePos;
     
     float XOffset = XPos - PrevMousePos.x;
-    float YOffset = YPos - PrevMousePos.y;
+    float YOffset = PrevMousePos.y - YPos;
     
     // TODO: Remove
     if(Table.Buttons[GLFW_MOUSE_BUTTON_1] = PRESSED)
@@ -164,7 +164,6 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
     MouseGesture.Type = MOVE;
     MouseGesture.Offset.Yaw = XOffset;
     MouseGesture.Offset.Pitch = YOffset;
-    
     PushGesture(&Input->GestureBuffer, MouseGesture);
     
     Input->MousePos.x = XPos;

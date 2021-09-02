@@ -5,10 +5,10 @@
 
 enum key_state
 {
+    NEUTRAL = 0,
     PRESSED,
     RELEASED,
     REPEAT,
-    NEUTRAL
 };
 
 enum device

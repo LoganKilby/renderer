@@ -3,13 +3,6 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-struct euler_angles
-{
-    float Yaw;
-    float Pitch;
-    float Roll;
-};
-
 enum camera_mode
 {
     FREE,

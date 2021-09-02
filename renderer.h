@@ -18,7 +18,14 @@ typedef fastObjMesh fast_obj_mesh;
 #include "include/assimp/scene.h"
 #include "include/assimp/postprocess.h"
 
-#include <vector> // TODO: Handle memory
+#include <vector> // TODO: Remove
+
+struct euler_angles
+{
+    float Yaw;
+    float Pitch;
+    float Roll;
+};
 
 enum texture_map_type
 {

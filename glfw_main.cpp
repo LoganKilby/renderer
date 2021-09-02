@@ -12,8 +12,9 @@
 
 #include "opengl_code.cpp"
 #include "renderer.cpp"
-#include "camera.cpp"
 #include "input.cpp"
+#include "camera.cpp"
+
 
 // NOTE: (On frustrating shader bugs)
 // If the object's texture has an unexpected color or is black, verify that the in/out 
@@ -29,6 +30,7 @@ internal void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int, int);
 internal void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 internal void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 internal void GLFW_MouseButtonCallback(GLFWwindow *Window, int Button, int Action, int Mods);
+internal void GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods);
 internal void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 
 // TODO: I would like to support multiple cameras.
@@ -68,9 +70,11 @@ int WinMain(HINSTANCE hInstance,
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
     glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
-    glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(Window, GLFW_MouseCallback);
     glfwSetScrollCallback(Window, GLFW_MouseScrollCallback);
+    glfwSetKeyCallback(Window, GLFW_KeyCallback);
+    
+    glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPos(Window, WindowWidth / 2.0f, WindowHeight / 2.0f);
     
     GLenum GlewError = glewInit();
@@ -164,7 +168,7 @@ int WinMain(HINSTANCE hInstance,
     PrimaryCamera.Orientation.Yaw = -90.0f;
     PrimaryCamera.Orientation.Pitch = -2.8f; // DEBUG VALUE
     PrimaryCamera.LookSpeed = 50.0f;
-    PrimaryCamera.PanSpeed = 10.0f;
+    PrimaryCamera.PanSpeed = 35.0f;
     PrimaryCamera.FieldOfView = 45.0f;
     
     glm::mat4 ModelMatrix;
@@ -173,7 +177,7 @@ int WinMain(HINSTANCE hInstance,
     glm::mat4 ProjectionMatrix;
     glm::mat4 MVP;
     
-    float Exposure = 1.0f;
+    float Exposure = 0.5f;
     float Gamma = 2.2f;
     
     while(!glfwWindowShouldClose(Window))
@@ -185,17 +189,16 @@ int WinMain(HINSTANCE hInstance,
         {
             if(FrameGesture.Type == MOVE)
             {
-                RotateFreeCamera(&PrimaryCamera, FrameGesture.Offset, GlobalInputState.dt);
+                //RotateFreeCamera(&PrimaryCamera, FrameGesture.Offset, GlobalInputState.dt);
             }
         }
+        
+        MoveCameraByKeyPressed(&PrimaryCamera, GlobalKeyState, GlobalInputState.dt);
         
         input_command FrameInput;
         while(PopInputCommand(&GlobalKeyState, &GlobalInputState.CommandBuffer, &FrameInput))
         {
-            if(PrimaryCamera.Mode == FREE && FrameInput.Action == PRESSED)
-            {
-                MoveCameraByKey(&PrimaryCamera, FrameInput.Key, GlobalInputState.dt);
-            }
+            
             
         }
         
@@ -283,12 +286,23 @@ GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
 internal void 
 GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
+    glm::vec2 PrevMousePos = GlobalInputState.MousePos;
+    
+    float XOffset = XPos - PrevMousePos.x;
+    float YOffset = PrevMousePos.y - YPos;
+    euler_angles Angles;
+    Angles.Pitch = YOffset;
+    Angles.Yaw = XOffset;
+    
+    RotateFreeCamera(&PrimaryCamera, Angles, GlobalInputState.dt);
+    
     RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, YPos);
 }
 
 internal void
 GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods)
 {
+    printf("callback\n");
     RegisterKeyboardInput(&GlobalInputState, &GlobalKeyState, Key, Scancode, Action, Mods);
 }
 

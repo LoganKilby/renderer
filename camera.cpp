@@ -12,51 +12,70 @@ RotateFreeCamera(camera *Camera, euler_angles Offset, float dt)
         Camera->Orientation.Pitch = -89.0f;
     
     glm::vec3 CameraAngle;
-    CameraAngle.x = cos(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
+    CameraAngle.x =cos(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
     CameraAngle.y = sin(glm::radians(Camera->Orientation.Pitch));
-    CameraAngle.z = sin(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
-    
+    CameraAngle.z =sin(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
     Camera->Front = glm::normalize(CameraAngle);
 }
 
-// Temporary
 internal void
-MoveCameraByKey(camera *Camera, int KeyPressed, float dt)
+MoveCameraByKeyPressed(camera *Camera, key_table KeyTable, float dt)
 {
-    switch(KeyPressed)
+    int KeyIndexesToCheck[] = 
     {
-        case GLFW_KEY_W:
+        GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_Q, GLFW_KEY_E
+    };
+    
+    int DirectionCount = 0;
+    for(int i = 0; i < ArrayCount(KeyIndexesToCheck); ++i)
+    {
+        if(KeyTable.Keys[KeyIndexesToCheck[i]] == PRESSED)
         {
-            Camera->Position += Camera->Front * Camera->PanSpeed * dt;
-        } break;
-        
-        case GLFW_KEY_A:
-        {
-            Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
-                Camera->PanSpeed * dt;
-        } break;
-        
-        case GLFW_KEY_S:
-        {
-            Camera->Position -= Camera->Front * Camera->PanSpeed * dt;
-        } break;
-        
-        case GLFW_KEY_D:
-        {
-            Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
-                Camera->PanSpeed * dt;
-        } break;
-        
-        case GLFW_KEY_Q:
-        {
-            Camera->Position.y += Camera->PanSpeed * dt;
-        } break;
-        
-        case GLFW_KEY_E:
-        {
-            Camera->Position.y -= Camera->PanSpeed * dt;
-        } break;
+            DirectionCount++;
+        }
     }
+    
+    if(!DirectionCount)
+    {
+        return;
+    }
+    
+    float Velocity = (Camera->PanSpeed * dt) / DirectionCount;
+    
+    // TODO: Do better
+    
+    if(KeyTable.Keys[GLFW_KEY_W] == PRESSED)
+    {
+        Camera->Position += Camera->Front * Velocity;
+    }
+    
+    if(KeyTable.Keys[GLFW_KEY_A] == PRESSED)
+    {
+        Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
+            Velocity;
+    }
+    
+    if(KeyTable.Keys[GLFW_KEY_S] == PRESSED)
+    {
+        Camera->Position -= Camera->Front * Velocity;
+    }
+    
+    if(KeyTable.Keys[GLFW_KEY_D] == PRESSED)
+    {
+        Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
+            Velocity;
+    }
+    
+    if(KeyTable.Keys[GLFW_KEY_Q] == PRESSED)
+    {
+        Camera->Position.y += Velocity;
+    }
+    
+    if(KeyTable.Keys[GLFW_KEY_E] == PRESSED)
+    {
+        Camera->Position.y -= Velocity;
+    }
+    
 }
 
 internal glm::mat4
