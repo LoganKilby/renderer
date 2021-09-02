@@ -76,7 +76,7 @@ struct input_state
     
     // TODO: I need a gesture command buffer / syste that's not integrated with the keyboard input
     // Raw mouse input
-    glm::vec2 PrevMousePos;
+    glm::vec2 MousePos;
     glm::vec2 MouseSelectionBoxBegin;
     input_command_buffer CommandBuffer;
     gesture_buffer GestureBuffer;

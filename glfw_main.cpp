@@ -151,19 +151,12 @@ int WinMain(HINSTANCE hInstance,
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
     texture FloorSpecTexture = LoadTexture("textures/brickwall_grayscale.jpg");
-    
     texture LinearTexture = LoadTextureToLinear("textures/container.jpg");
     texture GammaTexture = LoadTexture("textures/container.jpg");
     
-    float SecondsElapsed;
-    float PrevTime = 0;
-    float FrameTime;
-    int FPS;
-    char FPS_OutputBuffer[20] = {};
-    
     GlobalInputState = {};
-    GlobalInputState.PrevMousePos.x = WindowWidth / 2;
-    GlobalInputState.PrevMousePos.y = WindowHeight / 2;
+    GlobalInputState.MousePos.x = WindowWidth / 2;
+    GlobalInputState.MousePos.y = WindowHeight / 2;
     
     // Camera
     // TODO: Set up a camera proper camera system

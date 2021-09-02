@@ -125,7 +125,7 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
                 PushInputCommand(&Input->CommandBuffer, Command);
                 
                 // TODO: Set mouse bounding box origin in case we start moving the mouse?
-                Input->MouseSelectionBoxBegin = Input->PrevMousePos;
+                Input->MouseSelectionBoxBegin = Input->MousePos;
             }
         } break;
         
@@ -146,11 +146,12 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
 {
     // NOTE: Idk if we need to track whether the mouse was moved as a boolean state
     // or if we can just keep track of the offset from the previous frame and that's enough
-    glm::vec2 PrevMousePos = Input->PrevMousePos;
+    glm::vec2 PrevMousePos = Input->MousePos;
     
     float XOffset = XPos - PrevMousePos.x;
     float YOffset = YPos - PrevMousePos.y;
     
+    // TODO: Remove
     if(Table.Buttons[GLFW_MOUSE_BUTTON_1] = PRESSED)
     {
         // TODO:
@@ -165,10 +166,9 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
     MouseGesture.Offset.Pitch = YOffset;
     
     PushGesture(&Input->GestureBuffer, MouseGesture);
-    // Compute new camera yaw and pitch 
     
-    Input->PrevMousePos.x = XPos;
-    Input->PrevMousePos.y = YPos;
+    Input->MousePos.x = XPos;
+    Input->MousePos.y = YPos;
 }
 
 internal void
