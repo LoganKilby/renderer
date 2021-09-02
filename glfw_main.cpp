@@ -14,7 +14,7 @@
 #include "renderer.cpp"
 #include "input.cpp"
 #include "camera.cpp"
-
+#include "editor.cpp"
 
 // NOTE: (On frustrating shader bugs)
 // If the object's texture has an unexpected color or is black, verify that the in/out 
@@ -34,11 +34,13 @@ internal void GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Ac
 internal void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 
 // TODO: I would like to support multiple cameras.
-global_variable camera PrimaryCamera;
+// TODO: Add these as part of the game memory (allocated up front)
+global_variable camera GameCamera;
+global_variable camera EditorCamera;
 global_variable input_state GlobalInputState;
 global_variable key_table GlobalKeyState;
 global_variable mouse_button_table GlobalMouseButtonState;
-global_variable unsigned int PrimitiveShader;
+global_variable editor Editor;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -74,8 +76,9 @@ int WinMain(HINSTANCE hInstance,
     glfwSetCursorPosCallback(Window, GLFW_MouseCallback);
     glfwSetScrollCallback(Window, GLFW_MouseScrollCallback);
     glfwSetKeyCallback(Window, GLFW_KeyCallback);
+    glfwSetMouseButtonCallback(Window,GLFW_MouseButtonCallback);
     
-    glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glfwSetCursorPos(Window, WindowWidth / 2.0f, WindowHeight / 2.0f);
     
     GLenum GlewError = glewInit();
@@ -95,7 +98,7 @@ int WinMain(HINSTANCE hInstance,
         glEnable(GL_MULTISAMPLE);
         
         GlobalTextureCache = {};
-        PrimaryCamera = {};
+        GameCamera = {};
         GlobalInputState = {};
         GlobalKeyState = {};
         GlobalMouseButtonState = {};
@@ -165,12 +168,19 @@ int WinMain(HINSTANCE hInstance,
     
     // Camera
     // TODO: Set up a camera proper camera system
-    PrimaryCamera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
-    PrimaryCamera.Orientation.Yaw = -90.0f;
-    PrimaryCamera.Orientation.Pitch = -2.8f; // DEBUG VALUE
-    PrimaryCamera.LookSpeed = 7.0f;
-    PrimaryCamera.PanSpeed = 35.0f;
-    PrimaryCamera.FieldOfView = 45.0f;
+    GameCamera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
+    GameCamera.Orientation.Yaw = -90.0f;
+    GameCamera.Orientation.Pitch = -2.8f; // DEBUG VALUE
+    GameCamera.LookSpeed = 7.0f;
+    GameCamera.PanSpeed = 35.0f;
+    GameCamera.FieldOfView = 45.0f;
+    
+    Editor.Camera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
+    Editor.Camera.Orientation.Yaw = -90.0f;
+    Editor.Camera.Orientation.Pitch = -2.8f; // DEBUG VALUE
+    Editor.Camera.LookSpeed = 7.0f;
+    Editor.Camera.PanSpeed = 35.0f;
+    Editor.Camera.FieldOfView = 45.0f;
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -185,60 +195,11 @@ int WinMain(HINSTANCE hInstance,
     {
         UpdateClock(&GlobalInputState);
         
-        // UpdateAndRender
+        // TODO: Simulate game mode
+        ProcessInputForEditor(&GlobalInputState, &GlobalKeyState, &Editor);
         
-        input_command FrameInput;
-        while(PopInputCommand(&GlobalKeyState, &GlobalInputState.CommandBuffer, &FrameInput))
-        {
-            if(FrameInput.Device == MOUSE && PrimaryCamera.Mode == PAN)
-            {
-                if(FrameInput.Action == PRESSED)
-                {
-                    // TODO: Select something
-                    GlobalInputState.Clicked = 1;
-                }
-                else if(FrameInput.Action == RELEASED)
-                {
-                    GlobalInputState.Clicked = 0;
-                }
-            }
-        }
-        
-        gesture FrameGesture;
-        while(PopGesture(&GlobalInputState.GestureBuffer, &FrameGesture))
-        {
-            if(FrameGesture.Type == MOVE && PrimaryCamera.Mode == FREE)
-            {
-                
-            }
-            else if(FrameGesture.Type == SCROLL)
-            {
-                ZoomCamera(&PrimaryCamera, FrameGesture.Offset.Pitch);
-            }
-            
-            if(PrimaryCamera.Mode == FREE)
-            {
-                if(FrameGesture.Type == MOVE)
-                {
-                    RotateFreeCamera(&PrimaryCamera, FrameGesture.Offset, GlobalInputState.dt);
-                }
-                
-            }
-            else if(PrimaryCamera.Mode == PAN)
-            {
-                if(FrameGesture.Type == MOVE)
-                {
-                    // TODO: Check if we're selecting something with a mouse click
-                    // If we didn't select anything, start drawing a selection region
-                    // TODO: I need some notion of an entity soon
-                }
-            }
-        }
-        
-        MoveCameraByKeyPressed(&PrimaryCamera, GlobalKeyState, GlobalInputState.dt);
-        
-        ViewMatrix = GetCameraViewMatrix(PrimaryCamera);
-        ProjectionMatrix = glm::perspective(glm::radians(PrimaryCamera.FieldOfView), 
+        ViewMatrix = GetCameraViewMatrix(GameCamera);
+        ProjectionMatrix = glm::perspective(glm::radians(GameCamera.FieldOfView), 
                                             (float)WindowWidth / (float)WindowHeight, 
                                             0.1f, 
                                             1000.0f);
@@ -248,8 +209,8 @@ int WinMain(HINSTANCE hInstance,
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        SetUniform3fv(ShadowProgram.Id, "lightPos", PrimaryCamera.Position);
-        SetUniform3fv(ShadowProgram.Id, "viewPos", PrimaryCamera.Position);
+        SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
+        SetUniform3fv(ShadowProgram.Id, "viewPos", Editor.Camera.Position);
         SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
         
@@ -289,6 +250,14 @@ int WinMain(HINSTANCE hInstance,
         glBindVertexArray(0);
         
         // UI pass ?
+        if(GlobalInputState.DrawSelectionRegion)
+        {
+            RenderQuad(GlobalInputState.SelectionRegionTopLeft.x, GlobalInputState.SelectionRegionTopLeft.y,
+                       GlobalInputState.MousePos.x, 
+                       GlobalInputState.MousePos.y,
+                       {1.0f, 1.0f, 1.0f, 0.5f},
+                       WindowWidth, WindowHeight);
+        }
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

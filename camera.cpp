@@ -19,7 +19,7 @@ RotateFreeCamera(camera *Camera, euler_angles Offset, float dt)
 }
 
 internal void
-MoveCameraByKeyPressed(camera *Camera, key_table KeyTable, float dt)
+MoveCameraByKeyPressed(camera *Camera, key_table *KeyTable, float dt)
 {
     int KeyIndexesToCheck[] = 
     {
@@ -29,8 +29,8 @@ MoveCameraByKeyPressed(camera *Camera, key_table KeyTable, float dt)
     int DirectionCount = 0;
     for(int i = 0; i < ArrayCount(KeyIndexesToCheck); ++i)
     {
-        if(KeyTable.Keys[KeyIndexesToCheck[i]] == PRESSED ||
-           KeyTable.Keys[KeyIndexesToCheck[i]] == REPEAT)
+        if(KeyTable->Keys[KeyIndexesToCheck[i]] == PRESSED ||
+           KeyTable->Keys[KeyIndexesToCheck[i]] == REPEAT)
         {
             DirectionCount++;
         }
@@ -45,38 +45,37 @@ MoveCameraByKeyPressed(camera *Camera, key_table KeyTable, float dt)
     
     // TODO: Do better
     
-    if(KeyTable.Keys[GLFW_KEY_W] == PRESSED || KeyTable.Keys[GLFW_KEY_W] == REPEAT)
+    if(KeyTable->Keys[GLFW_KEY_W] == PRESSED || KeyTable->Keys[GLFW_KEY_W] == REPEAT)
     {
         Camera->Position += Camera->Front * Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_A] == PRESSED || KeyTable.Keys[GLFW_KEY_A] == REPEAT)
+    if(KeyTable->Keys[GLFW_KEY_A] == PRESSED || KeyTable->Keys[GLFW_KEY_A] == REPEAT)
     {
         Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
             Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_S] == PRESSED || KeyTable.Keys[GLFW_KEY_S] == REPEAT)
+    if(KeyTable->Keys[GLFW_KEY_S] == PRESSED || KeyTable->Keys[GLFW_KEY_S] == REPEAT)
     {
         Camera->Position -= Camera->Front * Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_D] == PRESSED || KeyTable.Keys[GLFW_KEY_D] == REPEAT)
+    if(KeyTable->Keys[GLFW_KEY_D] == PRESSED || KeyTable->Keys[GLFW_KEY_D] == REPEAT)
     {
         Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
             Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_Q] == PRESSED || KeyTable.Keys[GLFW_KEY_Q] == REPEAT)
+    if(KeyTable->Keys[GLFW_KEY_Q] == PRESSED || KeyTable->Keys[GLFW_KEY_Q] == REPEAT)
     {
         Camera->Position.y += Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_E] == PRESSED || KeyTable.Keys[GLFW_KEY_E] == REPEAT)
+    if(KeyTable->Keys[GLFW_KEY_E] == PRESSED || KeyTable->Keys[GLFW_KEY_E] == REPEAT)
     {
         Camera->Position.y -= Speed;
     }
-    
 }
 
 internal void

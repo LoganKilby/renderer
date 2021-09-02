@@ -17,7 +17,7 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
     char *ShaderTypeString;
     switch(ShaderType)
     {
-        case GL_VERTEX_SHADER: 
+        case GL_VERTEX_SHADER:
         ShaderTypeString = "GL_VERTEX_SHADER";
         break;
         case GL_FRAGMENT_SHADER:
@@ -927,10 +927,8 @@ ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeig
     }
 }
 
-
-// NOTE: Example of calculating tangent and bitanent vectors
 internal void 
-RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color)
+RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color, float WindowWidth, float WindowHeight)
 {
     static unsigned int QuadVAO, QuadVBO = 0;
     static opengl_shader_program PrimitiveShaderProgram = {};
@@ -939,20 +937,31 @@ RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color)
         float QuadVertices[] =
         {
             // position                              // normals          // texture coordinates
-            -1.0f / BeginX,  1.0f / BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
-            -1.0f / BeginX, -1.0f / EndY,   0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // 2
-            1.0f  / EndX,   -1.0f / EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
+            BeginX, BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
+            BeginX, EndY,   0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // 2
+            EndX,   EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
             
-            -1.0f / BeginX,  1.0f / BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
-            1.0f  / EndX,   -1.0f / EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
-            1.0f / EndX,     1.0f / BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f  // 4
+            BeginX, BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
+            EndX,   EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
+            EndX,   BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f  // 4
+        };
+        
+        float sQuadVertices[] =
+        {
+            -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  0.0f, 1.0f, // 1
+            -1.0f, -1.0f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f, // 2
+            1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 0.0f, // 3
+            
+            -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  0.0f, 1.0f, // 1
+            1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 0.0f, // 3
+            1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 1.0f,  1.0f, 1.0f  // 4
         };
         
         glGenVertexArrays(1, &QuadVAO);
         glGenBuffers(1, &QuadVBO);
         glBindVertexArray(QuadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(sQuadVertices), &sQuadVertices, GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
@@ -971,8 +980,12 @@ RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color)
         Assert(PrimitiveShaderProgram.Id);
     }
     
+    glm::mat4 OrthoMatrix = glm::ortho(0.0f, WindowWidth, 0.0f, WindowHeight, 0.0f, 100.0f);
+    //OrthoMatrix = glm::mat4(1.0f);
+    
     glUseProgram(PrimitiveShaderProgram.Id);
     SetUniform4fv(PrimitiveShaderProgram.Id, "color", Color);
+    SetUniformMatrix4fv(PrimitiveShaderProgram.Id, "ortho", OrthoMatrix);
     glBindVertexArray(QuadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);

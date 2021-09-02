@@ -67,6 +67,13 @@ struct gesture_buffer
     int Count;
 };
 
+struct clock
+{
+    float dt;
+    float FPS;
+    float SecondsElapsed;
+};
+
 struct input_state
 {
     float dt;
@@ -74,9 +81,10 @@ struct input_state
     float SecondsElapsed;
     
     bool32 Clicked;
+    bool32 DrawSelectionRegion;
     
     glm::vec2 MousePos;
-    glm::vec2 MouseSelectionBoxBegin; // Updated every fram the user clicks
+    glm::vec2 SelectionRegionTopLeft; // Updated every fram the user clicks
     
     input_command_buffer CommandBuffer;
     gesture_buffer GestureBuffer;

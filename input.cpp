@@ -108,6 +108,7 @@ RegisterKeyboardInput(input_state *Input, key_table *KeyTable,
 internal void
 RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, int Button, int Action, int Mods)
 {
+    printf("Mouse input registered\n");
     key_state *ButtonState = &ButtonTable->Buttons[Button];
     input_command Command;
     switch(Action)
@@ -116,17 +117,15 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
         case GLFW_PRESS:
         {
             *ButtonState = PRESSED;
-            if(*ButtonState == NEUTRAL)
-            {
-                Command.Key = Button;
-                Command.Action = PRESSED;
-                Command.Mods = Mods;
-                Command.Device = MOUSE;
-                PushInputCommand(&Input->CommandBuffer, Command);
-                
-                // TODO: Set mouse bounding box origin in case we start moving the mouse?
-                Input->MouseSelectionBoxBegin = Input->MousePos;
-            }
+            
+            Command.Key = Button;
+            Command.Action = PRESSED;
+            Command.Mods = Mods;
+            Command.Device = MOUSE;
+            PushInputCommand(&Input->CommandBuffer, Command);
+            
+            // TODO: Set mouse bounding box origin in case we start moving the mouse?
+            Input->SelectionRegionTopLeft = Input->MousePos;
         } break;
         
         case GLFW_RELEASE:
