@@ -38,6 +38,7 @@ global_variable camera PrimaryCamera;
 global_variable input_state GlobalInputState;
 global_variable key_table GlobalKeyState;
 global_variable mouse_button_table GlobalMouseButtonState;
+global_variable unsigned int PrimitiveShader;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -167,7 +168,7 @@ int WinMain(HINSTANCE hInstance,
     PrimaryCamera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
     PrimaryCamera.Orientation.Yaw = -90.0f;
     PrimaryCamera.Orientation.Pitch = -2.8f; // DEBUG VALUE
-    PrimaryCamera.LookSpeed = 50.0f;
+    PrimaryCamera.LookSpeed = 7.0f;
     PrimaryCamera.PanSpeed = 35.0f;
     PrimaryCamera.FieldOfView = 45.0f;
     
@@ -184,23 +185,57 @@ int WinMain(HINSTANCE hInstance,
     {
         UpdateClock(&GlobalInputState);
         
-        gesture FrameGesture;
-        while(PopGesture(&GlobalInputState.GestureBuffer, &FrameGesture))
-        {
-            if(FrameGesture.Type == MOVE)
-            {
-                //RotateFreeCamera(&PrimaryCamera, FrameGesture.Offset, GlobalInputState.dt);
-            }
-        }
-        
-        MoveCameraByKeyPressed(&PrimaryCamera, GlobalKeyState, GlobalInputState.dt);
+        // UpdateAndRender
         
         input_command FrameInput;
         while(PopInputCommand(&GlobalKeyState, &GlobalInputState.CommandBuffer, &FrameInput))
         {
-            
-            
+            if(FrameInput.Device == MOUSE && PrimaryCamera.Mode == PAN)
+            {
+                if(FrameInput.Action == PRESSED)
+                {
+                    // TODO: Select something
+                    GlobalInputState.Clicked = 1;
+                }
+                else if(FrameInput.Action == RELEASED)
+                {
+                    GlobalInputState.Clicked = 0;
+                }
+            }
         }
+        
+        gesture FrameGesture;
+        while(PopGesture(&GlobalInputState.GestureBuffer, &FrameGesture))
+        {
+            if(FrameGesture.Type == MOVE && PrimaryCamera.Mode == FREE)
+            {
+                
+            }
+            else if(FrameGesture.Type == SCROLL)
+            {
+                ZoomCamera(&PrimaryCamera, FrameGesture.Offset.Pitch);
+            }
+            
+            if(PrimaryCamera.Mode == FREE)
+            {
+                if(FrameGesture.Type == MOVE)
+                {
+                    RotateFreeCamera(&PrimaryCamera, FrameGesture.Offset, GlobalInputState.dt);
+                }
+                
+            }
+            else if(PrimaryCamera.Mode == PAN)
+            {
+                if(FrameGesture.Type == MOVE)
+                {
+                    // TODO: Check if we're selecting something with a mouse click
+                    // If we didn't select anything, start drawing a selection region
+                    // TODO: I need some notion of an entity soon
+                }
+            }
+        }
+        
+        MoveCameraByKeyPressed(&PrimaryCamera, GlobalKeyState, GlobalInputState.dt);
         
         ViewMatrix = GetCameraViewMatrix(PrimaryCamera);
         ProjectionMatrix = glm::perspective(glm::radians(PrimaryCamera.FieldOfView), 
@@ -253,6 +288,8 @@ int WinMain(HINSTANCE hInstance,
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
         
+        // UI pass ?
+        
         glfwSwapBuffers(Window);
         glfwPollEvents();
         OpenGL_OutputErrorQueue();
@@ -272,37 +309,17 @@ internal void
 GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
 {
     RegisterMouseScroll(&GlobalInputState, XOffset, YOffset);
-    
-    // TODO: Implement fov calc elsewhere
-    /*
-    PrimaryCamera.FieldOfView -= (float)YOffset;
-    if(PrimaryCamera.FieldOfView < 1.0f)
-        PrimaryCamera.FieldOfView = 1;
-    if(PrimaryCamera.FieldOfView > 45.0f)
-        PrimaryCamera.FieldOfView = 45.0f;
-*/
 }
 
 internal void 
 GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
-    glm::vec2 PrevMousePos = GlobalInputState.MousePos;
-    
-    float XOffset = XPos - PrevMousePos.x;
-    float YOffset = PrevMousePos.y - YPos;
-    euler_angles Angles;
-    Angles.Pitch = YOffset;
-    Angles.Yaw = XOffset;
-    
-    RotateFreeCamera(&PrimaryCamera, Angles, GlobalInputState.dt);
-    
     RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, YPos);
 }
 
 internal void
 GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods)
 {
-    printf("callback\n");
     RegisterKeyboardInput(&GlobalInputState, &GlobalKeyState, Key, Scancode, Action, Mods);
 }
 

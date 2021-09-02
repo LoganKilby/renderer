@@ -42,4 +42,38 @@ typedef int32 bool32;
 typedef float real32;
 typedef double real64;
 
+struct v3
+{
+    union
+    {
+        struct
+        {
+            float x, y, z;
+        };
+        
+        struct
+        {
+            float r, g, b;
+        };
+    };
+};
+
+struct v4
+
+{
+    union
+    {
+        struct
+        {
+            float x, y, z, w;
+        };
+        
+        struct
+        {
+            float r, g, b, a;
+        };
+    };
+};
+
+
 #endif //TYPES_H

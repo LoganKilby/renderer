@@ -369,6 +369,15 @@ SetUniform3fv(int Program, char *Name, glm::vec3 Data)
 }
 
 internal void
+SetUniform4fv(int Program, char *Name, glm::vec3 Data)
+{
+    glUseProgram(Program);
+    GLint UniformLocation = glGetUniformLocation(Program, Name);
+    AssertUniformLoc(UniformLocation);
+    glUniform4fv(UniformLocation, 1, &Data[0]);
+}
+
+internal void
 SetUniform1f(int Program, char *Name, float Data)
 {
     glUseProgram(Program);
@@ -916,4 +925,55 @@ ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeig
             }
         }
     }
+}
+
+
+// NOTE: Example of calculating tangent and bitanent vectors
+internal void 
+RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color)
+{
+    static unsigned int QuadVAO, QuadVBO = 0;
+    static opengl_shader_program PrimitiveShaderProgram = {};
+    if(QuadVAO == 0)
+    {
+        float QuadVertices[] =
+        {
+            // position                              // normals          // texture coordinates
+            -1.0f / BeginX,  1.0f / BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
+            -1.0f / BeginX, -1.0f / EndY,   0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // 2
+            1.0f  / EndX,   -1.0f / EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
+            
+            -1.0f / BeginX,  1.0f / BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
+            1.0f  / EndX,   -1.0f / EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
+            1.0f / EndX,     1.0f / BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f  // 4
+        };
+        
+        glGenVertexArrays(1, &QuadVAO);
+        glGenBuffers(1, &QuadVBO);
+        glBindVertexArray(QuadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void *)(8 * sizeof(float)));
+    }
+    
+    if(PrimitiveShaderProgram.Id == 0)
+    {
+        unsigned int VertexShader = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
+        unsigned int FragmentShader = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
+        PrimitiveShaderProgram = CreateShaderProgram(VertexShader, FragmentShader, 0);
+        Assert(PrimitiveShaderProgram.Id);
+    }
+    
+    glUseProgram(PrimitiveShaderProgram.Id);
+    SetUniform4fv(PrimitiveShaderProgram.Id, "color", Color);
+    glBindVertexArray(QuadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 }
