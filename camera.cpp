@@ -12,9 +12,9 @@ RotateFreeCamera(camera *Camera, euler_angles Offset, float dt)
         Camera->Orientation.Pitch = -89.0f;
     
     glm::vec3 CameraAngle;
-    CameraAngle.x =cos(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
+    CameraAngle.x = cos(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
     CameraAngle.y = sin(glm::radians(Camera->Orientation.Pitch));
-    CameraAngle.z =sin(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
+    CameraAngle.z = sin(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
     Camera->Front = glm::normalize(CameraAngle);
 }
 
@@ -29,7 +29,8 @@ MoveCameraByKeyPressed(camera *Camera, key_table KeyTable, float dt)
     int DirectionCount = 0;
     for(int i = 0; i < ArrayCount(KeyIndexesToCheck); ++i)
     {
-        if(KeyTable.Keys[KeyIndexesToCheck[i]] == PRESSED)
+        if(KeyTable.Keys[KeyIndexesToCheck[i]] == PRESSED ||
+           KeyTable.Keys[KeyIndexesToCheck[i]] == REPEAT)
         {
             DirectionCount++;
         }
@@ -40,42 +41,52 @@ MoveCameraByKeyPressed(camera *Camera, key_table KeyTable, float dt)
         return;
     }
     
-    float Velocity = (Camera->PanSpeed * dt) / DirectionCount;
+    float Speed = (Camera->PanSpeed * dt) / DirectionCount;
     
     // TODO: Do better
     
-    if(KeyTable.Keys[GLFW_KEY_W] == PRESSED)
+    if(KeyTable.Keys[GLFW_KEY_W] == PRESSED || KeyTable.Keys[GLFW_KEY_W] == REPEAT)
     {
-        Camera->Position += Camera->Front * Velocity;
+        Camera->Position += Camera->Front * Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_A] == PRESSED)
+    if(KeyTable.Keys[GLFW_KEY_A] == PRESSED || KeyTable.Keys[GLFW_KEY_A] == REPEAT)
     {
         Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
-            Velocity;
+            Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_S] == PRESSED)
+    if(KeyTable.Keys[GLFW_KEY_S] == PRESSED || KeyTable.Keys[GLFW_KEY_S] == REPEAT)
     {
-        Camera->Position -= Camera->Front * Velocity;
+        Camera->Position -= Camera->Front * Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_D] == PRESSED)
+    if(KeyTable.Keys[GLFW_KEY_D] == PRESSED || KeyTable.Keys[GLFW_KEY_D] == REPEAT)
     {
         Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
-            Velocity;
+            Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_Q] == PRESSED)
+    if(KeyTable.Keys[GLFW_KEY_Q] == PRESSED || KeyTable.Keys[GLFW_KEY_Q] == REPEAT)
     {
-        Camera->Position.y += Velocity;
+        Camera->Position.y += Speed;
     }
     
-    if(KeyTable.Keys[GLFW_KEY_E] == PRESSED)
+    if(KeyTable.Keys[GLFW_KEY_E] == PRESSED || KeyTable.Keys[GLFW_KEY_E] == REPEAT)
     {
-        Camera->Position.y -= Velocity;
+        Camera->Position.y -= Speed;
     }
     
+}
+
+internal void
+ZoomCamera(camera *Camera, float YOffset)
+{
+    Camera->FieldOfView -= YOffset;
+    if(Camera->FieldOfView < 1.0f)
+        Camera->FieldOfView = 1;
+    if(Camera->FieldOfView > 45.0f)
+        Camera->FieldOfView = 45.0f;
 }
 
 internal glm::mat4

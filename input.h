@@ -33,15 +33,15 @@ struct input_command_buffer
     int Count;
 };
 
-// NOTE: Key state lookup table for GLFW-specific key enumerations
+// NOTE: Key state lookup table for GLFW keyboard-specific key enumerations
 // You would look in the table by saying Keys[GLFW_KEY_A] for example
 struct key_table
 {
     key_state Keys[359] = { NEUTRAL };
 };
 
-// NOTE: Key state lookup table for GLFW-specific key enumerations
-// You would look in the table by saying Keys[GLFW_KEY_A] for example
+// NOTE: Key state lookup table for GLFW mouse-specific key enumerations
+// You would look in the table by saying Keys[GLFW_MOUSE_BUTTON_1] for example
 struct mouse_button_table
 {
     key_state Buttons[8] = { NEUTRAL };
@@ -52,7 +52,6 @@ enum gesture_type
 {
     MOVE,
     SCROLL,
-    DRAG
 };
 
 // TODO: gestures could be a lot more sophisticated
@@ -74,10 +73,11 @@ struct input_state
     float FPS;
     float SecondsElapsed;
     
-    // TODO: I need a gesture command buffer / syste that's not integrated with the keyboard input
-    // Raw mouse input
+    bool32 Clicked;
+    
     glm::vec2 MousePos;
-    glm::vec2 MouseSelectionBoxBegin;
+    glm::vec2 MouseSelectionBoxBegin; // Updated every fram the user clicks
+    
     input_command_buffer CommandBuffer;
     gesture_buffer GestureBuffer;
 };

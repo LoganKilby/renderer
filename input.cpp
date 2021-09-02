@@ -23,7 +23,7 @@ PopGesture(gesture_buffer *Buffer, gesture *OutputGesture)
 {
     if(Buffer->Count)
     {
-        *OutputGesture = Buffer->Gestures[Buffer->Count];
+        *OutputGesture = Buffer->Gestures[Buffer->Count - 1];
         Buffer->Count--;
         return true;
     }
@@ -147,9 +147,14 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
     // NOTE: Idk if we need to track whether the mouse was moved as a boolean state
     // or if we can just keep track of the offset from the previous frame and that's enough
     glm::vec2 PrevMousePos = Input->MousePos;
+    gesture MouseGesture = {};
+    MouseGesture.Type = MOVE;
+    MouseGesture.Offset.Yaw = XPos - PrevMousePos.x;
+    MouseGesture.Offset.Pitch = PrevMousePos.y - YPos;
+    PushGesture(&Input->GestureBuffer, MouseGesture);
     
-    float XOffset = XPos - PrevMousePos.x;
-    float YOffset = PrevMousePos.y - YPos;
+    Input->MousePos.x = XPos;
+    Input->MousePos.y = YPos;
     
     // TODO: Remove
     if(Table.Buttons[GLFW_MOUSE_BUTTON_1] = PRESSED)
@@ -159,15 +164,6 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
         // So this is a draw command pushed to a draw buffer?
         // Does this check even go here?
     }
-    
-    gesture MouseGesture = {};
-    MouseGesture.Type = MOVE;
-    MouseGesture.Offset.Yaw = XOffset;
-    MouseGesture.Offset.Pitch = YOffset;
-    PushGesture(&Input->GestureBuffer, MouseGesture);
-    
-    Input->MousePos.x = XPos;
-    Input->MousePos.y = YPos;
 }
 
 internal void
