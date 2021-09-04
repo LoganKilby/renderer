@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "camera.h"
 
 internal void
 ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
@@ -10,12 +11,13 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
         {
             if(FrameInput.Action == PRESSED)
             {
-                // TODO: Select something?
-                Input->Clicked = 1;
+                // TODO: Select something
+                Editor->Clicked = 1;
+                Editor->EntitySelected = SelectEntityAtMouse(Input->MousePosition);
             }
             else if(FrameInput.Action == RELEASED)
             {
-                Input->Clicked = 0;
+                Editor->Clicked = 0;
             }
         }
     }
@@ -33,12 +35,18 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
         {
             if(Input->Clicked)
             {
-                // Draw selection region, no entity selected
-                Input->DrawSelectionRegion = 1;
+                // if something was not selected with the 
+                if(!Editor->EntitySelected && !Editor->DrawSelectionRegion)
+                {
+                    Editor->DrawSelectionRegion = 1;
+                    Editor->SelectionRegionOrigin = Input->MousePosition;
+                }
+                
             }
             else
             {
-                Input->DrawSelectionRegion = 0;
+                Editor->DrawSelectionRegion = 0;
+                //RotateFreeCamera(&Editor->Camera, FrameGesture.Offset, Input->dt);
             }
         }
     }

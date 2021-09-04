@@ -71,10 +71,10 @@ struct shadow_map
 
 struct gl_viewport
 {
-    int PosX;
-    int PosY;
-    int Width;
-    int Height;
+    float Left;
+    float Bottom;
+    float Right;
+    float Top;
 };
 
 // Personal NOTE: OpenGL guarentees at least 16 4-component vertex attributes (vetex shader input

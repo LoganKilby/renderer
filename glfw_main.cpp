@@ -15,6 +15,7 @@
 #include "input.cpp"
 #include "camera.cpp"
 #include "editor.cpp"
+#include "entity.cpp"
 
 // NOTE: (On frustrating shader bugs)
 // If the object's texture has an unexpected color or is black, verify that the in/out 
@@ -69,10 +70,10 @@ int WinMain(HINSTANCE hInstance,
     }
     
     // TODO: With O2 optimizations turned on, GLFW isn't AS slow, but still bad.
-    glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
+    //glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
-    glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
+    //glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
     glfwSetCursorPosCallback(Window, GLFW_MouseCallback);
     glfwSetScrollCallback(Window, GLFW_MouseScrollCallback);
     glfwSetKeyCallback(Window, GLFW_KeyCallback);
@@ -118,6 +119,7 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
+#if 0
     render_target HDR_RenderTarget = HDR_CreateRenderTarget(WindowWidth, WindowHeight);
     render_target PFX_RenderTarget = PFX_CreateRenderTarget(WindowWidth, WindowHeight);
     shadow_map ShadowCubeMap = CreateShadowCubeMap();
@@ -128,6 +130,7 @@ int WinMain(HINSTANCE hInstance,
                                                         ShadowAspectRatio,
                                                         ShadowNearPlane,
                                                         ShadowFarPlane);
+#endif
     
     unsigned int ScreenVAO = CreateScreenRenderQuad();
     
@@ -135,7 +138,7 @@ int WinMain(HINSTANCE hInstance,
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
-    
+#if 0
     VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
@@ -155,16 +158,22 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/blit_texture_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/blit_texture_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BlitTextureProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+#endif
     
+    VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program PrimitiveShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+#if 0
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
     texture FloorSpecTexture = LoadTexture("textures/brickwall_grayscale.jpg");
     texture LinearTexture = LoadTextureToLinear("textures/container.jpg");
     texture GammaTexture = LoadTexture("textures/container.jpg");
+#endif
     
     GlobalInputState = {};
-    GlobalInputState.MousePos.x = WindowWidth / 2;
-    GlobalInputState.MousePos.y = WindowHeight / 2;
+    GlobalInputState.MousePosition.x = WindowWidth / 2;
+    GlobalInputState.MousePosition.y = WindowHeight / 2;
     
     // Camera
     // TODO: Set up a camera proper camera system
@@ -178,7 +187,7 @@ int WinMain(HINSTANCE hInstance,
     Editor.Camera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
     Editor.Camera.Orientation.Yaw = -90.0f;
     Editor.Camera.Orientation.Pitch = -2.8f; // DEBUG VALUE
-    Editor.Camera.LookSpeed = 7.0f;
+    Editor.Camera.LookSpeed = 15.0f;
     Editor.Camera.PanSpeed = 35.0f;
     Editor.Camera.FieldOfView = 45.0f;
     
@@ -186,6 +195,7 @@ int WinMain(HINSTANCE hInstance,
     glm::mat4 ViewMatrix;
     glm::mat3 NormalMatrix;
     glm::mat4 ProjectionMatrix;
+    glm::mat4 OrthoMatrix;
     glm::mat4 MVP;
     
     float Exposure = 0.5f;
@@ -194,12 +204,13 @@ int WinMain(HINSTANCE hInstance,
     while(!glfwWindowShouldClose(Window))
     {
         UpdateClock(&GlobalInputState);
-        
-        // TODO: Simulate game mode
         ProcessInputForEditor(&GlobalInputState, &GlobalKeyState, &Editor);
+#if 0
+        // TODO: Simulate game mode
         
-        ViewMatrix = GetCameraViewMatrix(GameCamera);
-        ProjectionMatrix = glm::perspective(glm::radians(GameCamera.FieldOfView), 
+        OrthoMatrix = glm::ortho(0.0f, WindowWidth, 0.0f, WindowHeight);
+        ViewMatrix = GetCameraViewMatrix(Editor.Camera);
+        ProjectionMatrix = glm::perspective(glm::radians(Editor.Camera.FieldOfView), 
                                             (float)WindowWidth / (float)WindowHeight, 
                                             0.1f, 
                                             1000.0f);
@@ -248,15 +259,20 @@ int WinMain(HINSTANCE hInstance,
         glBindVertexArray(ScreenVAO);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
+#endif
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        /*
+        glUseProgram(PrimitiveShaderProgram.Id);
+        glBindVertexArray(ScreenVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        */
         
         // UI pass ?
-        if(GlobalInputState.DrawSelectionRegion)
+        if(Editor.DrawSelectionRegion)
         {
-            RenderQuad(GlobalInputState.SelectionRegionTopLeft.x, GlobalInputState.SelectionRegionTopLeft.y,
-                       GlobalInputState.MousePos.x, 
-                       GlobalInputState.MousePos.y,
-                       {1.0f, 1.0f, 1.0f, 0.5f},
-                       WindowWidth, WindowHeight);
+            DrawRect(Editor.SelectionRegionOrigin.x, Editor.SelectionRegionOrigin.y,
+                     GlobalInputState.MousePosition.x, GlobalInputState.MousePosition.y);
         }
         
         glfwSwapBuffers(Window);
@@ -270,7 +286,7 @@ int WinMain(HINSTANCE hInstance,
 internal void 
 GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
 {
-    // TODO: Resize rendering buffers
+    // TODO: Resize framebuffers
     glViewport(0, 0, Width, Height);
 }
 

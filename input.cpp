@@ -108,7 +108,6 @@ RegisterKeyboardInput(input_state *Input, key_table *KeyTable,
 internal void
 RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, int Button, int Action, int Mods)
 {
-    printf("Mouse input registered\n");
     key_state *ButtonState = &ButtonTable->Buttons[Button];
     input_command Command;
     switch(Action)
@@ -123,9 +122,6 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
             Command.Mods = Mods;
             Command.Device = MOUSE;
             PushInputCommand(&Input->CommandBuffer, Command);
-            
-            // TODO: Set mouse bounding box origin in case we start moving the mouse?
-            Input->SelectionRegionTopLeft = Input->MousePos;
         } break;
         
         case GLFW_RELEASE:
@@ -145,15 +141,15 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
 {
     // NOTE: Idk if we need to track whether the mouse was moved as a boolean state
     // or if we can just keep track of the offset from the previous frame and that's enough
-    glm::vec2 PrevMousePos = Input->MousePos;
+    glm::vec2 PrevMousePos = Input->MousePosition;
     gesture MouseGesture = {};
     MouseGesture.Type = MOVE;
     MouseGesture.Offset.Yaw = XPos - PrevMousePos.x;
     MouseGesture.Offset.Pitch = PrevMousePos.y - YPos;
     PushGesture(&Input->GestureBuffer, MouseGesture);
     
-    Input->MousePos.x = XPos;
-    Input->MousePos.y = YPos;
+    Input->MousePosition.x = XPos;
+    Input->MousePosition.y = YPos;
     
     // TODO: Remove
     if(Table.Buttons[GLFW_MOUSE_BUTTON_1] = PRESSED)
@@ -173,4 +169,22 @@ RegisterMouseScroll(input_state *Input, double XOffset, double YOffset)
     Gesture.Offset.Yaw = XOffset;
     Gesture.Offset.Pitch = YOffset;
     PushGesture(&Input->GestureBuffer, Gesture);
+}
+
+internal void
+FlushInputBuffers(input_state *Input)
+{
+    if(Input->CommandBuffer.Count)
+        printf("%d inputs discarded\n",Input->CommandBuffer.Count);
+    memset(&Input->CommandBuffer, 0, sizeof(input_command_buffer));
+    
+    if(Input->GestureBuffer.Count)
+        printf("%d gestures discarded\n", Input->GestureBuffer.Count);
+    memset(&Input->GestureBuffer, 0, sizeof(gesture_buffer));
+}
+
+internal v2
+GetMousePosition()
+{
+    v2 MousePosition;
 }

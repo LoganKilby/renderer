@@ -75,5 +75,10 @@ struct v4
     };
 };
 
+struct v2
+{
+    float x;
+    float y;
+};
 
 #endif //TYPES_H

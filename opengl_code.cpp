@@ -1,6 +1,7 @@
 #include "opengl_code.h"
 #include "renderer.h"
 
+
 // Maybe I could use a namespace in the future if I decide
 // to implement DirectX as well
 namespace OpenGL
@@ -928,7 +929,7 @@ ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeig
 }
 
 internal void 
-RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color, float WindowWidth, float WindowHeight)
+DrawRect(float BeginX, float BeginY, float EndX, float EndY)
 {
     static unsigned int QuadVAO, QuadVBO = 0;
     static opengl_shader_program PrimitiveShaderProgram = {};
@@ -936,40 +937,19 @@ RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color, 
     {
         float QuadVertices[] =
         {
-            // position                              // normals          // texture coordinates
-            BeginX, BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
-            BeginX, EndY,   0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // 2
-            EndX,   EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
-            
-            BeginX, BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // 1
-            EndX,   EndY,   0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f, // 3
-            EndX,   BeginY, 0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f  // 4
-        };
-        
-        float sQuadVertices[] =
-        {
-            -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  0.0f, 1.0f, // 1
-            -1.0f, -1.0f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f, // 2
-            1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 0.0f, // 3
-            
-            -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  0.0f, 1.0f, // 1
-            1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 0.0f, // 3
-            1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 1.0f,  1.0f, 1.0f  // 4
+            -1.0f,  1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f,
+            1.0f,  1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f,
         };
         
         glGenVertexArrays(1, &QuadVAO);
         glGenBuffers(1, &QuadVBO);
         glBindVertexArray(QuadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(sQuadVertices), &sQuadVertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void *)(8 * sizeof(float)));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     }
     
     if(PrimitiveShaderProgram.Id == 0)
@@ -980,13 +960,28 @@ RenderQuad(float BeginX, float BeginY, float EndX, float EndY, glm::vec4 Color, 
         Assert(PrimitiveShaderProgram.Id);
     }
     
-    glm::mat4 OrthoMatrix = glm::ortho(0.0f, WindowWidth, 0.0f, WindowHeight, 0.0f, 100.0f);
-    //OrthoMatrix = glm::mat4(1.0f);
+    // TODO: This might not be good for performance
+    gl_viewport Viewport;
+    glGetFloatv(GL_VIEWPORT, (float *)&Viewport);
+    
+    glm::mat4 OrthoMatrix = glm::ortho(Viewport.Left, Viewport.Right, Viewport.Bottom, Viewport.Top,
+                                       0.0f, 1.0f);
+    glm::vec3 RectVerts[] = 
+    {
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)),
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f))
+    };
+    
+    glBindVertexArray(QuadVAO);
+    
+    // TODO: This might not be good for performance either
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(RectVerts), RectVerts);
     
     glUseProgram(PrimitiveShaderProgram.Id);
-    SetUniform4fv(PrimitiveShaderProgram.Id, "color", Color);
-    SetUniformMatrix4fv(PrimitiveShaderProgram.Id, "ortho", OrthoMatrix);
+    //SetUniform4fv(PrimitiveShaderProgram.Id, "color", Color);
     glBindVertexArray(QuadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 }
