@@ -18,6 +18,7 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
             else if(FrameInput.Action == RELEASED)
             {
                 Editor->Clicked = 0;
+                Editor->DrawSelectionRegion = 0;
             }
         }
     }
@@ -33,7 +34,7 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
         
         if(FrameGesture.Type == MOVE)
         {
-            if(Input->Clicked)
+            if(Editor->Clicked)
             {
                 // if something was not selected with the 
                 if(!Editor->EntitySelected && !Editor->DrawSelectionRegion)
@@ -45,7 +46,6 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
             }
             else
             {
-                Editor->DrawSelectionRegion = 0;
                 //RotateFreeCamera(&Editor->Camera, FrameGesture.Offset, Input->dt);
             }
         }

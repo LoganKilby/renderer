@@ -137,28 +137,19 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
 }
 
 internal void
-RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos, double YPos)
+RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos, double YPos, int WindowHeight)
 {
     // NOTE: Idk if we need to track whether the mouse was moved as a boolean state
     // or if we can just keep track of the offset from the previous frame and that's enough
     glm::vec2 PrevMousePos = Input->MousePosition;
+    Input->MousePosition.x = XPos;
+    Input->MousePosition.y = WindowHeight - YPos; // TODO: Add window height
+    
     gesture MouseGesture = {};
     MouseGesture.Type = MOVE;
     MouseGesture.Offset.Yaw = XPos - PrevMousePos.x;
-    MouseGesture.Offset.Pitch = PrevMousePos.y - YPos;
+    MouseGesture.Offset.Pitch = PrevMousePos.y - YPos; // NOTE: Maybe broken
     PushGesture(&Input->GestureBuffer, MouseGesture);
-    
-    Input->MousePosition.x = XPos;
-    Input->MousePosition.y = YPos;
-    
-    // TODO: Remove
-    if(Table.Buttons[GLFW_MOUSE_BUTTON_1] = PRESSED)
-    {
-        // TODO:
-        // Then we should be drawing a box from origin to current mouse position...
-        // So this is a draw command pushed to a draw buffer?
-        // Does this check even go here?
-    }
 }
 
 internal void
@@ -181,10 +172,4 @@ FlushInputBuffers(input_state *Input)
     if(Input->GestureBuffer.Count)
         printf("%d gestures discarded\n", Input->GestureBuffer.Count);
     memset(&Input->GestureBuffer, 0, sizeof(gesture_buffer));
-}
-
-internal v2
-GetMousePosition()
-{
-    v2 MousePosition;
 }

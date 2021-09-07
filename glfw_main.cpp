@@ -119,7 +119,7 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-#if 0
+    
     render_target HDR_RenderTarget = HDR_CreateRenderTarget(WindowWidth, WindowHeight);
     render_target PFX_RenderTarget = PFX_CreateRenderTarget(WindowWidth, WindowHeight);
     shadow_map ShadowCubeMap = CreateShadowCubeMap();
@@ -130,7 +130,7 @@ int WinMain(HINSTANCE hInstance,
                                                         ShadowAspectRatio,
                                                         ShadowNearPlane,
                                                         ShadowFarPlane);
-#endif
+    
     
     unsigned int ScreenVAO = CreateScreenRenderQuad();
     
@@ -138,7 +138,7 @@ int WinMain(HINSTANCE hInstance,
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     unsigned int GeometryShaderID;
-#if 0
+    
     VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
@@ -158,18 +158,18 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/blit_texture_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/blit_texture_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BlitTextureProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-#endif
+    
     
     VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program PrimitiveShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-#if 0
+    
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
     texture FloorSpecTexture = LoadTexture("textures/brickwall_grayscale.jpg");
     texture LinearTexture = LoadTextureToLinear("textures/container.jpg");
     texture GammaTexture = LoadTexture("textures/container.jpg");
-#endif
+    
     
     GlobalInputState = {};
     GlobalInputState.MousePosition.x = WindowWidth / 2;
@@ -195,7 +195,6 @@ int WinMain(HINSTANCE hInstance,
     glm::mat4 ViewMatrix;
     glm::mat3 NormalMatrix;
     glm::mat4 ProjectionMatrix;
-    glm::mat4 OrthoMatrix;
     glm::mat4 MVP;
     
     float Exposure = 0.5f;
@@ -205,10 +204,9 @@ int WinMain(HINSTANCE hInstance,
     {
         UpdateClock(&GlobalInputState);
         ProcessInputForEditor(&GlobalInputState, &GlobalKeyState, &Editor);
-#if 0
+        
         // TODO: Simulate game mode
         
-        OrthoMatrix = glm::ortho(0.0f, WindowWidth, 0.0f, WindowHeight);
         ViewMatrix = GetCameraViewMatrix(Editor.Camera);
         ProjectionMatrix = glm::perspective(glm::radians(Editor.Camera.FieldOfView), 
                                             (float)WindowWidth / (float)WindowHeight, 
@@ -259,20 +257,16 @@ int WinMain(HINSTANCE hInstance,
         glBindVertexArray(ScreenVAO);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
-#endif
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        /*
-        glUseProgram(PrimitiveShaderProgram.Id);
-        glBindVertexArray(ScreenVAO);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        */
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         // UI pass ?
         if(Editor.DrawSelectionRegion)
         {
-            DrawRect(Editor.SelectionRegionOrigin.x, Editor.SelectionRegionOrigin.y,
-                     GlobalInputState.MousePosition.x, GlobalInputState.MousePosition.y);
+            DrawSelectionRegion(Editor.SelectionRegionOrigin.x, 
+                                Editor.SelectionRegionOrigin.y,
+                                GlobalInputState.MousePosition.x,
+                                GlobalInputState.MousePosition.y);
         }
         
         glfwSwapBuffers(Window);
@@ -299,7 +293,9 @@ GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset)
 internal void 
 GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
-    RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, YPos);
+    int WindowWidth, WindowHeight;
+    glfwGetWindowSize(Window, &WindowWidth, &WindowHeight);
+    RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, YPos, WindowHeight);
 }
 
 internal void

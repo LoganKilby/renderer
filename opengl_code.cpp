@@ -929,25 +929,17 @@ ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeig
 }
 
 internal void 
-DrawRect(float BeginX, float BeginY, float EndX, float EndY)
+DrawSelectionRegion(float BeginX, float BeginY, float EndX, float EndY)
 {
     static unsigned int QuadVAO, QuadVBO = 0;
     static opengl_shader_program PrimitiveShaderProgram = {};
     if(QuadVAO == 0)
     {
-        float QuadVertices[] =
-        {
-            -1.0f,  1.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f,
-            1.0f,  1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
-        };
-        
         glGenVertexArrays(1, &QuadVAO);
         glGenBuffers(1, &QuadVBO);
         glBindVertexArray(QuadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 8, 0, GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     }
@@ -960,28 +952,39 @@ DrawRect(float BeginX, float BeginY, float EndX, float EndY)
         Assert(PrimitiveShaderProgram.Id);
     }
     
-    // TODO: This might not be good for performance
     gl_viewport Viewport;
     glGetFloatv(GL_VIEWPORT, (float *)&Viewport);
     
     glm::mat4 OrthoMatrix = glm::ortho(Viewport.Left, Viewport.Right, Viewport.Bottom, Viewport.Top,
                                        0.0f, 1.0f);
+    
     glm::vec3 RectVerts[] = 
     {
         glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)),
         glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),
+        
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),
+        
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),
         glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f))
+        
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f))
     };
     
+    glDisable(GL_DEPTH_TEST);
     glBindVertexArray(QuadVAO);
-    
-    // TODO: This might not be good for performance either
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(RectVerts), RectVerts);
-    
     glUseProgram(PrimitiveShaderProgram.Id);
-    //SetUniform4fv(PrimitiveShaderProgram.Id, "color", Color);
     glBindVertexArray(QuadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDrawArrays(GL_LINE_STRIP, 0, 8);
     glBindVertexArray(0);
+    glEnable(GL_DEPTH_TEST);
+}
+
+internal void
+DrawLine()
+{
+    
 }
