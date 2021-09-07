@@ -9,20 +9,44 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
     {
         if(FrameInput.Device == MOUSE)
         {
-            if(FrameInput.Action == PRESSED)
+            switch(FrameInput.Key)
             {
-                // TODO: Select something
-                Editor->Clicked = 1;
-                Editor->EntitySelected = SelectEntityAtMouse(Input->MousePosition);
-            }
-            else if(FrameInput.Action == RELEASED)
-            {
-                Editor->Clicked = 0;
-                Editor->DrawSelectionRegion = 0;
+                case LEFT_MOUSE_BUTTON:
+                {
+                    
+                    if(FrameInput.Action == PRESSED)
+                    {
+                        // TODO: Select something (UI/Entity)
+                        Editor->Clicked = 1;
+                        Editor->EntitySelected = SelectEntityAtMouse(Input->MousePosition);
+                    }
+                    else if(FrameInput.Action == RELEASED)
+                    {
+                        Editor->Clicked = 0;
+                        Editor->DrawSelectionRegion = 0;
+                    }
+                } break;
+                
+                case RIGHT_MOUSE_BUTTON:
+                {
+                    
+                } break;
+                
+                case SCROLL_BUTTON:
+                {
+                    if(FrameInput.Action == PRESSED)
+                    {
+                        Editor->RotateCamera = 1;
+                    }
+                    else if(FrameInput.Action == RELEASED)
+                    {
+                        Editor->RotateCamera = 0;
+                    }
+                    
+                } break;
             }
         }
     }
-    
     
     gesture FrameGesture;
     while(PopGesture(&Input->GestureBuffer, &FrameGesture))
@@ -36,17 +60,16 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
         {
             if(Editor->Clicked)
             {
-                // if something was not selected with the 
                 if(!Editor->EntitySelected && !Editor->DrawSelectionRegion)
                 {
                     Editor->DrawSelectionRegion = 1;
                     Editor->SelectionRegionOrigin = Input->MousePosition;
                 }
-                
             }
-            else
+            
+            if(Editor->RotateCamera)
             {
-                //RotateFreeCamera(&Editor->Camera, FrameGesture.Offset, Input->dt);
+                RotateCamera(&Editor->Camera, FrameGesture.Offset, Input->dt);
             }
         }
     }

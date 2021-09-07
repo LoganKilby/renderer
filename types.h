@@ -20,6 +20,13 @@
 #define AssertMsgBreakEx(Msg, MsgParam)
 #endif
 
+#ifdef _glfw3_h_
+#define LEFT_MOUSE_BUTTON GLFW_MOUSE_BUTTON_1
+#define RIGHT_MOUSE_BUTTON GLFW_MOUSE_BUTTON_2
+#define SCROLL_BUTTON GLFW_MOUSE_BUTTON_3
+#else
+#endif
+
 #define Kilobytes(Value) ((Value)*1024LL)
 #define Megabytes(Value) (Kilobytes(Value)*1024LL)
 #define Gigabytes(Value) (Megabytes(Value)*1024LL)

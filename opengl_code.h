@@ -22,6 +22,7 @@ internal void SetUniform3fv(int Program, char *Name, glm::vec3 Data);
 internal void SetUniform1f(int Program, char *Name, float Data);
 internal void SetUniform1i(int Program, char *Name, int Data);
 internal char *GetFramebufferStatusMsg(GLenum FramebufferStatus);
+internal void RenderQuad(void);
 
 struct hdr_buffer_config
 {

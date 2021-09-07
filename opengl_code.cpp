@@ -1,16 +1,6 @@
 #include "opengl_code.h"
 #include "renderer.h"
 
-
-// Maybe I could use a namespace in the future if I decide
-// to implement DirectX as well
-namespace OpenGL
-{
-    //internal GLuint LoadAndCompileShader(char *Filename, GLenum ShaderType);
-}
-
-//using namespace OpenGL;
-
 internal GLuint
 LoadAndCompileShader(char *Filename, GLenum ShaderType)
 {
@@ -634,7 +624,7 @@ CreateShadowCubeMap()
 
 // NOTE: Example of calculating tangent and bitanent vectors
 internal void 
-DebugRenderQuad()
+RenderQuad()
 {
     static unsigned int quadVAO, quadVBO = 0;
     if (quadVAO == 0)
@@ -929,7 +919,9 @@ ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeig
 }
 
 internal void 
-DrawSelectionRegion(float BeginX, float BeginY, float EndX, float EndY)
+DrawSelectionRegion(unsigned int Shader,
+                    float BeginX, float BeginY, 
+                    float EndX, float EndY)
 {
     static unsigned int QuadVAO, QuadVBO = 0;
     static opengl_shader_program PrimitiveShaderProgram = {};
@@ -977,14 +969,17 @@ DrawSelectionRegion(float BeginX, float BeginY, float EndX, float EndY)
     glBindVertexArray(QuadVAO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(RectVerts), RectVerts);
     glUseProgram(PrimitiveShaderProgram.Id);
-    glBindVertexArray(QuadVAO);
     glDrawArrays(GL_LINE_STRIP, 0, 8);
     glBindVertexArray(0);
     glEnable(GL_DEPTH_TEST);
 }
 
 internal void
-DrawLine()
+DrawWorldGrid(unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix, float NearPlane, float FarPlane)
 {
-    
+    SetUniformMatrix4fv(Shader, "projection", ProjectionMatrix);
+    SetUniformMatrix4fv(Shader, "view", ViewMatrix);
+    SetUniform1f(Shader, "near", NearPlane);
+    SetUniform1f(Shader, "far", FarPlane);
+    RenderQuad();
 }

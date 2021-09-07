@@ -70,7 +70,7 @@ int WinMain(HINSTANCE hInstance,
     }
     
     // TODO: With O2 optimizations turned on, GLFW isn't AS slow, but still bad.
-    //glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
+    glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
     GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
     //glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
@@ -90,13 +90,13 @@ int WinMain(HINSTANCE hInstance,
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
         printf("Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
         
-        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
-        glEnable(GL_DEPTH_TEST);
-        
-        // NOTE: GLFW provides the multisample buffers by calling glfwWindowHint with
-        // GLFW_SAMPLES, 4 (# of samples). "Anti-aliasing" is enabled here, but I want
-        // to enable my own custom version eventually
+        // NOTE: GLFW provides the multisample buffers by calling 
+        // glfwWindowHint with (GLFW_SAMPLES, 4). Together with GL_MULTISAMPLE
+        // anti-aliasing is enabled.
         glEnable(GL_MULTISAMPLE);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
         GlobalTextureCache = {};
         GameCamera = {};
@@ -159,10 +159,17 @@ int WinMain(HINSTANCE hInstance,
     FragmentShaderID = LoadAndCompileShader("shaders/blit_texture_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BlitTextureProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
-    
     VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program PrimitiveShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/model_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program PlaneShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/grid_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/grid_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program GridShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
@@ -187,8 +194,8 @@ int WinMain(HINSTANCE hInstance,
     Editor.Camera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
     Editor.Camera.Orientation.Yaw = -90.0f;
     Editor.Camera.Orientation.Pitch = -2.8f; // DEBUG VALUE
-    Editor.Camera.LookSpeed = 15.0f;
-    Editor.Camera.PanSpeed = 35.0f;
+    Editor.Camera.LookSpeed = 7.0f;
+    Editor.Camera.PanSpeed = 1.0f;
     Editor.Camera.FieldOfView = 45.0f;
     
     glm::mat4 ModelMatrix;
@@ -199,6 +206,8 @@ int WinMain(HINSTANCE hInstance,
     
     float Exposure = 0.5f;
     float Gamma = 2.2f;
+    float NearPlane = 0.01f;
+    float FarPlane = 100.0f;
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -210,21 +219,23 @@ int WinMain(HINSTANCE hInstance,
         ViewMatrix = GetCameraViewMatrix(Editor.Camera);
         ProjectionMatrix = glm::perspective(glm::radians(Editor.Camera.FieldOfView), 
                                             (float)WindowWidth / (float)WindowHeight, 
-                                            0.1f, 
-                                            1000.0f);
+                                            NearPlane, 
+                                            FarPlane);
         
-        glClearColor(0.01f, 0.01f, 0.01f, 0.01f);
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
+#if 1
+        // Scene
         SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
         SetUniform3fv(ShadowProgram.Id, "viewPos", Editor.Camera.Position);
         SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "view", ViewMatrix);
         
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f));
         NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
         SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
@@ -234,9 +245,13 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
-        DebugRenderQuad();
+        RenderQuad();
         
-        // HDR pass: HDR and Gamma Correction
+        
+        DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
+        
+#endif
+        // HDR and Gamma Correction pass
         glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(GammaProgram.Id);
@@ -258,16 +273,17 @@ int WinMain(HINSTANCE hInstance,
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
         
-        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // UI (Editor)
         
-        // UI pass ?
         if(Editor.DrawSelectionRegion)
         {
-            DrawSelectionRegion(Editor.SelectionRegionOrigin.x, 
+            DrawSelectionRegion(PrimitiveShaderProgram.Id,
+                                Editor.SelectionRegionOrigin.x,
                                 Editor.SelectionRegionOrigin.y,
                                 GlobalInputState.MousePosition.x,
                                 GlobalInputState.MousePosition.y);
         }
+        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
@@ -295,7 +311,7 @@ GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
     int WindowWidth, WindowHeight;
     glfwGetWindowSize(Window, &WindowWidth, &WindowHeight);
-    RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, YPos, WindowHeight);
+    RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, WindowHeight - YPos);
 }
 
 internal void

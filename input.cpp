@@ -137,18 +137,18 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
 }
 
 internal void
-RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos, double YPos, int WindowHeight)
+RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos, double YPos)
 {
     // NOTE: Idk if we need to track whether the mouse was moved as a boolean state
     // or if we can just keep track of the offset from the previous frame and that's enough
     glm::vec2 PrevMousePos = Input->MousePosition;
     Input->MousePosition.x = XPos;
-    Input->MousePosition.y = WindowHeight - YPos; // TODO: Add window height
+    Input->MousePosition.y = YPos;
     
     gesture MouseGesture = {};
     MouseGesture.Type = MOVE;
     MouseGesture.Offset.Yaw = XPos - PrevMousePos.x;
-    MouseGesture.Offset.Pitch = PrevMousePos.y - YPos; // NOTE: Maybe broken
+    MouseGesture.Offset.Pitch = YPos - PrevMousePos.y; // NOTE: Maybe broken
     PushGesture(&Input->GestureBuffer, MouseGesture);
 }
 

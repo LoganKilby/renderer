@@ -15,6 +15,7 @@ struct editor
     bool32 EditorActive;
     bool32 DrawSelectionRegion;
     bool32 Clicked;
+    bool32 RotateCamera;
     glm::vec2 SelectionRegionOrigin; // Updated every fram the user clicks
 };
 
