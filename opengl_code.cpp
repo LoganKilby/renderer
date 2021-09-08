@@ -526,7 +526,6 @@ HDR_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
         AssertMsgBreak("OpenGL Error: Render buffer creation error");
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    
     return Result;
 }
 
@@ -551,7 +550,6 @@ PFX_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
     glGenRenderbuffers(1, &Result.RenderBuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderBuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, ScreenWidth, ScreenHeight);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result.RenderBuffer);
     
     GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -559,6 +557,7 @@ PFX_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
                      "ERROR: (OpenGL) Render buffer creation error: %s",
                      GetFramebufferStatusMsg(FramebufferStatus));
     
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return Result;
 }
 
@@ -585,8 +584,8 @@ CreateShadowMap()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, Result.DepthBuffer, 0);
     glDrawBuffer(GL_NONE); // NOTE: To specifiy that we're not using a color buffer
     glReadBuffer(GL_NONE); // NOTE: To specifiy that we're not using a color buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return Result;
 }
 
