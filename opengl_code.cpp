@@ -923,25 +923,25 @@ DrawSelectionRegion(unsigned int Shader,
                     float BeginX, float BeginY, 
                     float EndX, float EndY)
 {
-    static unsigned int QuadVAO, QuadVBO = 0;
-    static opengl_shader_program PrimitiveShaderProgram = {};
+    static unsigned int QuadVAO, QuadVBO, QuadEBO = 0;
     if(QuadVAO == 0)
     {
+        float Indices[] = 
+        {
+            0, 1, 3,
+            1, 2, 3
+        };
+        
         glGenVertexArrays(1, &QuadVAO);
+        glGenBuffers(1, &QuadEBO);
         glGenBuffers(1, &QuadVBO);
         glBindVertexArray(QuadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 8, 0, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 4, 0, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, QuadEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    }
-    
-    if(PrimitiveShaderProgram.Id == 0)
-    {
-        unsigned int VertexShader = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
-        unsigned int FragmentShader = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
-        PrimitiveShaderProgram = CreateShaderProgram(VertexShader, FragmentShader, 0);
-        Assert(PrimitiveShaderProgram.Id);
     }
     
     gl_viewport Viewport;
@@ -952,34 +952,30 @@ DrawSelectionRegion(unsigned int Shader,
     
     glm::vec3 RectVerts[] = 
     {
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)),
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),
-        
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),
-        
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),
-        
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f))
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)), // top right
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),     // bottom right
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),   // bottom left
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),   // top left
     };
     
-    glDisable(GL_DEPTH_TEST);
+    glm::vec4 Color(1.0f, 0.0f, 0.0f, 1.0f);
+    SetUniform4fv(Shader, "color", Color);
     glBindVertexArray(QuadVAO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(RectVerts), RectVerts);
-    glUseProgram(PrimitiveShaderProgram.Id);
-    glDrawArrays(GL_LINE_STRIP, 0, 8);
+    glUseProgram(Shader);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
-    glEnable(GL_DEPTH_TEST);
 }
 
 internal void
 DrawWorldGrid(unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix, float NearPlane, float FarPlane)
 {
+    // This function really depends on the shader. Maybe I should add the shader id
+    // to the editor struct? Or idk. The shader id only makes sense in the context
+    // of this function, so I'm not sure if it makes sense to always have the user remember
+    // to pass it to the function. Maybe the shader gets compiled during the call to the
+    // constructor of the editor (if I add a constructor)
     SetUniformMatrix4fv(Shader, "projection", ProjectionMatrix);
     SetUniformMatrix4fv(Shader, "view", ViewMatrix);
-    SetUniform1f(Shader, "near", NearPlane);
-    SetUniform1f(Shader, "far", FarPlane);
     RenderQuad();
 }

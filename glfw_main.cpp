@@ -119,18 +119,8 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-    
     render_target HDR_RenderTarget = HDR_CreateRenderTarget(WindowWidth, WindowHeight);
     render_target PFX_RenderTarget = PFX_CreateRenderTarget(WindowWidth, WindowHeight);
-    shadow_map ShadowCubeMap = CreateShadowCubeMap();
-    float ShadowNearPlane = 1.0f;
-    float ShadowFarPlane = 25.0f;
-    float ShadowAspectRatio = ShadowCubeMap.DepthBufferWidth / ShadowCubeMap.DepthBufferHeight;
-    glm::mat4 ShadowProjectionMatrix = glm::perspective(glm::radians(90.0f),
-                                                        ShadowAspectRatio,
-                                                        ShadowNearPlane,
-                                                        ShadowFarPlane);
-    
     
     unsigned int ScreenVAO = CreateScreenRenderQuad();
     
@@ -159,13 +149,9 @@ int WinMain(HINSTANCE hInstance,
     FragmentShaderID = LoadAndCompileShader("shaders/blit_texture_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BlitTextureProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
-    VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program PrimitiveShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    
-    VertexShaderID = LoadAndCompileShader("shaders/model_vertex.c", GL_VERTEX_SHADER);
-    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program PlaneShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    VertexShaderID = LoadAndCompileShader("shaders/selection_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/selection_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program SelectionShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     VertexShaderID = LoadAndCompileShader("shaders/grid_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/grid_frag.c", GL_FRAGMENT_SHADER);
@@ -191,7 +177,7 @@ int WinMain(HINSTANCE hInstance,
     GameCamera.PanSpeed = 35.0f;
     GameCamera.FieldOfView = 45.0f;
     
-    Editor.Camera.Position = glm::vec3(0.015581f, 1.017382f, 14.225583f); // DEBUG VALUES
+    Editor.Camera.Position = glm::vec3(0.0f); // DEBUG VALUES
     Editor.Camera.Orientation.Yaw = -90.0f;
     Editor.Camera.Orientation.Pitch = -2.8f; // DEBUG VALUE
     Editor.Camera.LookSpeed = 7.0f;
@@ -209,6 +195,36 @@ int WinMain(HINSTANCE hInstance,
     float NearPlane = 0.01f;
     float FarPlane = 100.0f;
     
+    // ------------------------------------------------------------------
+    float vertices[] = {
+        0.5f,  0.5f, 0.0f,  // top right
+        0.5f, -0.5f, 0.0f,  // bottom right
+        -0.5f, -0.5f, 0.0f,  // bottom left
+        -0.5f,  0.5f, 0.0f   // top left 
+    };
+    unsigned int indices[] = {  // note that we start from 0!
+        0, 1, 3,  // first Triangle
+        1, 2, 3   // second Triangle
+    };
+    unsigned int VBO, VAO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+    
+    glBindVertexArray(VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBindVertexArray(0); 
+    
     while(!glfwWindowShouldClose(Window))
     {
         UpdateClock(&GlobalInputState);
@@ -222,12 +238,20 @@ int WinMain(HINSTANCE hInstance,
                                             NearPlane, 
                                             FarPlane);
         
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
         
+        // draw our first triangle
+        glUseProgram(SelectionShaderProgram.Id);
+        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        //glDrawArrays(GL_TRIANGLES, 0, 6);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        
+#if 0
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-#if 1
         // Scene
         SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
         SetUniform3fv(ShadowProgram.Id, "viewPos", Editor.Camera.Position);
@@ -247,10 +271,11 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
         
-        
         DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
         
-#endif
+        
+        //DrawSelectionRegion(SelectionShaderProgram.Id, 0, 0, WindowWidth, WindowHeight);
+        
         // HDR and Gamma Correction pass
         glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -277,13 +302,13 @@ int WinMain(HINSTANCE hInstance,
         
         if(Editor.DrawSelectionRegion)
         {
-            DrawSelectionRegion(PrimitiveShaderProgram.Id,
+            DrawSelectionRegion(SelectionShaderProgram.Id,
                                 Editor.SelectionRegionOrigin.x,
                                 Editor.SelectionRegionOrigin.y,
                                 GlobalInputState.MousePosition.x,
                                 GlobalInputState.MousePosition.y);
         }
-        
+#endif
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
