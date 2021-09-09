@@ -360,7 +360,7 @@ SetUniform3fv(int Program, char *Name, glm::vec3 Data)
 }
 
 internal void
-SetUniform4fv(int Program, char *Name, glm::vec3 Data)
+SetUniform4fv(int Program, char *Name, glm::vec4 Data)
 {
     glUseProgram(Program);
     GLint UniformLocation = glGetUniformLocation(Program, Name);
@@ -925,22 +925,30 @@ DrawSelectionRegion(unsigned int Shader,
     static unsigned int QuadVAO, QuadVBO, QuadEBO = 0;
     if(QuadVAO == 0)
     {
-        float Indices[] = 
-        {
-            0, 1, 3,
-            1, 2, 3
+        unsigned int Indices[] = {
+            0, 1, 3,    // first Triangle
+            1, 2, 3,    // second Triangle
+            0, 1, 2, 3  // line loop outline of the quad
         };
         
         glGenVertexArrays(1, &QuadVAO);
-        glGenBuffers(1, &QuadEBO);
         glGenBuffers(1, &QuadVBO);
+        glGenBuffers(1, &QuadEBO);
+        
         glBindVertexArray(QuadVAO);
+        
         glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 4, 0, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), 0, GL_DYNAMIC_DRAW);
+        
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, QuadEBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
+        
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, 0); 
+        glBindVertexArray(0); 
+        
     }
     
     gl_viewport Viewport;
@@ -951,19 +959,21 @@ DrawSelectionRegion(unsigned int Shader,
     
     glm::vec3 RectVerts[] = 
     {
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)), // top right
+        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),   // top right
         glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),     // bottom right
         glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),   // bottom left
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),   // top left
+        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)), // top left
     };
     
-    glm::vec4 Color(1.0f, 0.0f, 0.0f, 1.0f);
-    SetUniform4fv(Shader, "color", Color);
-    glBindVertexArray(QuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(RectVerts), RectVerts);
-    glUseProgram(Shader);
+    glBindVertexArray(QuadVAO);
+    
+    SetUniform4fv(Shader, "color", glm::vec4(0.09f, 0.58f, 0.25f, 0.25f));
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    SetUniform4fv(Shader, "color", glm::vec4(0.09f, 0.58f, 0.25f, 1.0f));
+    glDrawElements(GL_LINE_LOOP, 4, GL_UNSIGNED_INT, (void *)(sizeof(unsigned int) * 6));
+    
 }
 
 internal void
