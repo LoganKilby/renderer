@@ -208,10 +208,6 @@ int WinMain(HINSTANCE hInstance,
                                             NearPlane, 
                                             FarPlane);
         
-        // TODO: Start fixing selection region here.
-        
-        
-        
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -240,9 +236,9 @@ int WinMain(HINSTANCE hInstance,
         // HDR and Gamma Correction pass
         glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glUseProgram(GammaProgram.Id);
-        SetUniform1f(GammaProgram.Id, "exposure", Exposure);
-        SetUniform1f(GammaProgram.Id, "gamma", Gamma);
+        glUseProgram(BlitShader.Id);
+        //SetUniform1f(GammaProgram.Id, "exposure", Exposure);
+        //SetUniform1f(GammaProgram.Id, "gamma", Gamma);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBuffer);
         glBindVertexArray(ScreenVAO);
