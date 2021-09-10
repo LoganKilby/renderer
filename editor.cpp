@@ -1,8 +1,9 @@
 #include "editor.h"
 #include "camera.h"
+#include "entity.h"
 
 internal void
-ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
+ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor, entity_group *EntityCache)
 {
     input_command FrameInput;
     while(PopInputCommand(KeyTable, &Input->CommandBuffer, &FrameInput))
@@ -18,7 +19,7 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor)
                     {
                         // TODO: Select something (UI/Entity)
                         Editor->Clicked = 1;
-                        Editor->EntitySelected = SelectEntityAtMouse(Input->MousePosition);
+                        Editor->EntitySelected = SelectEntityAtScreenPoint(Input->MousePosition, EntityCache);
                     }
                     else if(FrameInput.Action == RELEASED)
                     {

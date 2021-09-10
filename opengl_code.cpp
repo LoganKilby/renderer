@@ -988,3 +988,14 @@ DrawWorldGrid(unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMat
     SetUniformMatrix4fv(Shader, "view", ViewMatrix);
     RenderQuad();
 }
+
+internal glm::mat4
+GetViewportOrthoMatrix(float Near, float Far)
+{
+    gl_viewport Viewport;
+    glGetFloatv(GL_VIEWPORT, (float *)&Viewport);
+    
+    glm::mat4 Result = glm::ortho(Viewport.Left, Viewport.Right, Viewport.Bottom, Viewport.Top, Near, Far);
+    
+    return Result;
+}
