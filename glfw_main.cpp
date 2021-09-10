@@ -195,10 +195,12 @@ int WinMain(HINSTANCE hInstance,
     float NearPlane = 0.01f;
     float FarPlane = 100.0f;
     
+    entity_group Entities;
+    
     while(!glfwWindowShouldClose(Window))
     {
         UpdateClock(&GlobalInputState);
-        ProcessInputForEditor(&GlobalInputState, &GlobalKeyState, &Editor);
+        ProcessInputForEditor(&GlobalInputState, &GlobalKeyState, &Editor, &Entities);
         
         // TODO: Simulate game mode
         
