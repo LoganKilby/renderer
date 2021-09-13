@@ -531,3 +531,15 @@ LoadObjModel(char *PathToDotObjFile)
     
     return Result;
 }
+
+internal glm::vec2
+GetNDC(glm::vec2 Position)
+{
+    float Width, Height;
+    GetViewportDimensions(&Width, &Height);
+    
+    glm::vec2 Result = {};
+    Result.x = (2.0f * Position.x) / Width - 1.0f;
+    Result.y = 1.0f - (2.0f * Position.y) / Height;
+    return Result;
+}

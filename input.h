@@ -9,6 +9,7 @@ enum key_state
     PRESSED,
     RELEASED,
     REPEAT,
+    DRAG
 };
 
 enum device
@@ -81,6 +82,7 @@ struct input_state
     float SecondsElapsed;
     
     bool32 Clicked;
+    glm::vec2 ClickPosition;
     glm::vec2 MousePosition;
     input_command_buffer CommandBuffer;
     gesture_buffer GestureBuffer;

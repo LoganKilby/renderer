@@ -3,7 +3,7 @@
 #include "entity.h"
 
 internal void
-ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor, entity_group *EntityCache)
+ProcessEditorInput(editor *Editor, input_state *Input, key_table *KeyTable)
 {
     input_command FrameInput;
     while(PopInputCommand(KeyTable, &Input->CommandBuffer, &FrameInput))
@@ -12,27 +12,6 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor, e
         {
             switch(FrameInput.Key)
             {
-                case LEFT_MOUSE_BUTTON:
-                {
-                    
-                    if(FrameInput.Action == PRESSED)
-                    {
-                        // TODO: Select something (UI/Entity)
-                        Editor->Clicked = 1;
-                        Editor->EntitySelected = SelectEntityAtScreenPoint(Input->MousePosition, EntityCache);
-                    }
-                    else if(FrameInput.Action == RELEASED)
-                    {
-                        Editor->Clicked = 0;
-                        Editor->DrawSelectionRegion = 0;
-                    }
-                } break;
-                
-                case RIGHT_MOUSE_BUTTON:
-                {
-                    
-                } break;
-                
                 case SCROLL_BUTTON:
                 {
                     if(FrameInput.Action == PRESSED)
@@ -59,21 +38,12 @@ ProcessInputForEditor(input_state *Input, key_table *KeyTable, editor *Editor, e
         
         if(FrameGesture.Type == MOVE)
         {
-            if(Editor->Clicked)
-            {
-                if(!Editor->EntitySelected && !Editor->DrawSelectionRegion)
-                {
-                    Editor->DrawSelectionRegion = 1;
-                    Editor->SelectionRegionOrigin = Input->MousePosition;
-                }
-            }
-            
             if(Editor->RotateCamera)
             {
-                RotateCamera(&Editor->Camera, FrameGesture.Offset, Input->dt);
+                Editor->Camera = RotateCamera(Editor->Camera, FrameGesture.Offset, Input->dt);
             }
         }
     }
     
-    MoveCameraByKeyPressed(&Editor->Camera, KeyTable, Input->dt);
+    Editor->Camera = TranslateCamera(Editor->Camera, KeyTable, Input->dt);
 }

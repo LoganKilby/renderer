@@ -41,7 +41,6 @@ global_variable camera EditorCamera;
 global_variable input_state GlobalInputState;
 global_variable key_table GlobalKeyState;
 global_variable mouse_button_table GlobalMouseButtonState;
-global_variable editor Editor;
 
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
@@ -163,7 +162,6 @@ int WinMain(HINSTANCE hInstance,
     texture LinearTexture = LoadTextureToLinear("textures/container.jpg");
     texture GammaTexture = LoadTexture("textures/container.jpg");
     
-    
     GlobalInputState = {};
     GlobalInputState.MousePosition.x = WindowWidth / 2;
     GlobalInputState.MousePosition.y = WindowHeight / 2;
@@ -177,12 +175,16 @@ int WinMain(HINSTANCE hInstance,
     GameCamera.PanSpeed = 35.0f;
     GameCamera.FieldOfView = 45.0f;
     
+    editor Editor = {};
+    Editor.Active = 1;
     Editor.Camera.Position = glm::vec3(0.0f); // DEBUG VALUES
     Editor.Camera.Orientation.Yaw = -90.0f;
     Editor.Camera.Orientation.Pitch = -2.8f; // DEBUG VALUE
     Editor.Camera.LookSpeed = 7.0f;
     Editor.Camera.PanSpeed = 1.0f;
     Editor.Camera.FieldOfView = 45.0f;
+    
+    frame_entity_selections EntitySelections;
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -200,15 +202,41 @@ int WinMain(HINSTANCE hInstance,
     while(!glfwWindowShouldClose(Window))
     {
         UpdateClock(&GlobalInputState);
-        ProcessInputForEditor(&GlobalInputState, &GlobalKeyState, &Editor, &Entities);
         
-        // TODO: Simulate game mode
-        
-        ViewMatrix = GetCameraViewMatrix(Editor.Camera);
-        ProjectionMatrix = glm::perspective(glm::radians(Editor.Camera.FieldOfView), 
-                                            (float)WindowWidth / (float)WindowHeight, 
-                                            NearPlane, 
-                                            FarPlane);
+        if(Editor.Active)
+        {
+            ProcessEditorInput(&Editor, &GlobalInputState, &GlobalKeyState);
+            ViewMatrix = GetCameraViewMatrix(Editor.Camera);
+            ProjectionMatrix = glm::perspective(glm::radians(Editor.Camera.FieldOfView), 
+                                                (float)WindowWidth / (float)WindowHeight, 
+                                                NearPlane, 
+                                                FarPlane);
+            
+            key_state LMouseButton = GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON];
+            if(LMouseButton == PRESSED)
+            {
+                // TODO: Check if mouse is hovering over UI or something that can't be an entity
+                SelectEntityAtScreenPoint(&EntitySelections, &Entities, ViewMatrix, ProjectionMatrix, GlobalInputState.MousePosition);
+            }
+            else if(LMouseButton == DRAG)
+            {
+                rect SelectionRegion = CreateRect(GlobalInputState.ClickPosition.x,
+                                                  GlobalInputState.ClickPosition.y,
+                                                  GlobalInputState.MousePosition.x,
+                                                  GlobalInputState.MousePosition.y);
+                SelectEntitiesAtScreenRegion(&EntitySelections, &Entities, ViewMatrix,
+                                             ProjectionMatrix, SelectionRegion);
+            }
+        }
+        else
+        {
+            // ProcessGameInputAndSimulate
+            ViewMatrix = GetCameraViewMatrix(GameCamera);
+            ProjectionMatrix = glm::perspective(glm::radians(GameCamera.FieldOfView), 
+                                                (float)WindowWidth / (float)WindowHeight, 
+                                                NearPlane, 
+                                                FarPlane);
+        }
         
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -233,6 +261,9 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
         
+        // TODO: Outline selected entities
+        
+        // if editor is active, draw grid last
         DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
         
         // HDR and Gamma Correction pass
@@ -257,13 +288,13 @@ int WinMain(HINSTANCE hInstance,
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glBindVertexArray(0);
         
-        // UI (Editor)
-        
-        if(Editor.DrawSelectionRegion)
+        // UI
+        if(Editor.Active && GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON] == DRAG)
         {
+            // TODO: Add manipulators.
             DrawSelectionRegion(SelectionShaderProgram.Id,
-                                Editor.SelectionRegionOrigin.x,
-                                Editor.SelectionRegionOrigin.y,
+                                GlobalInputState.ClickPosition.x,
+                                GlobalInputState.ClickPosition.y,
                                 GlobalInputState.MousePosition.x,
                                 GlobalInputState.MousePosition.y);
         }
@@ -294,7 +325,7 @@ GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
 {
     int WindowWidth, WindowHeight;
     glfwGetWindowSize(Window, &WindowWidth, &WindowHeight);
-    RegisterMouseMovement(&GlobalInputState, GlobalMouseButtonState, XPos, WindowHeight - YPos);
+    RegisterMouseMovement(&GlobalInputState, &GlobalMouseButtonState, XPos, WindowHeight - YPos);
 }
 
 internal void

@@ -20,6 +20,24 @@ typedef fastObjMesh fast_obj_mesh;
 
 #include <vector> // TODO: Remove
 
+struct rect
+{
+    float TopLeftX; 
+    float TopLeftY; 
+    float BottomRightX; 
+    float BottomRightY;
+};
+
+inline rect CreateRect(float LeftX, float LeftY, float RightX, float RightY)
+{
+    rect Result;
+    Result.TopLeftX = LeftX;
+    Result.TopLeftY = LeftY;
+    Result.BottomRightX = RightX;
+    Result.BottomRightY = RightY;
+    return Result;
+}
+
 struct euler_angles
 {
     float Yaw;

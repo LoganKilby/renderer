@@ -18,27 +18,34 @@ RotateFreeCamera(camera *Camera, euler_angles Offset, float dt)
     Camera->Front = glm::normalize(CameraAngle);
 }
 
-internal void
-RotateCamera(camera *Camera, euler_angles Offset, float dt)
+internal camera
+RotateCamera(camera Camera, euler_angles Offset, float dt)
 {
-    Camera->Orientation.Pitch += Offset.Pitch * Camera->LookSpeed * dt;
-    Camera->Orientation.Yaw += Offset.Yaw * Camera->LookSpeed * dt;
+    camera Result = Camera;
     
-    if(Camera->Orientation.Pitch > 89.0f)
-        Camera->Orientation.Pitch = 89.0f;
-    if(Camera->Orientation.Pitch < -89.0f)
-        Camera->Orientation.Pitch = -89.0f;
+    Result.Orientation.Pitch += Offset.Pitch * Camera.LookSpeed * dt;
+    Result.Orientation.Yaw += Offset.Yaw * Camera.LookSpeed * dt;
+    
+    if(Result.Orientation.Pitch > 89.0f)
+        Result.Orientation.Pitch = 89.0f;
+    if(Result.Orientation.Pitch < -89.0f)
+        Result.Orientation.Pitch = -89.0f;
     
     glm::vec3 CameraAngle;
-    CameraAngle.x = cos(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
-    CameraAngle.y = sin(glm::radians(Camera->Orientation.Pitch));
-    CameraAngle.z = sin(glm::radians(Camera->Orientation.Yaw)) * cos(glm::radians(Camera->Orientation.Pitch));
-    Camera->Front = glm::normalize(CameraAngle);
+    CameraAngle.x = cos(glm::radians(Result.Orientation.Yaw)) * cos(glm::radians(Result.Orientation.Pitch));
+    CameraAngle.y = sin(glm::radians(Result.Orientation.Pitch));
+    CameraAngle.z = sin(glm::radians(Result.Orientation.Yaw)) * cos(glm::radians(Result.Orientation.Pitch));
+    Result.Front = glm::normalize(CameraAngle);
+    
+    return Result;
 }
 
-internal void
-MoveCameraByKeyPressed(camera *Camera, key_table *KeyTable, float dt)
+internal camera
+TranslateCamera(camera Camera, key_table *KeyTable, float dt)
 {
+    // TODO: I could probably think of a better way to move the camera instead of checking
+    // all possible movement keys.
+    
     int KeyIndexesToCheck[] = 
     {
         GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_Q, GLFW_KEY_E
@@ -56,44 +63,45 @@ MoveCameraByKeyPressed(camera *Camera, key_table *KeyTable, float dt)
     
     if(!DirectionCount)
     {
-        return;
+        DirectionCount = 1;
     }
     
-    float Speed = (Camera->PanSpeed * dt) / DirectionCount;
-    
-    // TODO: Do better
+    camera Result = Camera;
+    float Speed = (Result.PanSpeed * dt) / DirectionCount;
     
     if(KeyTable->Keys[GLFW_KEY_W] == PRESSED || KeyTable->Keys[GLFW_KEY_W] == REPEAT)
     {
-        Camera->Position += Camera->Front * Speed;
+        Result.Position += Result.Front * Speed;
     }
     
     if(KeyTable->Keys[GLFW_KEY_A] == PRESSED || KeyTable->Keys[GLFW_KEY_A] == REPEAT)
     {
-        Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
+        Result.Position -= glm::normalize(glm::cross(Result.Front, Result.Up)) * 
             Speed;
     }
     
     if(KeyTable->Keys[GLFW_KEY_S] == PRESSED || KeyTable->Keys[GLFW_KEY_S] == REPEAT)
     {
-        Camera->Position -= Camera->Front * Speed;
+        Result.Position -= Result.Front * Speed;
     }
     
     if(KeyTable->Keys[GLFW_KEY_D] == PRESSED || KeyTable->Keys[GLFW_KEY_D] == REPEAT)
     {
-        Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * 
+        Result.Position += glm::normalize(glm::cross(Result.Front, Result.Up)) * 
             Speed;
     }
     
     if(KeyTable->Keys[GLFW_KEY_Q] == PRESSED || KeyTable->Keys[GLFW_KEY_Q] == REPEAT)
     {
-        Camera->Position.y += Speed;
+        Result.Position.y += Speed;
     }
     
     if(KeyTable->Keys[GLFW_KEY_E] == PRESSED || KeyTable->Keys[GLFW_KEY_E] == REPEAT)
     {
-        Camera->Position.y -= Speed;
+        Result.Position.y -= Speed;
     }
+    
+    return Result;
 }
 
 internal void

@@ -116,12 +116,14 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
         case GLFW_PRESS:
         {
             *ButtonState = PRESSED;
-            
             Command.Key = Button;
             Command.Action = PRESSED;
             Command.Mods = Mods;
             Command.Device = MOUSE;
             PushInputCommand(&Input->CommandBuffer, Command);
+            
+            if(Button == LEFT_MOUSE_BUTTON)
+                Input->ClickPosition = Input->MousePosition;
         } break;
         
         case GLFW_RELEASE:
@@ -137,7 +139,7 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
 }
 
 internal void
-RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos, double YPos)
+RegisterMouseMovement(input_state *Input, mouse_button_table *Table, double XPos, double YPos)
 {
     // NOTE: Idk if we need to track whether the mouse was moved as a boolean state
     // or if we can just keep track of the offset from the previous frame and that's enough
@@ -148,8 +150,13 @@ RegisterMouseMovement(input_state *Input, mouse_button_table Table, double XPos,
     gesture MouseGesture = {};
     MouseGesture.Type = MOVE;
     MouseGesture.Offset.Yaw = XPos - PrevMousePos.x;
-    MouseGesture.Offset.Pitch = YPos - PrevMousePos.y; // NOTE: Maybe broken
+    MouseGesture.Offset.Pitch = YPos - PrevMousePos.y;
     PushGesture(&Input->GestureBuffer, MouseGesture);
+    
+    if(Table->Buttons[LEFT_MOUSE_BUTTON] == PRESSED)
+    {
+        Table->Buttons[LEFT_MOUSE_BUTTON] = DRAG;
+    }
 }
 
 internal void
