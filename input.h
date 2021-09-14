@@ -3,6 +3,8 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include "math_util.h"
+
 enum key_state
 {
     NEUTRAL = 0,

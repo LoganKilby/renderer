@@ -16,6 +16,7 @@
 #include "camera.cpp"
 #include "editor.cpp"
 #include "entity.cpp"
+#include "collision.cpp"
 
 // NOTE: (On frustrating shader bugs)
 // If the object's texture has an unexpected color or is black, verify that the in/out 

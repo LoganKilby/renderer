@@ -38,13 +38,6 @@ inline rect CreateRect(float LeftX, float LeftY, float RightX, float RightY)
     return Result;
 }
 
-struct euler_angles
-{
-    float Yaw;
-    float Pitch;
-    float Roll;
-};
-
 enum texture_map_type
 {
     DIFFUSE_MAP = 1,
