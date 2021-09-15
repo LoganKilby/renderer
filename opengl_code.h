@@ -74,18 +74,22 @@ struct gl_viewport
 {
     float Left;
     float Bottom;
-    float Right;
-    float Top;
+    float Right; // Width
+    float Top; // Height
 };
 
 inline void
-GetViewportDimensions(float *Width, float *Height)
+GetViewport(float *X, float *Y, float *Width, float *Height)
 {
     gl_viewport Viewport;
     glGetFloatv(GL_VIEWPORT, (float *)&Viewport);
+    *X = Viewport.Left;
+    *Y = Viewport.Bottom;
     *Width = Viewport.Right;
     *Height = Viewport.Top;
 }
+
+glm::mat4 GetViewportOrthoMatrix(float, float);
 
 // Personal NOTE: OpenGL guarentees at least 16 4-component vertex attributes (vetex shader input
 // variables) per shader. This can be tested with glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max);

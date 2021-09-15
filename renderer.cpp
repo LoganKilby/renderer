@@ -3,6 +3,21 @@
 // TODO: Move this somewhere else. Maybe initialize it at startup
 global_variable texture_cache GlobalTextureCache;
 
+internal void
+EnqueueDrawCommand(draw_buffer *Buffer, draw_command Command)
+{
+    Assert(Buffer->Count < MAX_DRAW_COMMANDS);
+    Buffer->Queue[Buffer->Count] = Command;
+    ++Buffer->Count;
+}
+
+internal void
+ClearDrawBuffer(draw_buffer *Buffer)
+{
+    memset(Buffer->Queue, 0, sizeof(draw_command) * Buffer->Count);
+    Buffer->Count = 0;
+}
+
 internal int
 CheckTextureCache(char *TexturePath)
 {
@@ -532,14 +547,21 @@ LoadObjModel(char *PathToDotObjFile)
     return Result;
 }
 
-internal glm::vec2
-GetNDC(glm::vec2 Position)
+internal glm::vec3
+ScreenToWorldRay(glm::vec2 ScreenCoords, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix)
 {
-    float Width, Height;
-    GetViewportDimensions(&Width, &Height);
+    float X, Y, Width, Height;
+    GetViewport(&X, &Y, &Width, &Height);
     
-    glm::vec2 Result = {};
-    Result.x = (2.0f * Position.x) / Width - 1.0f;
-    Result.y = 1.0f - (2.0f * Position.y) / Height;
+    float x = (2.0f * ScreenCoords.x) / Width - 1.0f;
+    float y = (2.0f * ScreenCoords.y) / Height - 1.0f; // bottom left screen origin
+    
+    // glm::vec2 NDC = glm::vec2(x, y);
+    // glm::vec4 Clip = glm::vec4(RayNDC, -1.0f, 1.0f);
+    glm::vec4 Eye = inverse(ProjectionMatrix) * glm::vec4(x, y, -1.0f, 1.0f);
+    //RayEye = glm::vec4(Eye.x, Eye.y, -1.0f, 0.0f);
+    glm::vec3 World = glm::inverse(ViewMatrix) * glm::vec4(glm::vec2(Eye), -1.0f, 0.0f);
+    glm::vec3 Result = glm::normalize(World);
+    
     return Result;
 }

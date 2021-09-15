@@ -19,6 +19,64 @@ typedef fastObjMesh fast_obj_mesh;
 #include "include/assimp/postprocess.h"
 
 #include <vector> // TODO: Remove
+#include "math_util.h"
+
+#define MAX_DRAW_COMMANDS 100
+
+enum primitive
+{
+    CUBE,
+    QUAD,
+    LINE_SEGMENT
+};
+
+struct line_segment
+{
+    glm::vec3 P0;
+    glm::vec3 P1;
+    glm::vec3 Direction;
+};
+
+struct cube
+{
+    glm::vec3 Position;
+    glm::vec3 Scale;
+    euler_angles Rotation;
+};
+
+struct plane
+{
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec3 Rotation;
+};
+
+struct draw_command
+{
+    union
+    {
+        struct
+        {
+            void (*DrawLine)(glm::vec3, glm::vec3);
+            line_segment Line;
+        };
+        
+        struct
+        {
+            cube Cube;
+            void (*DrawCube)(void);
+        };
+    };
+    
+    primitive Primitive;
+    unsigned int Shader;
+};
+
+struct draw_buffer
+{
+    draw_command *Queue;
+    int Count;
+};
 
 struct rect
 {

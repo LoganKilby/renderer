@@ -5,6 +5,8 @@
 
 #define MAX_ENTITY_COUNT 50
 
+#include "collision.h"
+
 struct entity
 {
     glm::vec3 Position;

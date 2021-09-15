@@ -1,7 +1,7 @@
 #include "float.h"
 #include "collision.h"
 #include "math_util.h"
-
+#include "renderer.h"
 /*
 Plane intersections with planar components and linear components
 Line: L(t) = P + td, 0, <= t <= infinity
@@ -70,47 +70,50 @@ RayFromPoints(glm::vec3 P0, glm::vec3 P1)
 }
 
 internal bool
-RayPlaneIntersection(ray Ray, plane Plane, float *Result)
+RayPlaneIntersection(ray Ray, plane Plane, glm::vec3 *IntersectionResult)
 {
     float d = glm::length(Plane.Position);
     
     // Check if parallel
-    float Denominator = Dot(Ray.Direction, Plane.Normal);
+    float Denominator = glm::dot(Ray.Direction, Plane.Normal);
     if(abs(Denominator) < FLT_EPSILON)
     {
-        // Check if the line lies in the plane (by checking if the origin of the line
+        // Check if the ray lies in the plane (by checking if the origin of the line
         // is in the plane).
-        if(abs(Ray.Origin.x * Plane.Position.x + Ray.Origin.y * Plane.Position.y + Ray.Origin.z * Plane.Position.z + d) < FLT_EPSILON)
+        if(abs(glm::dot(Ray.Origin, Plane.Position)) < FLT_EPSILON)
         {
-            *Result = 0;
+            *IntersectionResult = glm::vec3(0.0f);
             return true;
         }
         else
             return false;
     }
     
-    float t = -(Plane.Position.x * Ray.Origin.x + Plane.Position.y * Ray.Origin.y + Plane.Position.z * Ray.Origin.z + d);
+    float t = -(glm::dot(Plane.Normal, Ray.Origin) + d);
+    t /= Denominator;
     
     if(t >= 0)
     {
-        *Result = t;
+        glm::vec3 Result = Ray.Origin + (t * Ray.Direction);
+        *IntersectionResult = Result;
         return true;
     }
     
+    printf("MISS\n");
     return false;
 }
 
 internal bool
-LinePlaneIntersection(line Line, plane Plane)
+LinePlaneIntersection(line_segment Line, plane Plane)
 {
     // Check if parallel
     float d = glm::length(Plane.Position);
-    float Denominator = Dot(Line.Direction, Plane.Normal);
+    float Denominator = glm::dot(Line.Direction, Plane.Normal);
     if(abs(Denominator) < FLT_EPSILON)
     {
         // Check if the line lies in the plane (by checking if the origin of the line
         // is in the plane).
-        if(abs(Line.Origin.x * Plane.Position.x + Line.Origin.y * Plane.Position.y + Line.Origin.z * Plane.Position.z + d) < FLT_EPSILON)
+        if(abs(Line.P0.x * Plane.Position.x + Line.P0.y * Plane.Position.y + Line.P0.z * Plane.Position.z + d) < FLT_EPSILON)
         {
             return true;
         }
@@ -134,7 +137,7 @@ LineSegmentPlaneIntersection(glm::vec3 P0, glm::vec3 P1, plane Plane)
     // t is defined between [0, 1], we can reject values outisde of this range
     ray Ray = RayFromPoints(P0, P1);
     float d = glm::length(Plane.Position);
-    float Denominator = Dot(Ray.Direction, Plane.Normal);
+    float Denominator = glm::dot(Ray.Direction, Plane.Normal);
     
     if(abs(Denominator) < FLT_EPSILON)
     {

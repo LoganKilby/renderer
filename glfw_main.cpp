@@ -157,6 +157,10 @@ int WinMain(HINSTANCE hInstance,
     FragmentShaderID = LoadAndCompileShader("shaders/grid_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program GridShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
+    VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program DefaultProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
     texture FloorSpecTexture = LoadTexture("textures/brickwall_grayscale.jpg");
@@ -187,6 +191,9 @@ int WinMain(HINSTANCE hInstance,
     
     frame_entity_selections EntitySelections;
     
+    draw_buffer DrawBuffer = {};
+    DrawBuffer.Queue = (draw_command *)malloc(sizeof(draw_command) * MAX_DRAW_COMMANDS);
+    
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
     glm::mat3 NormalMatrix;
@@ -214,10 +221,28 @@ int WinMain(HINSTANCE hInstance,
                                                 FarPlane);
             
             key_state LMouseButton = GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON];
+            key_state RMouseButton = GlobalMouseButtonState.Buttons[RIGHT_MOUSE_BUTTON];
             if(LMouseButton == PRESSED)
             {
-                // TODO: Check if mouse is hovering over UI or something that can't be an entity
-                SelectEntityAtScreenPoint(&EntitySelections, &Entities, ViewMatrix, ProjectionMatrix, GlobalInputState.MousePosition);
+                // TODO: Click is still broken. Some click events aren't being registered
+                ray MouseRay = {};
+                MouseRay.Origin = Editor.Camera.Position;
+                MouseRay.Direction = ScreenToWorldRay(GlobalInputState.ClickPosition, ProjectionMatrix, ViewMatrix);
+                plane Entity = CreatePlane(glm::vec3(0.0f), 
+                                           glm::vec3(0.0f, 0.0f, 1.0f), 
+                                           { 0.0f, 0.0f, 0.0f });
+                glm::vec3 Intersection;
+                bool Collision = RayPlaneIntersection(MouseRay, Entity, &Intersection);
+                if(Collision)
+                {
+                    draw_command Command;
+                    Command.Primitive = CUBE;
+                    Command.Cube.Position = Intersection;
+                    Command.Cube.Scale = glm::vec3(0.15f);
+                    Command.DrawCube = RenderCube;
+                    Command.Shader = DefaultProgram.Id;
+                    EnqueueDrawCommand(&DrawBuffer, Command);
+                }
             }
             else if(LMouseButton == DRAG)
             {
@@ -227,6 +252,10 @@ int WinMain(HINSTANCE hInstance,
                                                   GlobalInputState.MousePosition.y);
                 SelectEntitiesAtScreenRegion(&EntitySelections, &Entities, ViewMatrix,
                                              ProjectionMatrix, SelectionRegion);
+            }
+            else if(RMouseButton == PRESSED)
+            {
+                ClearDrawBuffer(&DrawBuffer);
             }
         }
         else
@@ -261,6 +290,26 @@ int WinMain(HINSTANCE hInstance,
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
+        
+        for(int i = 0; i < DrawBuffer.Count; ++i)
+        {
+            draw_command DrawCommand = DrawBuffer.Queue[i];
+            ModelMatrix = glm::mat4(1.0f);
+            switch(DrawCommand.Primitive)
+            {
+                case CUBE: 
+                {
+                    ModelMatrix = glm::mat4(1.0f);
+                    ModelMatrix = glm::translate(ModelMatrix, DrawCommand.Cube.Position);
+                    ModelMatrix = glm::scale(ModelMatrix, DrawCommand.Cube.Scale);
+                    MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+                    SetUniformMatrix4fv(DrawCommand.Shader, "mvp", MVP);
+                    DrawCommand.DrawCube();
+                } break;
+                case LINE_SEGMENT: DrawCommand.DrawLine(DrawCommand.Line.P0, DrawCommand.Line.P1); break;
+                case QUAD: break;
+            }
+        }
         
         // TODO: Outline selected entities
         
@@ -299,6 +348,7 @@ int WinMain(HINSTANCE hInstance,
                                 GlobalInputState.MousePosition.x,
                                 GlobalInputState.MousePosition.y);
         }
+        
         
         glfwSwapBuffers(Window);
         glfwPollEvents();

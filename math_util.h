@@ -10,12 +10,6 @@ struct euler_angles
     float Roll;  // z-axis
 };
 
-inline float 
-Dot(glm::vec3 A, glm::vec3 B)
-{
-    glm::vec3 C = A * B;
-}
-
 inline glm::mat4
 Mat4_EncodeEulerAnglesZYX(euler_angles Rotation)
 {

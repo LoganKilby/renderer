@@ -728,7 +728,7 @@ RenderQuad()
     glBindVertexArray(0);
 }
 
-void DebugRenderCube()
+void RenderCube()
 {
     static unsigned int CubeVAO, CubeVBO = 0;
     if (CubeVAO == 0)
@@ -795,7 +795,6 @@ void DebugRenderCube()
         glBindVertexArray(0);
     }
     
-    // render Cube
     glBindVertexArray(CubeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
@@ -951,11 +950,7 @@ DrawSelectionRegion(unsigned int Shader,
         
     }
     
-    gl_viewport Viewport;
-    glGetFloatv(GL_VIEWPORT, (float *)&Viewport);
-    
-    glm::mat4 OrthoMatrix = glm::ortho(Viewport.Left, Viewport.Right, Viewport.Bottom, Viewport.Top,
-                                       0.0f, 1.0f);
+    glm::mat4 OrthoMatrix = GetViewportOrthoMatrix(0.0f, 1.0f);
     
     glm::vec3 RectVerts[] = 
     {
@@ -992,10 +987,46 @@ DrawWorldGrid(unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMat
 internal glm::mat4
 GetViewportOrthoMatrix(float Near, float Far)
 {
-    gl_viewport Viewport;
-    glGetFloatv(GL_VIEWPORT, (float *)&Viewport);
+    float X, Y, Width, Height;
+    GetViewport(&X, &Y, &Width, &Height);
     
-    glm::mat4 Result = glm::ortho(Viewport.Left, Viewport.Right, Viewport.Bottom, Viewport.Top, Near, Far);
+    glm::mat4 Result = glm::ortho(X, Y, Width, Height, Near, Far);
     
     return Result;
+}
+
+internal void
+DrawLineSegment(glm::vec3 P0, glm::vec3 P1)
+{
+    static unsigned int QuadVAO, QuadVBO = 0;
+    
+    if(QuadVAO == 0)
+    {
+        glGenVertexArrays(1, &QuadVAO);
+        glGenBuffers(1, &QuadVBO);
+        
+        glBindVertexArray(QuadVAO);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
+        glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), 0, GL_DYNAMIC_DRAW);
+        
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, 0); 
+        glBindVertexArray(0); 
+    }
+    
+    glm::vec3 Points[] = 
+    {
+        P0,
+        P1
+    };
+    
+    glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Points), Points);
+    
+    glBindVertexArray(QuadVAO);
+    glDrawArrays(GL_LINES, 0, 2);
+    glBindVertexArray(0);
 }
