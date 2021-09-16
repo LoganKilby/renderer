@@ -301,7 +301,7 @@ int WinMain(HINSTANCE hInstance,
                                                 FarPlane);
         }
         
-        QueueEntityGroup(&SelectedEntities, &StencilDrawBuffer);
+        QueueEntityGroupForRendering(&SelectedEntities, &StencilDrawBuffer);
         
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);

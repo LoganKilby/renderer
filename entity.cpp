@@ -38,7 +38,12 @@ SelectEntitiesInScreenRegion(entity_group *SelectedEntities, entity_group *Entit
 }
 
 internal void
-QueueEntityGroup(entity_group *Entities, draw_buffer *Buffer)
+QueueEntityGroupForRendering(entity_group *EntityGroup, draw_buffer *Buffer)
 {
-    
+    for(entity *Entity = &EntityGroup->Entities[0];
+        Entity < &EntityGroup->Entities[0] + EntityGroup->Count;
+        ++Entity)
+    {
+        draw_command Command;
+    }
 }
