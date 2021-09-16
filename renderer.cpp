@@ -6,7 +6,7 @@ global_variable texture_cache GlobalTextureCache;
 internal void
 EnqueueDrawCommand(draw_buffer *Buffer, draw_command Command)
 {
-    Assert(Buffer->Count < MAX_DRAW_COMMANDS);
+    Assert(Buffer->Count < Buffer->MaxCount);
     Buffer->Queue[Buffer->Count] = Command;
     ++Buffer->Count;
 }
@@ -547,21 +547,42 @@ LoadObjModel(char *PathToDotObjFile)
     return Result;
 }
 
-internal glm::vec3
-ScreenToWorldRay(glm::vec2 ScreenCoords, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix)
+internal void
+RenderDrawBuffer(draw_buffer *Buffer, unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix)
 {
-    float X, Y, Width, Height;
-    GetViewport(&X, &Y, &Width, &Height);
     
-    float x = (2.0f * ScreenCoords.x) / Width - 1.0f;
-    float y = (2.0f * ScreenCoords.y) / Height - 1.0f; // bottom left screen origin
-    
-    // glm::vec2 NDC = glm::vec2(x, y);
-    // glm::vec4 Clip = glm::vec4(RayNDC, -1.0f, 1.0f);
-    glm::vec4 Eye = inverse(ProjectionMatrix) * glm::vec4(x, y, -1.0f, 1.0f);
-    //RayEye = glm::vec4(Eye.x, Eye.y, -1.0f, 0.0f);
-    glm::vec3 World = glm::inverse(ViewMatrix) * glm::vec4(glm::vec2(Eye), -1.0f, 0.0f);
-    glm::vec3 Result = glm::normalize(World);
-    
-    return Result;
+    glm::mat4 ModelMatrix;
+    glm::mat4 MVP;
+    for(draw_command *Command = Buffer->Queue;
+        Command < Buffer->Queue + Buffer->Count;
+        ++Command)
+    {
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, Command->Position);
+        ModelMatrix *= mat4_EncodeEulerAnglesZYX(Command->Rotation);
+        ModelMatrix = glm::scale(ModelMatrix, Command->Scale);
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(Command->Shader, "mvp", MVP);
+        
+        // check for textures?
+        // shader uniforms?
+        
+        switch(Command->Primitive)
+        {
+            case CUBE:
+            {
+                RenderCube();
+            } break;
+            
+            case QUAD:
+            {
+                RenderQuad();
+            } break;
+            
+            case LINE_SEGMENT:
+            {
+                
+            } break;
+        }
+    }
 }

@@ -1,33 +1,44 @@
 #include "entity.h"
 
 internal void
-ClearEntitySelections(frame_entity_selections *EntitySelections)
+ClearEntityGroup(entity_group *EntitySelections)
 {
-    memset(EntitySelections->Selections, 0, sizeof(EntitySelections->Selections));
-    EntitySelections->EntitySelectionCount = 0;
-}
-
-internal glm::mat4 
-RotateMat4(const glm::mat4 &Matrix, euler_angles Angles)
-{
-    // The order of calculating euler angles is important right?
-    // TODO: switch to quaternions?
-    glm::mat4 Result = Matrix;
-    Result = glm::rotate(Result, glm::radians(Angles.Pitch), glm::vec3(1, 0, 0));
-    Result = glm::rotate(Result, glm::radians(Angles.Yaw), glm::vec3(0, 1, 0));
-    Result = glm::rotate(Result, glm::radians(Angles.Roll), glm::vec3(0, 0, 1));
-    return Result;
+    memset(EntitySelections->Entities, 0, ArrayCount(EntitySelections->Entities) * sizeof(entity));
+    EntitySelections->Count = 0;
 }
 
 internal void
-SelectEntitiesAtScreenRegion(frame_entity_selections *EntitySelection, entity_group *Entities, glm::mat4 ViewMatrix, glm::mat4 ProjectionMatrix, rect SelectionRegion)
+SelectEntitiesInScreenRegion(entity_group *SelectedEntities, entity_group *EntityGroup, glm::mat4 ViewMatrix, glm::mat4 ProjectionMatrix, rect ScreenRegion)
 {
+    ClearEntityGroup(SelectedEntities);
     
+    float X, Y, Width, Height;
+    GetViewport(&X, &Y, &Width, &Height);
+    
+    glm::vec4 Result;
+    for(entity *Entity = &EntityGroup->Entities[0]; 
+        Entity < &EntityGroup->Entities[0] + EntityGroup->Count; 
+        ++Entity)
+    {
+        Result = ProjectionMatrix * ViewMatrix * glm::vec4(Entity->Position, 1.0f);
+        Result /= Result.w;
+        
+        glm::vec2 NDC;
+        NDC.x = ((Result.x + 1.0f) * 0.5f) * Width;
+        NDC.y = ((Result.y + 1.0f) * 0.5f) * Height;
+        
+        if(PointInRect(NDC, ScreenRegion))
+        {
+            printf("Entity selected\n");
+            entity EntitySelected = *Entity;
+            EntitySelected.Scale *= 2.0f;
+            SelectedEntities->Entities[SelectedEntities->Count++] = EntitySelected;
+        }
+    }
 }
 
-internal bool
-RayCollision(glm::vec3 Point, oriented_bounding_box OOB)
+internal void
+QueueEntityGroup(entity_group *Entities, draw_buffer *Buffer)
 {
-    // instead of finding the basis vectors of the OBB, use the maximum x, y, and z values of the primitives
     
 }

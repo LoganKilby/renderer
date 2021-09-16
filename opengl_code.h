@@ -78,6 +78,8 @@ struct gl_viewport
     float Top; // Height
 };
 
+// TODO: Optimize the usage of this function. I definitely don't want to be asking for the viewport
+// multiple times per frame. There should probably be a really compelling reason to be calling glGet anything
 inline void
 GetViewport(float *X, float *Y, float *Width, float *Height)
 {

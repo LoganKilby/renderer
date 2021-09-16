@@ -9,6 +9,7 @@
 #include "types.h"
 #include "utility.h"
 #include "vertices.h"
+#include "math_util.h"
 
 #include "opengl_code.cpp"
 #include "renderer.cpp"
@@ -137,6 +138,7 @@ int WinMain(HINSTANCE hInstance,
     SetUniform1i(ShadowProgram.Id, "specularMap", 2);
     //SetUniform1i(ShadowProgram.Id, "depthMap", 3);
     
+    // TODO: Do I really need a shader program struct still?
     VertexShaderID = LoadAndCompileShader("shaders/blit_screen_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/blit_screen_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BlitShader = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
@@ -160,6 +162,10 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program DefaultProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/stencil_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/stencil_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program SelectionProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
@@ -189,10 +195,16 @@ int WinMain(HINSTANCE hInstance,
     Editor.Camera.PanSpeed = 1.0f;
     Editor.Camera.FieldOfView = 45.0f;
     
-    frame_entity_selections EntitySelections;
-    
+    // TODO:
+    // I could go through, do the matrix multiplications, then send the MVPs to the draw buffer?
+    // Instead of copying all of the entity data
     draw_buffer DrawBuffer = {};
     DrawBuffer.Queue = (draw_command *)malloc(sizeof(draw_command) * MAX_DRAW_COMMANDS);
+    DrawBuffer.MaxCount = MAX_DRAW_COMMANDS;
+    
+    draw_buffer StencilDrawBuffer = {};
+    DrawBuffer.Queue = (draw_command *)malloc(sizeof(draw_command) * MAX_DRAW_COMMANDS);
+    DrawBuffer.MaxCount = MAX_DRAW_COMMANDS;
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -205,7 +217,16 @@ int WinMain(HINSTANCE hInstance,
     float NearPlane = 0.01f;
     float FarPlane = 100.0f;
     
-    entity_group Entities;
+    entity Plane;
+    Plane.Position = glm::vec3(0.0f);
+    Plane.Scale = glm::vec3(1.0f);
+    Plane.Rotation = {0.0f, 0.0f, 0.0f};
+    entity_group EntityGroup = {};
+    EntityGroup.Entities[0] = Plane;
+    EntityGroup.Count++;
+    
+    
+    entity_group SelectedEntities = {};
     
     while(!glfwWindowShouldClose(Window))
     {
@@ -224,39 +245,51 @@ int WinMain(HINSTANCE hInstance,
             key_state RMouseButton = GlobalMouseButtonState.Buttons[RIGHT_MOUSE_BUTTON];
             if(LMouseButton == PRESSED)
             {
-                // TODO: Click is still broken. Some click events aren't being registered
+                // NOTE: Check intersection of mouse cursor and world objects
+                // NOTE: The mouse button state changes to DRAG if there's any movement while
+                // pressing down the LMouseButton. This makes it feel like we're losing clicks
+                // TODO: Maybe we should keep around a frustum culled group of visible entities
                 ray MouseRay = {};
                 MouseRay.Origin = Editor.Camera.Position;
                 MouseRay.Direction = ScreenToWorldRay(GlobalInputState.ClickPosition, ProjectionMatrix, ViewMatrix);
-                plane Entity = CreatePlane(glm::vec3(0.0f), 
-                                           glm::vec3(0.0f, 0.0f, 1.0f), 
-                                           { 0.0f, 0.0f, 0.0f });
+                
+                // TODO: Check all (visible) entities
+                entity EntityInView;
+                EntityInView.Position = glm::vec3(0.0f);
+                EntityInView.Scale = glm::vec3(0.0f);
+                EntityInView.Rotation = {0.0f, 0.0f, 0.0f};
+                
+                plane Plane = CreatePlane(EntityInView.Position, EntityInView.Rotation);
+                
                 glm::vec3 Intersection;
-                bool Collision = RayPlaneIntersection(MouseRay, Entity, &Intersection);
+                bool Collision = RayPlaneIntersection(MouseRay, Plane, &Intersection);
                 if(Collision)
                 {
+                    // TODO: Check boundary of plane
                     draw_command Command;
                     Command.Primitive = CUBE;
-                    Command.Cube.Position = Intersection;
-                    Command.Cube.Scale = glm::vec3(0.15f);
-                    Command.DrawCube = RenderCube;
+                    Command.Position = Intersection;
+                    Command.Scale = glm::vec3(0.15f);
+                    Command.Rotation = EntityInView.Rotation;
                     Command.Shader = DefaultProgram.Id;
                     EnqueueDrawCommand(&DrawBuffer, Command);
                 }
+                
             }
             else if(LMouseButton == DRAG)
             {
-                rect SelectionRegion = CreateRect(GlobalInputState.ClickPosition.x,
-                                                  GlobalInputState.ClickPosition.y,
-                                                  GlobalInputState.MousePosition.x,
-                                                  GlobalInputState.MousePosition.y);
-                SelectEntitiesAtScreenRegion(&EntitySelections, &Entities, ViewMatrix,
+                rect SelectionRegion = CreateRectFromDiagonalPoints(GlobalInputState.ClickPosition,
+                                                                    GlobalInputState.MousePosition);
+                
+                // Should we point to the entities or copy their data entirely?
+                SelectEntitiesInScreenRegion(&SelectedEntities, &EntityGroup, ViewMatrix,
                                              ProjectionMatrix, SelectionRegion);
             }
             else if(RMouseButton == PRESSED)
             {
                 ClearDrawBuffer(&DrawBuffer);
             }
+            
         }
         else
         {
@@ -268,9 +301,16 @@ int WinMain(HINSTANCE hInstance,
                                                 FarPlane);
         }
         
+        QueueEntityGroup(&SelectedEntities, &StencilDrawBuffer);
+        
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        
+        // TODO: Draw selected entities
+        glEnable(GL_STENCIL_TEST);
+        RenderDrawBuffer(&DrawBuffer, SelectionProgram.Id, ProjectionMatrix, ViewMatrix);
+        glDisable(GL_STENCIL_TEST);
         
         // Scene
         SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
@@ -291,29 +331,6 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
         
-        for(int i = 0; i < DrawBuffer.Count; ++i)
-        {
-            draw_command DrawCommand = DrawBuffer.Queue[i];
-            ModelMatrix = glm::mat4(1.0f);
-            switch(DrawCommand.Primitive)
-            {
-                case CUBE: 
-                {
-                    ModelMatrix = glm::mat4(1.0f);
-                    ModelMatrix = glm::translate(ModelMatrix, DrawCommand.Cube.Position);
-                    ModelMatrix = glm::scale(ModelMatrix, DrawCommand.Cube.Scale);
-                    MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-                    SetUniformMatrix4fv(DrawCommand.Shader, "mvp", MVP);
-                    DrawCommand.DrawCube();
-                } break;
-                case LINE_SEGMENT: DrawCommand.DrawLine(DrawCommand.Line.P0, DrawCommand.Line.P1); break;
-                case QUAD: break;
-            }
-        }
-        
-        // TODO: Outline selected entities
-        
-        // if editor is active, draw grid last
         DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
         
         // HDR and Gamma Correction pass
@@ -342,17 +359,21 @@ int WinMain(HINSTANCE hInstance,
         if(Editor.Active && GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON] == DRAG)
         {
             // TODO: Add manipulators.
+            rect SelectionRegion = CreateRectFromDiagonalPoints(GlobalInputState.MousePosition, GlobalInputState.ClickPosition);
+            
             DrawSelectionRegion(SelectionShaderProgram.Id,
-                                GlobalInputState.ClickPosition.x,
-                                GlobalInputState.ClickPosition.y,
-                                GlobalInputState.MousePosition.x,
-                                GlobalInputState.MousePosition.y);
+                                SelectionRegion.X,
+                                SelectionRegion.Y,
+                                SelectionRegion.Width,
+                                SelectionRegion.Height);
         }
         
         
         glfwSwapBuffers(Window);
         glfwPollEvents();
         OpenGL_OutputErrorQueue();
+        
+        ClearDrawBuffer(&StencilDrawBuffer);
     }
     
     return 0;

@@ -2,6 +2,8 @@
 #include "collision.h"
 #include "math_util.h"
 #include "renderer.h"
+#include "entity.h"
+
 /*
 Plane intersections with planar components and linear components
 Line: L(t) = P + td, 0, <= t <= infinity
@@ -43,21 +45,56 @@ there are infinitely many intersections, and if the ray is not in the plane, the
 intersections.
 */
 
-// NOTE: Debug quad normal: 0.0f, 0.0f, 1.0f
+inline rect
+CreateRect(float X, float Y, float Width, float Height)
+{
+    rect Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Width = Width;
+    Result.Height = Height;
+    return Result;
+}
+
+internal rect
+CreateRectFromDiagonalPoints(glm::vec2 A, glm::vec2 B)
+{
+    // Find bottom left corner and width,height
+    float X, Y, Width, Height;
+    if(A.x < B.x)
+    {
+        X = A.x;
+        Width = B.x;
+    }
+    else
+    {
+        X = B.x;
+        Width = A.x;
+    }
+    
+    if(A.y < B.y)
+    {
+        Y = A.y;
+        Height = B.y;
+    }
+    else
+    {
+        Y = B.y;
+        Height = A.y;
+    }
+    
+    return CreateRect(X, Y, Width, Height);
+}
 
 internal plane
-CreatePlane(glm::vec3 Position, glm::vec3 Normal, euler_angles Rotation)
+CreatePlane(glm::vec3 Position, euler_angles Rotation)
 {
-    // Origin is (0, 0, 0)
-    // Find normal ... rotate normal
-    // calculate distance from origin ... is just length(Position);
-    
-    glm::mat4 RotationMatrix = Mat4_EncodeEulerAnglesZYX(Rotation);
+    glm::vec3 Normal = glm::vec3(0.0f, 0.0f, 1.0f);
+    glm::mat4 RotationMatrix = mat4_EncodeEulerAnglesZYX(Rotation);
     
     plane Result = {};
     Result.Position = Position;
     Result.Normal = RotationMatrix * glm::vec4(Normal, 1.0f);
-    
     return Result;
 }
 
@@ -99,7 +136,6 @@ RayPlaneIntersection(ray Ray, plane Plane, glm::vec3 *IntersectionResult)
         return true;
     }
     
-    printf("MISS\n");
     return false;
 }
 
@@ -154,5 +190,32 @@ LineSegmentPlaneIntersection(glm::vec3 P0, glm::vec3 P1, plane Plane)
     float t = -(Plane.Position.x * Ray.Origin.x + Plane.Position.y * Ray.Origin.y + Plane.Position.z * Ray.Origin.z + d);
     
     return (t >= 0 && t <= 1) ? true : false;
+}
+
+internal bool
+PointInRect(glm::vec2 Point, rect Rect)
+{
+    bool XAxisCollision = (Point.x >= Rect.X && Point.x <= Rect.Width) ? true : false;
+    bool YAxisCollision = (Point.y >= Rect.Y && Point.y <= Rect.Height) ? true : false;
+    return XAxisCollision && YAxisCollision;
+}
+
+internal glm::vec3
+ScreenToWorldRay(glm::vec2 ScreenCoords, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix)
+{
+    float X, Y, Width, Height;
+    GetViewport(&X, &Y, &Width, &Height);
     
+    // NOTE: I use (0, 0) as bottom left of screen
+    float x = (2.0f * ScreenCoords.x) / Width - 1.0f;
+    float y = (2.0f * ScreenCoords.y) / Height - 1.0f;
+    
+    // glm::vec2 NDC = glm::vec2(x, y);
+    // glm::vec4 Clip = glm::vec4(RayNDC, -1.0f, 1.0f);
+    glm::vec4 Eye = inverse(ProjectionMatrix) * glm::vec4(x, y, -1.0f, 1.0f);
+    //RayEye = glm::vec4(Eye.x, Eye.y, -1.0f, 0.0f);
+    glm::vec3 World = glm::inverse(ViewMatrix) * glm::vec4(glm::vec2(Eye), -1.0f, 0.0f);
+    glm::vec3 Result = glm::normalize(World);
+    
+    return Result;
 }

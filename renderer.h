@@ -53,22 +53,10 @@ struct plane
 
 struct draw_command
 {
-    union
-    {
-        struct
-        {
-            void (*DrawLine)(glm::vec3, glm::vec3);
-            line_segment Line;
-        };
-        
-        struct
-        {
-            cube Cube;
-            void (*DrawCube)(void);
-        };
-    };
-    
     primitive Primitive;
+    glm::vec3 Position;
+    glm::vec3 Scale;
+    euler_angles Rotation;
     unsigned int Shader;
 };
 
@@ -76,25 +64,16 @@ struct draw_buffer
 {
     draw_command *Queue;
     int Count;
+    int MaxCount;
 };
 
 struct rect
 {
-    float TopLeftX; 
-    float TopLeftY; 
-    float BottomRightX; 
-    float BottomRightY;
+    float X; 
+    float Y; 
+    float Width; 
+    float Height;
 };
-
-inline rect CreateRect(float LeftX, float LeftY, float RightX, float RightY)
-{
-    rect Result;
-    Result.TopLeftX = LeftX;
-    Result.TopLeftY = LeftY;
-    Result.BottomRightX = RightX;
-    Result.BottomRightY = RightY;
-    return Result;
-}
 
 enum texture_map_type
 {

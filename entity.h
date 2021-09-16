@@ -9,12 +9,9 @@
 
 struct entity
 {
-    glm::vec3 Position;
+    glm::vec3 Position; // World space
     glm::vec3 Scale;
     euler_angles Rotation;
-    
-    // width, height, depth
-    // half-width, half-height, half-depth
 };
 
 struct entity_group
@@ -23,16 +20,6 @@ struct entity_group
     entity Entities[MAX_ENTITY_COUNT];
 };
 
-struct frame_entity_selections
-{
-    int EntitySelectionCount;
-    int Selections[MAX_ENTITY_COUNT];
-};
-
-struct oriented_bounding_box
-{
-    
-};
-
+internal void ClearEntityGroup(entity_group *);
 
 #endif //ENTITY_H

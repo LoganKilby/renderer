@@ -11,7 +11,7 @@ struct euler_angles
 };
 
 inline glm::mat4
-Mat4_EncodeEulerAnglesZYX(euler_angles Rotation)
+mat4_EncodeEulerAnglesZYX(euler_angles Rotation)
 {
     glm::mat4 RotationMatrix(1.0f);
     

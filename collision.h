@@ -9,4 +9,7 @@ struct ray
     glm::vec3 Direction;
 };
 
+internal bool
+PointInRect(glm::vec2, rect);
+
 #endif //COLLISION_H

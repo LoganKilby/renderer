@@ -916,10 +916,9 @@ ResizeRenderTargets(render_target *Targets, int Count, int NewWidth, int NewHeig
     }
 }
 
+// NOTE: Expects a rect of the screen in the same form as viewport: X, Y, Width, Height
 internal void 
-DrawSelectionRegion(unsigned int Shader,
-                    float BeginX, float BeginY, 
-                    float EndX, float EndY)
+DrawSelectionRegion(unsigned int Shader, float X, float Y, float Width, float Height)
 {
     static unsigned int QuadVAO, QuadVBO, QuadEBO = 0;
     if(QuadVAO == 0)
@@ -947,17 +946,16 @@ DrawSelectionRegion(unsigned int Shader,
         
         glBindBuffer(GL_ARRAY_BUFFER, 0); 
         glBindVertexArray(0); 
-        
     }
     
     glm::mat4 OrthoMatrix = GetViewportOrthoMatrix(0.0f, 1.0f);
     
     glm::vec3 RectVerts[] = 
     {
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, BeginY, 0.0f, 1.0f)),   // top right
-        glm::vec3(OrthoMatrix * glm::vec4(EndX, EndY, 0.0f, 1.0f)),     // bottom right
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, EndY, 0.0f, 1.0f)),   // bottom left
-        glm::vec3(OrthoMatrix * glm::vec4(BeginX, BeginY, 0.0f, 1.0f)), // top left
+        glm::vec3(OrthoMatrix * glm::vec4(Width, Height, 0.0f, 1.0f)), // top right
+        glm::vec3(OrthoMatrix * glm::vec4(Width, Y, 0.0f, 1.0f)),      // bottom right
+        glm::vec3(OrthoMatrix * glm::vec4(X, Y, 0.0f, 1.0f)),          // bottom left
+        glm::vec3(OrthoMatrix * glm::vec4(X, Height, 0.0f, 1.0f)),     // top left
     };
     
     glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
@@ -990,7 +988,7 @@ GetViewportOrthoMatrix(float Near, float Far)
     float X, Y, Width, Height;
     GetViewport(&X, &Y, &Width, &Height);
     
-    glm::mat4 Result = glm::ortho(X, Y, Width, Height, Near, Far);
+    glm::mat4 Result = glm::ortho(X, Width, Y, Height, Near, Far);
     
     return Result;
 }
