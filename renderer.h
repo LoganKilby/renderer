@@ -57,14 +57,14 @@ struct draw_command
     glm::vec3 Position;
     glm::vec3 Scale;
     euler_angles Rotation;
-    unsigned int Shader;
 };
 
+// TODO: Memory arena
 struct draw_buffer
 {
-    draw_command *Queue;
+    draw_command Queue[100];
     int Count;
-    int MaxCount;
+    //int MaxCount;
 };
 
 struct rect

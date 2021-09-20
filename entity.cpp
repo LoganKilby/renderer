@@ -1,10 +1,27 @@
 #include "entity.h"
 
 internal void
-ClearEntityGroup(entity_group *EntitySelections)
+ClearEntityGroup(entity_group *Group)
 {
-    memset(EntitySelections->Entities, 0, ArrayCount(EntitySelections->Entities) * sizeof(entity));
-    EntitySelections->Count = 0;
+    if(Group->Count)
+    {
+        memset(Group->Entities, 0, ArrayCount(Group->Entities) * sizeof(entity));
+        Group->Count = 0;
+    }
+}
+
+internal void
+SelectEntity(entity Entity, entity_group *SelectionGroup)
+{
+    Assert(SelectionGroup->Count < ArrayCount(SelectionGroup->Entities));
+    SelectionGroup->Entities[SelectionGroup->Count++] = Entity;
+}
+
+internal void
+PushEntityToGroup(entity_group *EntityGroup, entity Entity)
+{
+    Assert(EntityGroup->Count < ArrayCount(EntityGroup->Entities));
+    EntityGroup->Entities[EntityGroup->Count++] = Entity;
 }
 
 internal void
@@ -29,10 +46,7 @@ SelectEntitiesInScreenRegion(entity_group *SelectedEntities, entity_group *Entit
         
         if(PointInRect(NDC, ScreenRegion))
         {
-            printf("Entity selected\n");
-            entity EntitySelected = *Entity;
-            EntitySelected.Scale *= 2.0f;
-            SelectedEntities->Entities[SelectedEntities->Count++] = EntitySelected;
+            SelectEntity(*Entity, SelectedEntities);
         }
     }
 }
@@ -40,10 +54,16 @@ SelectEntitiesInScreenRegion(entity_group *SelectedEntities, entity_group *Entit
 internal void
 QueueEntityGroupForRendering(entity_group *EntityGroup, draw_buffer *Buffer)
 {
+    // TODO: Calculate Model matrix instead?
+    draw_command Command;
     for(entity *Entity = &EntityGroup->Entities[0];
         Entity < &EntityGroup->Entities[0] + EntityGroup->Count;
         ++Entity)
     {
-        draw_command Command;
+        Command.Primitive = Entity->Primitive;
+        Command.Position = Entity->Position;
+        Command.Scale = Entity->Scale;
+        Command.Rotation = Entity->Rotation;
+        PushDrawCommand(Buffer, Command);
     }
 }

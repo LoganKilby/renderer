@@ -2,12 +2,12 @@
 #include "input.h"
 
 internal void
-UpdateClock(input_state *Input)
+UpdateClock(clock *Clock)
 {
     float SecondsElapsed = glfwGetTime();
-    Input->dt = SecondsElapsed - Input->SecondsElapsed;
-    Input->SecondsElapsed = SecondsElapsed;
-    Input->FPS = 1000.0f / Input->dt;
+    Clock->dt = SecondsElapsed - Clock->SecondsElapsed;
+    Clock->SecondsElapsed = SecondsElapsed;
+    Clock->FPS = 1000.0f / Clock->dt;
 }
 
 // Test inlining these functions
@@ -115,15 +115,19 @@ RegisterMouseButtonInput(input_state *Input, mouse_button_table *ButtonTable, in
         // NOTE: GLFW mouse button actions can be GLFW_PRESS or GLFW_RELEASE
         case GLFW_PRESS:
         {
-            *ButtonState = PRESSED;
-            Command.Key = Button;
-            Command.Action = PRESSED;
-            Command.Mods = Mods;
-            Command.Device = MOUSE;
-            PushInputCommand(&Input->CommandBuffer, Command);
+            if(*ButtonState != PRESSED)
+            {
+                *ButtonState = PRESSED;
+                Command.Key = Button;
+                Command.Action = PRESSED;
+                Command.Mods = Mods;
+                Command.Device = MOUSE;
+                PushInputCommand(&Input->CommandBuffer, Command);
+            }
             
             if(Button == LEFT_MOUSE_BUTTON)
                 Input->ClickPosition = Input->MousePosition;
+            
         } break;
         
         case GLFW_RELEASE:
@@ -170,13 +174,9 @@ RegisterMouseScroll(input_state *Input, double XOffset, double YOffset)
 }
 
 internal void
-FlushInputBuffers(input_state *Input)
+PollEvents(input_state *Input)
 {
-    if(Input->CommandBuffer.Count)
-        printf("%d inputs discarded\n",Input->CommandBuffer.Count);
-    memset(&Input->CommandBuffer, 0, sizeof(input_command_buffer));
-    
-    if(Input->GestureBuffer.Count)
-        printf("%d gestures discarded\n", Input->GestureBuffer.Count);
-    memset(&Input->GestureBuffer, 0, sizeof(gesture_buffer));
+    memset(&Input->CommandBuffer, 0, sizeof(Input->CommandBuffer));
+    memset(&Input->GestureBuffer, 0, sizeof(Input->GestureBuffer));
+    glfwPollEvents();
 }

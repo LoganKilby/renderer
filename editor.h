@@ -13,6 +13,7 @@ struct editor
     camera Camera;
     bool32 Active;
     bool32 RotateCamera;
+    bool32 MouseButtons[2]; // Clicked this frame
 };
 
 #endif //EDITOR_H

@@ -5,6 +5,9 @@
 internal void
 ProcessEditorInput(editor *Editor, input_state *Input, key_table *KeyTable)
 {
+    Editor->MouseButtons[0] = 0;
+    Editor->MouseButtons[1] = 0;
+    
     input_command FrameInput;
     while(PopInputCommand(KeyTable, &Input->CommandBuffer, &FrameInput))
     {
@@ -24,6 +27,18 @@ ProcessEditorInput(editor *Editor, input_state *Input, key_table *KeyTable)
                     }
                     
                 } break;
+                
+                case LEFT_MOUSE_BUTTON:
+                {
+                    Editor->MouseButtons[LEFT_MOUSE_BUTTON] = (FrameInput.Action == PRESSED) ? 1 : 0;
+                    
+                } break;
+                
+                case RIGHT_MOUSE_BUTTON:
+                {
+                    Editor->MouseButtons[RIGHT_MOUSE_BUTTON] = (FrameInput.Action == PRESSED) ? 1 : 0;
+                    
+                } break;
             }
         }
     }
@@ -40,10 +55,10 @@ ProcessEditorInput(editor *Editor, input_state *Input, key_table *KeyTable)
         {
             if(Editor->RotateCamera)
             {
-                Editor->Camera = RotateCamera(Editor->Camera, FrameGesture.Offset, Input->dt);
+                Editor->Camera = RotateCamera(Editor->Camera, FrameGesture.Offset, Input->Clock.dt);
             }
         }
     }
     
-    Editor->Camera = TranslateCamera(Editor->Camera, KeyTable, Input->dt);
+    Editor->Camera = TranslateCamera(Editor->Camera, KeyTable, Input->Clock.dt);
 }

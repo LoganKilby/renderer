@@ -79,9 +79,7 @@ struct clock
 
 struct input_state
 {
-    float dt;
-    float FPS;
-    float SecondsElapsed;
+    clock Clock;
     
     bool32 Clicked;
     glm::vec2 ClickPosition;

@@ -9,11 +9,13 @@
 
 struct entity
 {
+    primitive Primitive;
     glm::vec3 Position; // World space
     glm::vec3 Scale;
     euler_angles Rotation;
 };
 
+// TODO: Memory arena
 struct entity_group
 {
     int Count;

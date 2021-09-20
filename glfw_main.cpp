@@ -153,7 +153,7 @@ int WinMain(HINSTANCE hInstance,
     
     VertexShaderID = LoadAndCompileShader("shaders/selection_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/selection_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program SelectionShaderProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    opengl_shader_program SelectionProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     VertexShaderID = LoadAndCompileShader("shaders/grid_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/grid_frag.c", GL_FRAGMENT_SHADER);
@@ -165,7 +165,7 @@ int WinMain(HINSTANCE hInstance,
     
     VertexShaderID = LoadAndCompileShader("shaders/stencil_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/stencil_frag.c", GL_FRAGMENT_SHADER);
-    opengl_shader_program SelectionProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    opengl_shader_program StencilProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
@@ -199,12 +199,7 @@ int WinMain(HINSTANCE hInstance,
     // I could go through, do the matrix multiplications, then send the MVPs to the draw buffer?
     // Instead of copying all of the entity data
     draw_buffer DrawBuffer = {};
-    DrawBuffer.Queue = (draw_command *)malloc(sizeof(draw_command) * MAX_DRAW_COMMANDS);
-    DrawBuffer.MaxCount = MAX_DRAW_COMMANDS;
-    
     draw_buffer StencilDrawBuffer = {};
-    DrawBuffer.Queue = (draw_command *)malloc(sizeof(draw_command) * MAX_DRAW_COMMANDS);
-    DrawBuffer.MaxCount = MAX_DRAW_COMMANDS;
     
     glm::mat4 ModelMatrix;
     glm::mat4 ViewMatrix;
@@ -221,16 +216,18 @@ int WinMain(HINSTANCE hInstance,
     Plane.Position = glm::vec3(0.0f);
     Plane.Scale = glm::vec3(1.0f);
     Plane.Rotation = {0.0f, 0.0f, 0.0f};
-    entity_group EntityGroup = {};
-    EntityGroup.Entities[0] = Plane;
-    EntityGroup.Count++;
+    Plane.Primitive = QUAD;
     
+    entity_group WorldEntities = {};
+    PushEntityToGroup(&WorldEntities, Plane);
     
     entity_group SelectedEntities = {};
+    entity_group RayCastEntities = {};
     
     while(!glfwWindowShouldClose(Window))
     {
-        UpdateClock(&GlobalInputState);
+        PollEvents(&GlobalInputState);
+        UpdateClock(&GlobalInputState.Clock);
         
         if(Editor.Active)
         {
@@ -243,8 +240,9 @@ int WinMain(HINSTANCE hInstance,
             
             key_state LMouseButton = GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON];
             key_state RMouseButton = GlobalMouseButtonState.Buttons[RIGHT_MOUSE_BUTTON];
-            if(LMouseButton == PRESSED)
+            if(Editor.MouseButtons[LEFT_MOUSE_BUTTON])
             {
+                ClearEntityGroup(&SelectedEntities);
                 // NOTE: Check intersection of mouse cursor and world objects
                 // NOTE: The mouse button state changes to DRAG if there's any movement while
                 // pressing down the LMouseButton. This makes it feel like we're losing clicks
@@ -256,8 +254,9 @@ int WinMain(HINSTANCE hInstance,
                 // TODO: Check all (visible) entities
                 entity EntityInView;
                 EntityInView.Position = glm::vec3(0.0f);
-                EntityInView.Scale = glm::vec3(0.0f);
+                EntityInView.Scale = glm::vec3(1.0f);
                 EntityInView.Rotation = {0.0f, 0.0f, 0.0f};
+                EntityInView.Primitive = QUAD;
                 
                 plane Plane = CreatePlane(EntityInView.Position, EntityInView.Rotation);
                 
@@ -266,30 +265,28 @@ int WinMain(HINSTANCE hInstance,
                 if(Collision)
                 {
                     // TODO: Check boundary of plane
-                    draw_command Command;
-                    Command.Primitive = CUBE;
-                    Command.Position = Intersection;
-                    Command.Scale = glm::vec3(0.15f);
-                    Command.Rotation = EntityInView.Rotation;
-                    Command.Shader = DefaultProgram.Id;
-                    EnqueueDrawCommand(&DrawBuffer, Command);
+                    entity RayCastEntity = {};
+                    RayCastEntity.Primitive = CUBE;
+                    RayCastEntity.Position = Intersection;
+                    RayCastEntity.Scale = glm::vec3(0.10);
+                    PushEntityToGroup(&RayCastEntities, RayCastEntity);
                 }
                 
             }
-            else if(LMouseButton == DRAG)
+            else if(GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON] == DRAG)
             {
                 rect SelectionRegion = CreateRectFromDiagonalPoints(GlobalInputState.ClickPosition,
                                                                     GlobalInputState.MousePosition);
                 
                 // Should we point to the entities or copy their data entirely?
-                SelectEntitiesInScreenRegion(&SelectedEntities, &EntityGroup, ViewMatrix,
+                SelectEntitiesInScreenRegion(&SelectedEntities, &WorldEntities, ViewMatrix,
                                              ProjectionMatrix, SelectionRegion);
             }
-            else if(RMouseButton == PRESSED)
-            {
-                ClearDrawBuffer(&DrawBuffer);
-            }
             
+            if(Editor.MouseButtons[RIGHT_MOUSE_BUTTON])
+            {
+                ClearEntityGroup(&RayCastEntities);
+            }
         }
         else
         {
@@ -302,16 +299,17 @@ int WinMain(HINSTANCE hInstance,
         }
         
         QueueEntityGroupForRendering(&SelectedEntities, &StencilDrawBuffer);
+        QueueEntityGroupForRendering(&RayCastEntities, &DrawBuffer);
         
         glBindFramebuffer(GL_FRAMEBUFFER, HDR_RenderTarget.FrameBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         
-        // TODO: Draw selected entities
-        glEnable(GL_STENCIL_TEST);
-        RenderDrawBuffer(&DrawBuffer, SelectionProgram.Id, ProjectionMatrix, ViewMatrix);
-        glDisable(GL_STENCIL_TEST);
+        // TODO: Implement stencil buffer drawing correctly
+        RenderDrawBuffer(&StencilDrawBuffer, StencilProgram.Id, ProjectionMatrix, ViewMatrix, true);
+        RenderDrawBuffer(&DrawBuffer, DefaultProgram.Id, ProjectionMatrix, ViewMatrix, false);
         
+#if 1
         // Scene
         SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
         SetUniform3fv(ShadowProgram.Id, "viewPos", Editor.Camera.Position);
@@ -330,6 +328,7 @@ int WinMain(HINSTANCE hInstance,
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
+#endif
         
         DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
         
@@ -361,7 +360,7 @@ int WinMain(HINSTANCE hInstance,
             // TODO: Add manipulators.
             rect SelectionRegion = CreateRectFromDiagonalPoints(GlobalInputState.MousePosition, GlobalInputState.ClickPosition);
             
-            DrawSelectionRegion(SelectionShaderProgram.Id,
+            DrawSelectionRegion(SelectionProgram.Id,
                                 SelectionRegion.X,
                                 SelectionRegion.Y,
                                 SelectionRegion.Width,
@@ -370,10 +369,7 @@ int WinMain(HINSTANCE hInstance,
         
         
         glfwSwapBuffers(Window);
-        glfwPollEvents();
         OpenGL_OutputErrorQueue();
-        
-        ClearDrawBuffer(&StencilDrawBuffer);
     }
     
     return 0;
