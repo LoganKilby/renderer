@@ -9,3 +9,6 @@ cl %opts% %code%\glfw_main.cpp -Ferenderer kernel32.lib gdi32.lib user32.lib ope
 popd
 
 ctime -end timing.ctm %last_error%
+
+remedybg open-session debug.rdbg
+remedybg start-debugging
