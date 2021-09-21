@@ -207,12 +207,6 @@ int WinMain(HINSTANCE hInstance,
     draw_buffer DrawBuffer = {};
     draw_buffer StencilDrawBuffer = {};
     
-    glm::mat4 ModelMatrix;
-    glm::mat4 ViewMatrix;
-    glm::mat3 NormalMatrix;
-    glm::mat4 ProjectionMatrix;
-    glm::mat4 MVP;
-    
     float Exposure = 0.5f;
     float Gamma = 2.2f;
     float NearPlane = 0.01f;
@@ -230,6 +224,12 @@ int WinMain(HINSTANCE hInstance,
     entity_group SelectedEntities = {};
     entity_group RayCastEntities = {};
     
+    
+    glm::mat4 ModelMatrix;
+    glm::mat4 ViewMatrix;
+    glm::mat3 NormalMatrix;
+    glm::mat4 ProjectionMatrix;
+    glm::mat4 MVP;
     while(!glfwWindowShouldClose(Window))
     {
         PollEvents(&GlobalInputState);
@@ -263,6 +263,7 @@ int WinMain(HINSTANCE hInstance,
                 EntityInView.Primitive = QUAD;
                 
                 plane Plane = CreatePlane(EntityInView.Position, EntityInView.Rotation);
+                
                 
                 glm::vec3 Intersection;
                 bool Collision = RayPlaneIntersection(MouseRay, Plane, &Intersection);

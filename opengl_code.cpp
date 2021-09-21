@@ -500,6 +500,7 @@ OpenGL_LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back,
     return Result;
 }
 
+// TODO: Renaming. HDR doesn't have anything to do with this framebuffer configuration
 internal render_target
 HDR_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
 {
@@ -529,6 +530,7 @@ HDR_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
     return Result;
 }
 
+// TODO: Renaming. PFX (Post effects) doesn't have anything to do with this framebuffer configuration
 internal render_target
 PFX_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
 {
@@ -640,17 +642,15 @@ RenderQuad()
             1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 1.0f,  1.0f, 1.0f  // 4
         };
         
-        //                              ^
-        // These values represent those |
         glm::vec3 pos1(-1.0,  1.0, 0.0); // unique vertices
         glm::vec3 pos2(-1.0, -1.0, 0.0);
         glm::vec3 pos3( 1.0, -1.0, 0.0);
         glm::vec3 pos4( 1.0,  1.0, 0.0);
-        glm::vec2 uv1(0.0, 1.0); // texture coordinates
+        glm::vec2 uv1(0.0, 1.0);         // texture coordinates
         glm::vec2 uv2(0.0, 0.0);
         glm::vec2 uv3(1.0, 0.0);
         glm::vec2 uv4(1.0, 1.0);
-        glm::vec3 nm(0.0, 0.0, 1.0); // normal
+        glm::vec3 nm(0.0, 0.0, 1.0);     // normal
         
         // I assume this is how we would calculate tangent/bitangent space vectors when processing
         // model files like .obj
