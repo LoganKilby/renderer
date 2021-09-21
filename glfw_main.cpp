@@ -95,9 +95,15 @@ int WinMain(HINSTANCE hInstance,
         // glfwWindowHint with (GLFW_SAMPLES, 4). Together with GL_MULTISAMPLE
         // anti-aliasing is enabled.
         glEnable(GL_MULTISAMPLE);
-        glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         
         GlobalTextureCache = {};
         GameCamera = {};
@@ -238,8 +244,6 @@ int WinMain(HINSTANCE hInstance,
                                                 NearPlane, 
                                                 FarPlane);
             
-            key_state LMouseButton = GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON];
-            key_state RMouseButton = GlobalMouseButtonState.Buttons[RIGHT_MOUSE_BUTTON];
             if(Editor.MouseButtons[LEFT_MOUSE_BUTTON])
             {
                 ClearEntityGroup(&SelectedEntities);
@@ -305,12 +309,12 @@ int WinMain(HINSTANCE hInstance,
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         
-        // TODO: Implement stencil buffer drawing correctly
-        RenderDrawBuffer(&StencilDrawBuffer, StencilProgram.Id, ProjectionMatrix, ViewMatrix, true);
-        RenderDrawBuffer(&DrawBuffer, DefaultProgram.Id, ProjectionMatrix, ViewMatrix, false);
+        glStencilMask(0x00);
+        RenderDrawBuffer(&DrawBuffer, DefaultProgram.Id, ProjectionMatrix, ViewMatrix);
         
-#if 1
         // Scene
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF);
         SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
         SetUniform3fv(ShadowProgram.Id, "viewPos", Editor.Camera.Position);
         SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
@@ -328,13 +332,17 @@ int WinMain(HINSTANCE hInstance,
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
-#endif
         
-        DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
+        RenderOutlineDrawBuffer(&StencilDrawBuffer, StencilProgram.Id, ProjectionMatrix, ViewMatrix);
+        
+        if(Editor.Active)
+        {
+            DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
+        }
         
         // HDR and Gamma Correction pass
         glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glUseProgram(BlitShader.Id);
         //SetUniform1f(GammaProgram.Id, "exposure", Exposure);
         //SetUniform1f(GammaProgram.Id, "gamma", Gamma);
@@ -346,7 +354,7 @@ int WinMain(HINSTANCE hInstance,
         
         // PFX pass
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glUseProgram(BlitShader.Id);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, PFX_RenderTarget.ColorBuffer);
@@ -355,21 +363,25 @@ int WinMain(HINSTANCE hInstance,
         glBindVertexArray(0);
         
         // UI
-        if(Editor.Active && GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON] == DRAG)
+        if(Editor.Active)
         {
-            // TODO: Add manipulators.
-            rect SelectionRegion = CreateRectFromDiagonalPoints(GlobalInputState.MousePosition, GlobalInputState.ClickPosition);
-            
-            DrawSelectionRegion(SelectionProgram.Id,
-                                SelectionRegion.X,
-                                SelectionRegion.Y,
-                                SelectionRegion.Width,
-                                SelectionRegion.Height);
+            if(GlobalMouseButtonState.Buttons[LEFT_MOUSE_BUTTON] == DRAG)
+            {
+                // TODO: Add manipulators.
+                rect SelectionRegion = CreateRectFromDiagonalPoints(GlobalInputState.MousePosition, GlobalInputState.ClickPosition);
+                
+                DrawSelectionRegion(SelectionProgram.Id,
+                                    SelectionRegion.X,
+                                    SelectionRegion.Y,
+                                    SelectionRegion.Width,
+                                    SelectionRegion.Height);
+            }
         }
         
         
         glfwSwapBuffers(Window);
         OpenGL_OutputErrorQueue();
+        
     }
     
     return 0;

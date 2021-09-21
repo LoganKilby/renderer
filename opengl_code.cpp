@@ -515,11 +515,11 @@ HDR_CreateRenderTarget(int ScreenWidth, int ScreenHeight)
     
     glGenRenderbuffers(1, &Result.RenderBuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, Result.RenderBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, ScreenWidth, ScreenHeight);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, ScreenWidth, ScreenHeight);
     
     glBindFramebuffer(GL_FRAMEBUFFER, Result.RenderBuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result.ColorBuffer, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, Result.RenderBuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result.RenderBuffer);
     
     GLenum FramebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if(FramebufferStatus != GL_FRAMEBUFFER_COMPLETE)

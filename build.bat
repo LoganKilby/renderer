@@ -10,5 +10,5 @@ popd
 
 ctime -end timing.ctm %last_error%
 
-remedybg open-session debug.rdbg
-remedybg start-debugging
+REM remedybg open-session debug.rdbg
+REM remedybg start-debugging

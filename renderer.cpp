@@ -541,54 +541,10 @@ LoadObjModel(char *PathToDotObjFile)
 }
 
 internal void
-RenderDrawBuffer(draw_buffer *Buffer, unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix, bool Outline)
+RenderDrawBuffer(draw_buffer *Buffer, unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix)
 {
     glm::mat4 ModelMatrix;
     glm::mat4 MVP;
-    
-    if(Outline)
-    {
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
-        
-        glm::vec3 OutlineSize = glm::vec3(1.15f);
-        for(draw_command *Command = Buffer->Queue;
-            Command < Buffer->Queue + Buffer->Count;
-            ++Command)
-        {
-            ModelMatrix = glm::mat4(1.0f);
-            ModelMatrix = glm::translate(ModelMatrix, Command->Position);
-            ModelMatrix *= mat4_EncodeEulerAnglesZYX(Command->Rotation);
-            ModelMatrix = glm::scale(ModelMatrix, Command->Scale * OutlineSize);
-            MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-            SetUniformMatrix4fv(Shader, "mvp", MVP);
-            
-            // check for textures?
-            // shader uniforms?
-            
-            switch(Command->Primitive)
-            {
-                case CUBE:
-                {
-                    RenderCube();
-                } break;
-                
-                case QUAD:
-                {
-                    RenderQuad();
-                } break;
-                
-                case LINE_SEGMENT:
-                {
-                    
-                } break;
-            }
-        }
-        
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        glDisable(GL_DEPTH_TEST);
-    }
     
     for(draw_command *Command = Buffer->Queue;
         Command < Buffer->Queue + Buffer->Count;
@@ -600,6 +556,7 @@ RenderDrawBuffer(draw_buffer *Buffer, unsigned int Shader, glm::mat4 ProjectionM
         ModelMatrix = glm::scale(ModelMatrix, Command->Scale);
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(Shader, "mvp", MVP);
+        
         
         // check for textures?
         // shader uniforms?
@@ -623,10 +580,6 @@ RenderDrawBuffer(draw_buffer *Buffer, unsigned int Shader, glm::mat4 ProjectionM
         }
     }
     
-    glStencilMask(0xFF);
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    glEnable(GL_DEPTH_TEST);
-    
     ClearDrawBuffer(Buffer);
 }
 
@@ -635,4 +588,53 @@ PushDrawCommand(draw_buffer *Buffer, draw_command Command)
 {
     Assert(Buffer->Count < ArrayCount(Buffer->Queue));
     Buffer->Queue[Buffer->Count++] = Command;
+}
+
+internal void
+RenderOutlineDrawBuffer(draw_buffer *Buffer, unsigned int Shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix)
+{
+    // Assuming we have written to the stencil buffer in previous draw calls
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    glStencilMask(0x00);
+    
+    // NOTE: I'm not too sure how depth testing and stencil testing will pan out in the future.
+    // I'm not currently disabling depth testing to draw the outlines
+    
+    glm::vec3 OutlineSize = glm::vec3(1.01f);
+    glm::mat4 ModelMatrix;
+    glm::mat4 MVP;
+    for(draw_command *Command = Buffer->Queue;
+        Command < Buffer->Queue + Buffer->Count;
+        ++Command)
+    {
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, Command->Position);
+        ModelMatrix *= mat4_EncodeEulerAnglesZYX(Command->Rotation);
+        ModelMatrix = glm::scale(ModelMatrix, Command->Scale * OutlineSize);
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(Shader, "mvp", MVP);
+        
+        switch(Command->Primitive)
+        {
+            case CUBE:
+            {
+                RenderCube();
+            } break;
+            
+            case QUAD:
+            {
+                RenderQuad();
+            } break;
+            
+            case LINE_SEGMENT:
+            {
+                
+            } break;
+        }
+    }
+    
+    glStencilMask(0xFF);
+    glStencilFunc(GL_ALWAYS, 0, 0xFF);
+    
+    ClearDrawBuffer(Buffer);
 }
