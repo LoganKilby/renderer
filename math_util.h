@@ -22,4 +22,10 @@ mat4_EncodeEulerAnglesZYX(euler_angles Rotation)
     return RotationMatrix;
 }
 
+inline glm::vec3
+ProjectVec3(glm::vec3 A, glm::vec3 B)
+{
+    return (B * (glm::dot(A, B) / glm::dot(B, B)));
+}
+
 #endif //MATH_UTIL_H
