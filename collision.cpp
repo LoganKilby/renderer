@@ -127,6 +127,7 @@ RayPlaneIntersection(ray Ray, plane Plane, glm::vec3 *IntersectionResult)
     }
     
     float t = -(glm::dot(Plane.Normal, Ray.Origin) + d);
+    Assert(Denominator); // It can be zero, right?
     t /= Denominator;
     
     if(t >= 0)
@@ -216,6 +217,18 @@ ScreenToWorldRay(glm::vec2 ScreenCoords, glm::mat4 ProjectionMatrix, glm::mat4 V
     //RayEye = glm::vec4(Eye.x, Eye.y, -1.0f, 0.0f);
     glm::vec3 World = glm::inverse(ViewMatrix) * glm::vec4(glm::vec2(Eye), -1.0f, 0.0f);
     glm::vec3 Result = glm::normalize(World);
+    
+    return Result;
+}
+
+internal bool
+PointInBoundedPlane(glm::vec3 BottomLeft, glm::vec3 TopRight, glm::vec3 Point)
+{
+    bool Result = Point.x >= BottomLeft.x && Point.x <= TopRight.x;
+    Result &= Point.y >= BottomLeft.y && Point.y <= TopRight.y;
+    
+    // I think I need to find whether the plane lies on xy, xz, or yz
+    // and test the rect in that plane specifically?
     
     return Result;
 }

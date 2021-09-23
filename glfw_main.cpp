@@ -176,8 +176,10 @@ int WinMain(HINSTANCE hInstance,
     texture FloorTexture = LoadTextureToLinear("textures/brickwall.jpg");
     texture FloorNormalMap = LoadTexture("textures/brickwall_normal.jpg");
     texture FloorSpecTexture = LoadTexture("textures/brickwall_grayscale.jpg");
-    texture LinearTexture = LoadTextureToLinear("textures/container.jpg");
-    texture GammaTexture = LoadTexture("textures/container.jpg");
+    
+    texture OrganicDiffuse = LoadTextureToLinear("textures/organic/organic_diffuse.jpg");
+    texture OrganicNormal = LoadTexture("textures/organic/organic_normal.jpg");
+    texture OrganicSpecular = LoadTexture("textures/organic/organic_spec.jpg");
     
     GlobalInputState = {};
     GlobalInputState.MousePosition.x = WindowWidth / 2;
@@ -208,7 +210,7 @@ int WinMain(HINSTANCE hInstance,
     draw_buffer StencilDrawBuffer = {};
     
     float Exposure = 0.5f;
-    float Gamma = 2.2f;
+    float Gamma = 1.7f;
     float NearPlane = 0.01f;
     float FarPlane = 100.0f;
     
@@ -264,17 +266,29 @@ int WinMain(HINSTANCE hInstance,
                 
                 plane Plane = CreatePlane(EntityInView.Position, EntityInView.Rotation);
                 
-                
                 glm::vec3 Intersection;
                 bool Collision = RayPlaneIntersection(MouseRay, Plane, &Intersection);
                 if(Collision)
                 {
-                    // TODO: Check boundary of plane
-                    entity RayCastEntity = {};
-                    RayCastEntity.Primitive = CUBE;
-                    RayCastEntity.Position = Intersection;
-                    RayCastEntity.Scale = glm::vec3(0.10);
-                    PushEntityToGroup(&RayCastEntities, RayCastEntity);
+                    // Test the region of the bounded plane
+                    // Which axis was the collision on? That point will be the same as the plane
+                    glm::mat4 ModelMatrix = glm::mat4(1.0f);
+                    ModelMatrix = glm::translate(ModelMatrix, EntityInView.Position);
+                    ModelMatrix = mat4_EncodeEulerAnglesZYX(EntityInView.Rotation);
+                    ModelMatrix = glm::scale(ModelMatrix, EntityInView.Scale);
+                    glm::vec3 BottomLeft = glm::vec3(ModelMatrix * glm::vec4(-1.0f, -1.0f, 0.0f, 1.0f));
+                    glm::vec3 TopRight = glm::vec3(ModelMatrix * glm::vec4(1.0,  1.0, 0.0, 1.0f));
+                    
+                    if(PointInBoundedPlane(BottomLeft, TopRight, Intersection))
+                    {
+                        // TODO: Check boundary of plane
+                        entity RayCastEntity = {};
+                        RayCastEntity.Primitive = CUBE;
+                        RayCastEntity.Position = Intersection;
+                        RayCastEntity.Scale = glm::vec3(0.10);
+                        PushEntityToGroup(&RayCastEntities, RayCastEntity);
+                    }
+                    
                 }
                 
             }
@@ -312,10 +326,10 @@ int WinMain(HINSTANCE hInstance,
         
         glStencilMask(0x00);
         RenderDrawBuffer(&DrawBuffer, DefaultProgram.Id, ProjectionMatrix, ViewMatrix);
-        
-        // Scene
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
         glStencilMask(0xFF);
+        
+        // Scene
         SetUniform3fv(ShadowProgram.Id, "lightPos", Editor.Camera.Position);
         SetUniform3fv(ShadowProgram.Id, "viewPos", Editor.Camera.Position);
         SetUniformMatrix4fv(ShadowProgram.Id, "projection", ProjectionMatrix);
@@ -334,6 +348,19 @@ int WinMain(HINSTANCE hInstance,
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
         
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-3.0f, 0.0f, 0.0f));
+        NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
+        SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
+        SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, OrganicDiffuse.Id);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, OrganicNormal.Id);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, OrganicSpecular.Id);
+        RenderQuad();
+        
         RenderOutlineDrawBuffer(&StencilDrawBuffer, StencilProgram.Id, ProjectionMatrix, ViewMatrix);
         
         if(Editor.Active)
@@ -346,7 +373,7 @@ int WinMain(HINSTANCE hInstance,
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glUseProgram(BlitShader.Id);
         //SetUniform1f(GammaProgram.Id, "exposure", Exposure);
-        //SetUniform1f(GammaProgram.Id, "gamma", Gamma);
+        SetUniform1f(GammaProgram.Id, "gamma", Gamma);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBuffer);
         glBindVertexArray(ScreenVAO);
@@ -382,7 +409,6 @@ int WinMain(HINSTANCE hInstance,
         
         glfwSwapBuffers(Window);
         OpenGL_OutputErrorQueue();
-        
     }
     
     return 0;

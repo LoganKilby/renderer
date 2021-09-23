@@ -9,11 +9,11 @@ uniform float gamma;
 void main()
 {
     vec3 hdrColor = texture(hdrBuffer, TexCoords).rgb;
-    vec3 result = vec3(1.0) - exp(-hdrColor * exposure);
+    //vec3 result = vec3(1.0) - exp(-hdrColor * exposure);
     
     // TODO: add gamma correction
     // NOTE: This would require loading sRGB textures
-    result = pow(result, vec3(1.0 / gamma));
+    vec3 result = pow(hdrColor, vec3(1.0 / gamma));
     
     FragColor = vec4(result, 1.0);
 }
