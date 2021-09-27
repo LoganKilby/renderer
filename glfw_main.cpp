@@ -19,6 +19,18 @@
 #include "entity.cpp"
 #include "collision.cpp"
 
+// A well illustrated paper to exmiane and implement:
+// https://entagma.com/bubbles-yet-again-implementing-glassners-bubble-triplets-in-vex/
+
+// Math explanation website:
+// https://betterexplained.com/
+
+// 3D math book for games (online):
+// https://gamemath.com/book/intro.html
+
+// Math history, non-fiction: Steven Strogatz
+// "Infinite Powers"
+
 // NOTE: (On frustrating shader bugs)
 // If the object's texture has an unexpected color or is black, verify that the in/out 
 // varible names match across the shader program. This is NOT a link error; There are no error 
