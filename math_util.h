@@ -3,6 +3,9 @@
 #ifndef MATH_UTIL_H
 #define MATH_UTIL_H
 
+#define _USE_MATH_DEFINES
+#include "math.h"
+
 struct euler_angles
 {
     float Pitch; // x-axis
