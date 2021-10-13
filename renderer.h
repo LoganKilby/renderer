@@ -48,7 +48,6 @@ struct plane
 {
     glm::vec3 Position;
     glm::vec3 Normal;
-    glm::vec3 Rotation;
 };
 
 struct draw_command

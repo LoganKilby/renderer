@@ -94,7 +94,7 @@ CreatePlane(glm::vec3 Position, euler_angles Rotation)
     
     plane Result = {};
     Result.Position = Position;
-    Result.Normal = RotationMatrix * glm::vec4(Normal, 1.0f);
+    Result.Normal = Normal * glm::inverse(glm::mat3(RotationMatrix));
     return Result;
 }
 
@@ -127,7 +127,6 @@ RayPlaneIntersection(ray Ray, plane Plane, glm::vec3 *IntersectionResult)
     }
     
     float t = -(glm::dot(Plane.Normal, Ray.Origin) + d);
-    Assert(Denominator); // It can be zero, right?
     t /= Denominator;
     
     if(t >= 0)

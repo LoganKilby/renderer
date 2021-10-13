@@ -10,6 +10,7 @@
 #include "utility.h"
 #include "vertices.h"
 #include "math_util.h"
+#include "math.h"
 
 #include "opengl_code.cpp"
 #include "renderer.cpp"
@@ -30,6 +31,9 @@
 
 // Math history, non-fiction: Steven Strogatz
 // "Infinite Powers"
+
+// Quaterions, Ken Shoemake
+// https://www.ljll.math.upmc.fr/~frey/papers/scientific%20visualisation/Shoemake%20K.,%20Quaternions.pdf
 
 // NOTE: (On frustrating shader bugs)
 // If the object's texture has an unexpected color or is black, verify that the in/out 
@@ -56,11 +60,29 @@ global_variable input_state GlobalInputState;
 global_variable key_table GlobalKeyState;
 global_variable mouse_button_table GlobalMouseButtonState;
 
+internal glm::vec4
+sphere_normal(glm::mat4 xform, glm::vec4 w_point)
+{
+    glm::vec4 obj_point = glm::inverse(xform) * w_point;
+    glm::vec4 obj_normal = obj_point - glm::vec4(0, 0, 0, 1);
+    glm::vec4 world_normal = glm::transpose(glm::inverse(xform)) * obj_normal;
+    world_normal.w = 0;
+    world_normal = glm::normalize(world_normal);
+    return world_normal;
+}
+
 int WinMain(HINSTANCE hInstance,
             HINSTANCE hPrevInstance,
             LPSTR     lpCmdLine,
             int       nShowCmd)
 {
+    float f = sqrt(2) / 2;
+    
+    glm::mat4 m = glm::mat4(1.0f);
+    m = glm::scale(m, {1, 0.5f, 1});
+    m = glm::rotate(m, (float)M_PI / 5.0f, glm::vec3(0, 0, 1));
+    glm::vec4 result = sphere_normal(m, glm::vec4(0, f, -f, 1));
+    
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
     freopen("CONOUT$", "w", stderr);
@@ -151,9 +173,9 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/shadow_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/shadow_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program ShadowProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
-    SetUniform1i(ShadowProgram.Id, "diffuseMap", 0);
-    SetUniform1i(ShadowProgram.Id, "normalMap", 1);
-    SetUniform1i(ShadowProgram.Id, "specularMap", 2);
+    SetUniform1i(ShadowProgram.Id, "diffuseMap", 1);
+    SetUniform1i(ShadowProgram.Id, "normalMap", 2);
+    SetUniform1i(ShadowProgram.Id, "specularMap", 3);
     //SetUniform1i(ShadowProgram.Id, "depthMap", 3);
     
     // TODO: Do I really need a shader program struct still?
@@ -352,11 +374,11 @@ int WinMain(HINSTANCE hInstance,
         NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
         SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
+        glBindTexture(GL_TEXTURE_2D, FloorTexture.Id);
         glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, FloorNormalMap.Id);
+        glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, FloorSpecTexture.Id);
         RenderQuad();
         
@@ -365,14 +387,15 @@ int WinMain(HINSTANCE hInstance,
         NormalMatrix = glm::transpose(glm::inverse(glm::mat3(ModelMatrix)));
         SetUniformMatrix3fv(ShadowProgram.Id, "normalMatrix", NormalMatrix);
         SetUniformMatrix4fv(ShadowProgram.Id, "model", ModelMatrix);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, OrganicDiffuse.Id);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, OrganicNormal.Id);
+        glBindTexture(GL_TEXTURE_2D, OrganicDiffuse.Id);
         glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, OrganicNormal.Id);
+        glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, OrganicSpecular.Id);
         RenderQuad();
         
+        // Outlined (Selected) entities
         RenderOutlineDrawBuffer(&StencilDrawBuffer, StencilProgram.Id, ProjectionMatrix, ViewMatrix);
         
         if(Editor.Active)
@@ -380,11 +403,10 @@ int WinMain(HINSTANCE hInstance,
             DrawWorldGrid(GridShaderProgram.Id, ProjectionMatrix, ViewMatrix, NearPlane, FarPlane);
         }
         
-        // HDR and Gamma Correction pass
+        // Gamma Correction pass
         glBindFramebuffer(GL_FRAMEBUFFER, PFX_RenderTarget.FrameBuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glUseProgram(BlitShader.Id);
-        //SetUniform1f(GammaProgram.Id, "exposure", Exposure);
         SetUniform1f(GammaProgram.Id, "gamma", Gamma);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, HDR_RenderTarget.ColorBuffer);
