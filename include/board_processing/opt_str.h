@@ -1,8 +1,8 @@
 /*****************************************************************************
 |  Name:        |  OPT_STR.H
 |  Description: |  Universal header file for optimizer programs
-|  $Revision: 1.3 $
-|  $Date: 1996/11/22 20:30:02 $
+|  $Revision: 1.9.1.2 $
+|  $Date: 1996/07/30 18:19:42 $
  * Revision 5.5.122506.9  95/04/21 06:37:09  unknown
  *
  * Revision 0.12  91/09/20  11:37:30  KWG
@@ -16,125 +16,84 @@
 #define __OPT_STR_H__
 
 #pragma warning(disable:4200)           //disables zero length array warning in nblib.h
-//#include "nblib.h"
-//#include "simulate.h"
-//#include "UpLift.h"					// slm: 08-02-18
-#include "enumerations.h"
-#include "solution_config.h"
-#include "windeftypes.h"
-//#include "VisionDefectStruct.h"			// slm: 08-02-18
+#include "nblib.h"
+//#include "UpLift.h"
+#include "Enumerations.h"
+#include "SolutionConfig.h"
+#include "VisionDefectStruct.h"
 
 #ifdef VISION_ENABLED
-//#include "TAV_Interface.h"
+#include "TAV_Interface.h"
 #endif
 
-#define JCAM_DYNAMIC_LIB	// this setting requires that jcam_dll.dll be distributed with service
-//#include "jcam_dll.h"
+#define TRIMMER						   1   // Compiling for Specific Project
 
-#define V5_NEW_WAY				1		// Set to Zero for V4 Parameters
+#define VER64xx                        0   // compile to load board with this version
+#define VER763x						   0   // compile to load boards with version 7.6.0 to 7.6.3
+#define USE_BLOCK_XFER				   1
 
-#define EDGER					1		// Defines Edger for #ifdef's
-#define VER34xx					0		// read board data without sawnthick
-#define VER38xx					0		// read boards with 32" lug spacing; changed to 36" in ver39xx
-#define VER310xx				0		// read boards of v3.10 or older, Number of Saws in profile_data
-#define EDG_56x					0		// for the mean time; can set this to 1 to read/simulate version 5.6x board files. (engine only) use 5.6x optwin
-#define USE_BLOCK_XFER			1
 
-#define HELP					0		// set to 1 to display ID numbers in Optwin; Set to 0 for shipping version.
+#define HELP		0	// set to 1 to display ID numbers in Optwin; Set to 0 for shipping version.
 
 // slm: 05-08-08
 // Use this Symbols to quickly change all over the program TIMING information and Resolution
 #define ENGINE_TIME_RESOLUTION		(double)1000000.0	// Value stored are in uSeconds
 #define DUSE_TO_SHOW_ENGINE_TIME	(double)1000.0		// Divide by this value to Show in mSec. (double)
 
-// customer specific data
-#define COMMONWEALTH        0		// SET to 1 for Commonwealth Plywood ONLY! everyone else = 0
-#define SOUTHERN            0		// 1086-09 26ft system (M6)
-#define _121407				0		// Hancock Pitsfield - has 38" lug space - BMX/M6 system (1214-07)
-// ************************************************************************************ 
-//   _121407   Any M6_Scanner.exe updates require a manual change to compile with 624 vs 590
-// ************************************************************************************
+// default compile with all flag disabled is for a standard M6 system
+// set the following to compile for job specific changes.
+// only one flag should be set TRUE.
 
-//versions 3.11 and later ship with 550 products as standard. 
-#if (!VER310xx && !VER38xx && !VER34xx)
-#define HARDWOOD            1		// Hardwood configuration; 550 products; 40 grd_thk
-#else
-#define HARDWOOD            0		// Hardwood configuration; 550 products; 40 grd_thk
-#endif
+/*****************  Extinct Options (Start) ********************************************/
+//#define HARDWOOD                       0   // 32in lug space
+//#define CORTLAND                       0   // 1314-02 hardwood
+//#define JGW                            0   // 1246-09 hardwood
+//#define KITCHENS                       0   // 1303-01 hardwood
+//#define CLEARLAKE                      0   // 1256-03 hardwood
+//#define LAMPE                          0   // 1230-03 hardwood
+//#define STD_B900						 0   // (B8 with Light Curtain)
+//#define WARD                           0   // 1339-01 Hardwood B8 fiber system
+//#define CAFFALL                        0   // 1354-01 M24 with 1/8" LC
+//#define TEMBEC                         0   // 1225-06 5 Species and Categories; M24
+//#define MATAGAMI                       0   // 1224-14 5 Species and Categories; M6
+//#define STD_20FT_M24                   0   // 1178-04 Standard M24 system GP-Columbia
+// 1248-01 Standard M24 system Hyne
+// 1182-05 Standard M24 system GP-BaySprings
+/*****************  Extinct Options (End)  ********************************************/
 
-// define system type
-#define STD_20FT_M24                   0   // EXTINCT
-//#define STD_B900					   0   // EXTINCT  // (B8 with Light Curtain)
 
-//#define STD_M6                         0  // Standard M6 (up to 26ft)						
-//#define STD_B8						   1  // Standard B8 Ethernet System
-//#define STD_JOESCAN					   0  // (JoeScan Linear Edger)
+
+/*****************  Moved to SolutionsConfig.h   (Start) ****************************************/
+//#define STD_M6                         0   // Standard M6 (up to 26ft)						
+//#define STD_B8						   0   // Standard B8 Ethernet System
 
 //#define STD_3X00					   0  // CS3300 or CS3100
 //#define VISION_ENABLED				   0  // Set to one when using CS3300 heads; else zero for lasers only
 
+//#define STD_824S1					   1   // Profile only version of Hermary Lasers
+//#define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
+
+/*****************  Moved to SolutionsConfig.h   (End) ******************************************/
+
+
+
 // used to define resolution of lasers for CS_3X00
 // can only have ONE of these set true; others set to zero.
-#define _3X00_HALF						1		// 1/2 inch scan density   (edger default)				
-#define _3X00_QUARTER					0		// 0.250 inch scan density (trimmer default)
+#define _3X00_HALF						0		// 1/2 inch scan density   (edger default)				
+#define _3X00_QUARTER					1		// 0.250 inch scan density (trimmer default)
 
 // used for building with OptComm Ethernet PLC5 communications DLL
 #define OPTCOMM_DLL						1		// 0 build without DLL support
 
 
-
-#define USE_QC              1
-#define MIN_WANE_ANGLE  TRUE
-
-
-#define SLICKCHAIN  3   // no lugs and no zones. iUseSpeedZone = 3
-
-// type of chain system
-// set slickchain = 0 and speedzone = 0 for normal zoned operation.
-//#if(COMMONWEALTH == 1)
-//	#define SLICKCHAIN  1   // no lugs and no zones.
-//  #define SPEEDZONE   0   
-//#else
-//	#define SLICKCHAIN  0   
-//  #define SPEEDZONE   0   // speedzone is a way to do the calculations like slick chain but wait until zone 13 
-//                          // to catch up and do PLC i/o.  Hazlehurst canter is this way.
-//#endif
-
-//****************************************************************************************************
-#define LEAD  0
-#define TRAIL 1
-#define NONE  2
-#define BOTH  3
-
-// slm: 3.13.2.7 - For the new Override controls, it makes more sense in this way
-#define SQ_NONE  0
-#define SQ_LEAD  1
-#define SQ_TRAIL 2
-#define SQ_BOTH  3
-
-//These values added for Cross-Cut solution tally.
-#define TALLY_IN   1  // only tally as in product
-#define TALLY_OUT  2  // only tally as out products
-#define TALLY_BOTH 3  // tally as both in and out
-
-#define NO_PUSH_PULL	0
-#define PULL_SAW			1
-#define PUSH_SAW			2
-#define PUSH_PULL			3
-
 #define ODD                            1   // Odd Lengths manufactured also
 #define EVEN                           2   // Even Lengths ONLY
 #define LENGTH                      EVEN   // Odd Length Saw at -1' from gate?
+
 // MIN_LEN_BRD and MAX_LEN_BRD must be even integers
 #define MIN_LEN_BRD                    2   // Min length board handled in feet
+#define MAX_LEN_BRD		              26   // Max length board handled in feet
 
-#if (STD_3X00)
-#define MAX_LEN_BRD		               22   // Max length board handled in feet (save memory till 24ft needed)
-#elif (SOUTHERN)
-#define MAX_LEN_BRD		               26   // Only 26ft edger system to date.
-#else
-#define MAX_LEN_BRD		               24   // Max length board handled in feet
-#endif
 
 
 #define TRUE                           1
@@ -145,11 +104,7 @@
 #define MAX_SAW_CUTS				  5  // edger cut boundaries; 5 saws.
 #define MAX_NUM_BRDS				  4  // edger cut boundaries; 4 boards
 
-//2-5-14 GMB
-//Added defines to handle size of arrays used in last board data for history
-#define HISTORY_MAX_ANGLES	9
-#define HISTORY_MAX_FITS	300
-#define HISTORY_MAX_TOP_FITS 50 //this is the number of fits after it's sorted by value that we'll save and decode (unwind) for the fits history
+#define MAX_NUM_SORT_SETS				90  // maximum number of sets sorter can handle
 
 
 // LASER DATA
@@ -167,13 +122,13 @@
 #define LZ_CNTS_PER_INCH_HARD				16  // uses a 512 cnt encoder
 #endif
 
-
-#if (_121407) //Hancock - Pitsfield
-#define LUG_SPACING                 38  // distance between lugs in inches
+#if (STD_824S1 || STD_JS50)
+#define LUG_SPACING                   26  // Hermary to initially support up to 26; reduced to save memory
+#elif (STD_3X00)
+#define LUG_SPACING                   22  // Max distance between lugs in inches; reduced to save memory
 #else
-#define LUG_SPACING                 36  // distance between lugs in inches
+#define LUG_SPACING                   32  // Max distance between lugs in inches
 #endif
-
 
 #define MAX_NUM_CNTS_PER_LUG         (LUG_SPACING*LZ_CNTS_PER_INCH_HARD)
 
@@ -199,10 +154,9 @@
 #define MAX_NUM_LASER_PCELLS        8    // just a place holder; not used
 #define IMAGE_X_RES					25   // pixels per inch (length)			
 #define IMAGE_Y_RES					25	 // pixels per inch (width)			
-#define MAX_IMAGE_X_RES				(IMAGE_X_RES*MAX_LEN_BRD*12)
+#define MAX_IMAGE_X_RES				(IMAGE_X_RES*20*12)
 #define MAX_IMAGE_Y_RES				(IMAGE_Y_RES*LUG_SPACING)
 
-#define MAX_NUM_VISION_DEFECTS		500
 #endif
 
 #if (STD_824S1)				    //Hermary heads 
@@ -218,11 +172,12 @@
 #define DYNA_VISION_MODEL           824  // this is for heads on 0.20-in spacing
 #define DIAGS                       4    // this is four with the 4-in lasers
 #define MAX_NUM_LASER_PCELLS        8    // just a place holder; not used
-#define IMAGE_X_RES					25   // pixels per inch (length)			
-#define IMAGE_Y_RES					25	 // pixels per inch (width)			
-#define MAX_IMAGE_X_RES				(IMAGE_X_RES*20*12)
 
-#define MAX_IMAGE_Y_RES				(IMAGE_Y_RES*LUG_SPACING)
+// note:  these values likely to change for Hermary Vision System.  sjf 4/2014
+#define IMAGE_X_RES					TAV_CAM_OUTPUT_PIXEL_PER_INCH_WIDTH   // pixels per inch (length)			
+#define IMAGE_Y_RES					TAV_CAM_OUTPUT_PIXEL_PER_INCH_HEIGHT	 // pixels per inch (width)			
+#define MAX_IMAGE_X_RES				(TAV_SYSTEM_OUTPUT_PIXEL_WIDTH)
+#define MAX_IMAGE_Y_RES				(TAV_SYSTEM_OUTPUT_PIXEL_HEIGHT)
 
 #endif
 
@@ -289,14 +244,14 @@ typedef struct{
 	int iEndCnt;
 	PHOTOCELLST PCellData[PCELL_BUFFER_SIZE];
 } PCELLHISTORY;
-//#define NUM_LC_WORDS  2  //temp value; match to trimmer version later
+
+
 typedef struct
 {
     unsigned packetid;                                  /* internal use       */
     unsigned encoder;                                   /* encoder value      */
     unsigned short photocells;                          /* photocell bitmap   */
     unsigned short scanline[NB_MAXHEADS*NB_MAXSPOTS];   /* range readings     */
-    //	unsigned short lightcurtain[2];
 } ONELINECOPY;
 
 typedef struct
@@ -315,70 +270,6 @@ typedef struct
 #endif
 
 
-#if (STD_JOESCAN)
-// -------------------------------------------------------------------------- 
-// ---------------------   JoeScan Laser Heads Data ------------------------- 
-// -------------------------------------------------------------------------- 
-
-#define NUM_LZ_PER_UNIT            243     // JoeScan - linear edger
-#define HEADS                        8     // Max number of heads in system.
-#define MAX_DAS					   4	 // Maximum number of Data Acquisition Stations (Rings)
-#define MAX_HEADS_PER_RING		   4	 // Maximum number of Heads in one Ring (Define space)
-// slm: 09-12-11: Temporary fixup to use Filtering as it was for Darlington
-#if (0)
-#define MAX_HEADS_PER_RING_USED	   MAX_HEADS_PER_RING
-#else
-#define MAX_HEADS_PER_RING_USED	   2
-#endif
-//  #define DAS                          1     // Data Acquisition Stations (Rings), now read from param file
-#define SPOTS          NUM_LZ_PER_UNIT     // Spots per head.
-#define BAD               ((int)0x8000)    // Invalid measurement.
-#define BAD2              ((int)0xFFFE)    // Invalid measurement.
-#define NUMDIAGS                    24     // Number of 16-bit diagnostic data.  0 - 23
-#define NUMDATA        NUM_LZ_PER_UNIT     // Number of coordinate data points.  24 -274
-#define STANDOFF                 16000     // Blind area of sensor - add to range values.
-#define SPOTCONV                    15     // Number of laser points per inch.
-#define SCAN_PER_FOOT				  12
-
-#define MAX_NUM_LASERS			(MAX_LEN_BRD*SCAN_PER_FOOT)
-#define MAX_NUM_SECTIONS			MAX_NUM_LASERS
-#define DAS_MAX_NUM_POINTS		(MAX_HEADS_PER_RING * SPOTS)    // Maximum Points for all heads in one ring/section. (Max of 4 heads per ring)
-
-// slm: 08-11-20 - Added to allow to compile
-// Added because code would not compile for JoeScan, now that some code is shared with Canter
-#define MAX_NUM_POINTS			DAS_MAX_NUM_POINTS
-
-// fake these for laser_map etc.
-#define UNIT_SPACING                1	// in inches
-#define INITIAL_LZ_OFFSET           1.0  // distance of first laser from near end
-#define INTERNAL_STAGGER            0    // inches time 16 counts/inch; will be zero for original units
-#define LASER_STAGGER              22   // as mounted on frame.  2 1/4 inches times 16 counts/inch
-#define DYNA_VISION_MODEL			0	// JoeScan
-#define MAX_NUM_LASER_PCELLS        8  // max number of photocells in a system
-#define JS_MAXHEADS					HEADS //		
-#define JS_MAXPROFILES (MAX_LEN_BRD*SCAN_PER_FOOT)				
-#define JS_PROFILESTOREAD	25		// read up to this many profiles at one time from joescan dll
-
-// typically expect distance between all scan zones to be the same.
-// Heads per Ring can be calculated by iNumActiveHeads / iNumScanZones
-// iNumActiveHeads not to exceed HEADS defined in opt_str.h
-// HEADS expected to be defined as 16 max on canter; 12 max on edger
-// iNumPrflBtwnZones[0] = 0  for only one ring
-// iNumPrflBtwnZones[0] = x  for at least two rings
-// iNumPrflBtwnZones[x] = x  for more than two rings
-typedef struct {
-    int iNumActiveHeads;              // number of total joescan heads used in system
-    int iNumScanZones;                // number of Scan Zones (rings)  (assume equal number heads per ring)
-    int iHeadsPerRing;				// calculated from previous two items; stored here for easy reference
-    int iNumPrflBtwnZones[MAX_DAS];	// number of profiles between Scan Zones (4 max)      
-    int iMachineType;					// optimizer type, Edger, Sharp, etc.
-    double dEncoderResolution;		// Encoder resolution, distance traveled per count
-    int iSpare[7];                    // iSpare[0-1] are parsed, but others not implmented at this time
-} JOESCAN_SCANNER;
-
-#endif	// #if (STD_JOESCAN)
-
-
 // following values are used for brd_data.LaserStagger
 #define LZ_STAGGER_36                 36   // as mounted on frame.  2 1/4 inches times 16 counts/inch
 #define LZ_STAGGER_22                 22   // as mounted on frame.  1 3/8 inches times 16 counts/inch
@@ -390,7 +281,6 @@ typedef struct {
 // following values are used for brd_data.UnitJump
 #define UNIT_JUMP_4                  4   // All M6 and some M24 systems; default
 #define UNIT_JUMP_3                  3   // Most M24 Systems over 16ft long
-#define UNIT_JUMP_CS3x00  UNIT_SPACING	 // CS3x00 systems; continuous scan
 
 // END LASER DATA
 
@@ -415,43 +305,49 @@ typedef struct {
 
 // added () so order of math operation not confused when used in program.  sjf 12/2016
 #define NUM_LC_ELEMENTS_INCH  (NUM_LIGHT_CURTAIN_ELEMENTS_FT/12.0)   //Number of diodes per inch
+
+#define CARDS_PER_FOOT	1  // note: this will always be 1; can remove code associated with this value.  sjf 4/2017
 #define TOT_DIODES   (MAX_NUM_FT_OF_LIGHT_CURTAIN*NUM_LIGHT_CURTAIN_ELEMENTS_FT)
 #define NUM_LC_WORDS (1+TOT_DIODES/16)	// 16 used because data is stored
 // by bits in a 16-bit word format. Add 1 to round up
 
-// slm: 06-27-14 - Used By SolutionHistory and PlanView
-// How many LC Cells in between lasers
-#define LC_UNITS_PER_LASER			(int)(UNIT_SPACING * NUM_LC_ELEMENTS_INCH)
 
-#define MAX_NUM_MACHINE_CENTERS        0  // Normally 0, needs manual input if >
 
-#define MAX_NUM_CATEGORY               3
-#define MAX_NUM_SPECIES                0
 
-#if (! V5_NEW_WAY)
-#if ( COMMONWEALTH || HARDWOOD )
-#define MAX_NUM_PRODUCTS          550 //200 //550 for Commonwealth Ply 12/10/97
+
+// was 10; reduced to 3 to save memory rarelly if never used anyway.  sjf 7/2011
+#define MAX_NUM_MACHINE_CENTERS        3  // Normally 0, needs manual input if >
+
+#if ( TEMBEC || MATAGAMI )
+#define MAX_NUM_SPECIES               5
+#define MAX_NUM_CATEGORY              5
+#elif ( CAT_15 )
+#define MAX_NUM_SPECIES               0
+#define MAX_NUM_CATEGORY              15
 #else
-#define MAX_NUM_PRODUCTS          200
-#endif
-#else
-#define MAX_NUM_PRODUCTS			75	// Due to parameter restructuring
+#define MAX_NUM_SPECIES               0
+#define MAX_NUM_CATEGORY              3
 #endif
 
-#define MAX_GRD_THK_COMBO				40	// Due to parameter restructuring
 
+#define MAX_NUM_PRODUCTS               75
 
+#define MAX_GRD_THK_COMBO              40
+#define MAX_GRD_WTH_COMBO              MAX_GRD_THK_COMBO
 #define MAX_NUM_THICK                  28
 #define MAX_NUM_WIDTH                  28
-#define MAX_NUM_GRADE                  28
+#define MAX_NUM_GRADE				   28
+
 #define MAX_NUM_LEN                    24   // Number of programable lengths
 #define MAX_GRADE_THICK_MC             10  //May need to change if MACH_CNTRS > 0
 #define MAX_WIDTH_MC                   10  //May need to change if MACH_CNTRS > 0
+#define MAX_QC_PRFL_MC				   25  //Max number of TxW QC profiles to monitor	
 #define NUM_INTERVALS                  (6*14) // sized for samples at 10-min intervals, 14-hr max shift
 #define MAX_NUM_PAMUX_BRDS             16
 #define NUM_WORDS_PER_LC_BOARD         50  // sizes mem allocation
 #define MAX_NUM_CUTTINGS               10  // max number of cutting sizes for grade
 #define MAX_NUM_SOL_CUTS               20  // max number of cuttings per solution
+
 
 #define IN_TO_MM                       25.40  //inches to millimeters
 #define FT_TO_CM                       30.48  //feet to centimeters
@@ -480,55 +376,104 @@ typedef struct {
 /* Defined number of 16 bit input and output words avaliable to PLC */
 /* Can vary based on project; Gang may need 128 output, while trimmer only needs 64 */
 #define EIP_NUM_INPUT_WORDS		16
-#define EIP_NUM_OUTPUT_WORDS	128	// changed from 64 to 128 for crosscut output
+#define EIP_NUM_OUTPUT_WORDS	64
 
+/* Zone Diag Word:  Word used to update zone diag. in Block Xfer and ENET output.*/
+#define ZONE_DIAG_WORD				0	// Array index into EIP_OutputArray
+
+/* PLC_WatchDog Word:  Word used to update watchdog value in Block Xfer and ENET output.*/
+#define WATCH_DOG_WORD				61	// Array index into EIP_OutputArray
 
 /* Scanner word:  Bits used for Scanner alarms and more status bits */
-#define SCANNER_WORD		0		// WORD index into EIP_OutputArray
+#define SCANNER_WORD		22		// WORD index into EIP_OutputArray
 #define STICKING_LZ_BIT		0x0001	// Bit0:  Laser or LC detected as sticking ON.
 #define LC_ALARM_BIT		0x0002	// Bit1:  Light Curtian has detected card or data failure.
 #define NO_LZ_DATA_BIT		0x0004	// Bit2:  No Laser data alarm
 #define TIMING_ALARM_BIT	0x0008	// Bit3:  Detected possible error in Encoder timing.
 #define TOO_MUCH_SLASH_BIT	0x0010	// Bit4:  Exceeded the max number of allowed consecutive slash solutions.
-#define NO_LZ_DATA_ALM_BIT	0x0020	// Bit5:  Exceeded number of lasers allowed with consecutive no data
+#define NO_LZ_DATA_ALM_BIT	0x0020	// Bit5:  Exceeded # of bad lasers
 //#define SC_SPARE2			0x0040  // Bit6:  Future use for other scanner alarms
 #define B8_COMM_LOST		0x0080  // Bit7:  B8 ENET Comm Lost (Scanner may be off)
 #define QC_ALARM1_BIT		0x0100  // Bit8:  Reserved for QC Alarms
 #define QC_ALARM2_BIT		0x0200	// Bit9:  Reserved for QC Alarms
 #define LASERS_PWR_ON		0x0400	// Bit10: Indication to PLC when LASER power is on
-//#define SC_SPARE5			0x0800	// Bit11: Future use for other status bits or scanner alarms
-#define WIDE_BOARD_STOP		0x1000	// Bit12: Flag telling PLC to Momentary Stop/Slow Down on chain
-#define CALC_IN_PROG_BIT	0x2000	// Bit13: Optimizer calculations are in progress
-#define SCAN_IN_PROG_BIT	0x4000	// Bit14: Linear Optimizer currently scanning data
+#define NO_INC_ENCODER		0x0800	// Bit11: No Incremental Encoder movement detected.
+#define NO_ABS_ENCODER		0x1000	// Bit12: No Zone or Absolute Encoder movement detected.
+//#define SC_SPARE7			0x2000	// Bit13: Future use for other status bits or scanner alarms
+//#define SC_SPARE8			0x4000	// Bit14: Future use for other status bits or scanner alarms
 //#define SC_SPARE9			0x8000	// Bit15: Future use for other status bits or scanner alarms
 
 
 /* Status word 1: Bits used to define status of system or solution.  */
-#define STATUS_WORD1			16	// Array index into EIP_OutputArray
-#define CONVEYOR_BIT		0x0001	// Bit0:  Optimizer sees through-feed conveyor running
-#define ALARM_LIGHT_BIT		0x0002  // Bit1:  Bit that controls yellow light on scanner.
-#define SKEWED_BRD_BIT		0x0004	// Bit2:  Skew in lug detected
-#define REMAN_BIT			0x0008	// Bit3:  Board must be Re-Edged
-#define RESAW_BIT			0x0010	// Bit4:  Board must be Re-Sawn
-#define MARK_BRD_BIT		0x0020	// Bit5:  Board is present on Lug
-#define LEAD_PICKER			0x0040	// Bit6:  Need an extra picker for spear point board on lead
-#define TRAIL_PICKER		0x0080	// Bit7:  Need an extra picker for spear point board on trail
-//#define SW_SPARE3			0x0100	// Bit8:  Future use
-#define WANE_DOWN_BIT		0x0200	// Bit9:  Board is wane down
-#define FLIP_BRD_BIT		0x0400	// Bit10: Bit ON indicates to use board turner
-#define SLASH_BIT			0x0800	// Bit11: Board has no value; slash
-#define OVER_WIDTH_BIT		0x1000	// Bit12: Flitch is too wide for edger
-#define OVER_THICK_BIT		0x2000	// Bit13: Board is too thick for edger
-#define SHORT_BRD_BIT		0x4000	// Bit14: Board is too short for feed table
-#define CAL_MODE_BIT		0x8000  // Bit15: System is in calibration mode.
+#define STATUS_WORD1			23	// Array index into EIP_OutputArray
+#define MARK_BRD_BIT		0x0001	// Bit0:  Board is present on Lug
+#define SKEWED_BRD_BIT		0x0002	// Bit1:  Skew in lug detected
+#define ODD_SAW_BIT			0x0004	// Bit2:  Drop Odd Length Saw
+#define ALARM_LIGHT_BIT		0x0008  // Bit3:  Bit that controls yellow light on scanner.
+#define REMAN_NE_BIT		0x0010	// Bit4:  NE Board must be Re-Edged
+#define REMAN_FE_BIT		0x0020	// Bit5:  FE Board must be Re-Edged
+#define RESAW_NE_BIT		0x0040	// Bit6:  NE Board must be Re-Sawn
+#define RESAW_FE_BIT		0x0080	// Bit7:  FE Board must be Re-Sawn
+#define DIVERTER_BIT		0x0100	// Bit8:  Move Diverter
+#define SLASH_BIT			0x0200	// Bit9:  Board has no value; slash
+#define RANDOM_LEN_BIT		0x0400	// Bit10: Solution is Random Length
+#define WANE_DOWN_BIT		0x0800	// Bit11: Board is wane down
+#define WANE_UP_BIT			0x1000	// Bit12: Board is wane up
+#define OVER_THICK_BIT		0x2000	// Bit13: Too Thick for Trimmer
+#define NO_TRIM_BIT			0x4000	// Bit14: Forced No Trim Solution
+#define CONVEYOR_BIT		0x8000	// Bit15: Stop Conveyor
 
+#define STATUS_WORD2			29	// Array index into EIP_OutputArray
+#define MARK_TOP_BIT		0x0001	// Bit0:  Mark top of brd for Planer
+#define MARK_BOTTOM_BIT		0x0002	// Bit1:  Mark bottom of brd for Planer
+#define CAL_MODE_BIT		0x0004  // Bit2:  System is in calibration mode.
+#define OVER_LEN_BIT		0x0008  // Bit3:  Board To long to fit in Trimmer; Stop Chain!
+#define ST_SPARE4			0x0010  // Bit4:  Future use status bits
+#define ST_SPARE5			0x0020  // Bit5:  Future use status bits
+#define ST_SPARE6			0x0040  // Bit6:  Future use status bits
+#define ST_SPARE7			0x0080  // Bit7:  Future use status bits
+#define ST_SPARE8			0x0100  // Bit8:  Future use status bits
+#define ST_SPARE9			0x0200  // Bit9:  Future use status bits
+#define ST_SPARE10			0x0400  // Bit10;  Future use status bits
+#define ST_SPARE11			0x0800  // Bit11:  Future use status bits
+#define ST_SPARE12			0x1000  // Bit12:  Future use status bits
+#define ST_SPARE13			0x2000  // Bit13:  Future use status bits
+#define ST_SPARE14			0x4000  // Bit14:  Future use status bits
+#define ST_SPARE15			0x8000  // Bit15:  Future use status bits
 
-/* Zone Diag Word:  Word used to update zone diag. in Block Xfer and ENET output.*/
-#define ZONE_DIAG_WORD				18	// Array index into EIP_OutputArray
+#define SCAN_STATUS_WORD		57	// Array index into EIP_OutputArray
+#define NEW_LZ_DATA_BIT		0x0001	// Bit0:  Got first indication of new data available
+#define PROCESSED_LZ_BIT	0x0002	// Bit1:  Finished Processing LZ data; ready for solution use
+#define SOLUTION_START_BIT	0x0004  // Bit2:  Optimizer starts processing soluiton data.
+#define SOLUTION_DONE_BIT	0x0008  // Bit3:  Optimizer completes solution process
+#define PLC_OUTPUT			0x0010  // Bit4:  Optimizer sends solution to PLC
+#define SCST_SPARE5			0x0020  // Bit5:  Future use status bits
+#define SCST_SPARE6			0x0040  // Bit6:  Future use status bits
+#define SCST_SPARE7			0x0080  // Bit7:  Future use status bits
+#define SCST_SPARE8			0x0100  // Bit8:  Future use status bits
+#define SCST_SPARE9			0x0200  // Bit9:  Future use status bits
+#define SCST_SPARE10		0x0400  // Bit10;  Future use status bits
+#define SCST_SPARE11		0x0800  // Bit11:  Future use status bits
+#define ZONE_0_START_BIT	0x1000  // Bit12:  Start of Zone 0 Processing
+#define SCST_SPARE13		0x2000  // Bit13:  Future use status bits
+#define SCST_SPARE14		0x4000  // Bit14:  Future use status bits
+#define SCST_SPARE15		0x8000  // Bit15:  Future use status bits
 
-/* PLC_WatchDog Word:  Word used to update watchdog value in Block Xfer and ENET output.*/
-#define WATCH_DOG_WORD				61	// Array index into EIP_OutputArray
-
+// These Items are compared with bits set in the registry to determine if
+// a AddOn feature has been purchased an set to be enabled.
+// Each feature uses 4 bits of a 32 bit word to encode the passcode to turn on.
+// Use a value between 2 and E when setting up a new passcode Option.
+//NOTE: If any items are added to this list, add a supervisor msg at the end
+//      of the Init() to report that feature is enabled.  These features should
+//      ONLY be enabled if customer has purchased the addon feature.
+#define OPTION_ECOUSTIC			0x0000000E	// (can be 2-E)Future use Option bits
+#define OPTION_SPARE2			0x00000010	// (can be 2-E)Future use Option bits
+#define OPTION_PAINT_SPRAYER	0x00000A00  // Allows Paint Sprayer feature to work
+#define OPTION_SPARE3			0x00001000  // (can be 2-E)Future use Option bits
+#define OPTION_SPARE4			0x00010000  // (can be 2-E)Future use Option bits
+#define OPTION_SPARE5			0x00100000  // (can be 2-E)Future use Option bits
+#define OPTION_SPARE6			0x01000000  // (can be 2-E)Future use Option bits
+#define OPTION_SPARE7			0x10000000  // (can be 2-E)Future use Option bits
 
 /* defining 6008 scanner to PLC transfer speed choices */
 #define PLC_IO_57               0
@@ -544,78 +489,71 @@ typedef struct {
 #define	ACQUIRE_QC_ALARM_BRDS	5
 #define ACQUIRE_SLASH			6
 
+/* Defining if profile has wane up, down, or square */
+#define NO_WANE              -1
+#define WANE_UP               0
+#define WANE_DOWN             1
+
+/* these items used to identify marking for planer mill */
+#define BOTTOM_LEAD			0		// bottom face, leading edge (green trimmer ref)
+#define BOTTOM_TRAIL		1		// bottom face, trailing edge (green trimmer ref)
+#define TOP_LEAD			2		// top face, leading edge (green trimmer ref.)
+#define TOP_TRAIL			3		// top face, trailing edge (green trimmer ref.)
+#define SPRAY_TOP             1
+#define SPRAY_BOT            -1
+
+
+
 /* Defining of tally messages to be displayed on Vorne. display_error_msg()*/
-#define NUM_TALLY_MSG    2  // this should equal last valid tally_msg
+#define NUM_TALLY_MSG    7  // this should equal last valid tally_msg
 #define BRDFT_OUT        0  // tally_msg
-#define PIECES_OUT       1  // tally_msg  			
-#define SLASH_PERCENT    2  // tally_msg displayed in boardfeet
-#define BRDFT_IN         3  // tally_msg
-#define SKEW_PERCENT     4  // tally_msg 
+#define TRIM_LOSS        1  // tally_msg displayed as percentage
+#define REMAN_PERCENT    2  // tally_msg based on num pieces
+#define SLASH_PERCENT    3  // tally_msg based on num pieces
+#define BDFT_SLASH_PCT   4  // tally_msg based on bdft
+#define UP_TIME_PCT      5  // tally_msg based on time running 
+#define FULL_LUGS        6	// tally_msg based on full lugs		
+#define BDFT_PROD_PCT    7  // tally_msg based on bdft
 
-#define NUM_THK_COUNTS              1300
-
-//*Defines to enable special modes, detail info, simulation, or special printing features*//
-#define ENABLE_DETAILSIM	1	//Detail solution / allow simulation setup
-#define PRESELECT_TAB		2	//Preselect tab of simulatio dialog
-#define MODE_TAB			4	//Mode tab enable
-#define FORCE_TAB			8	//Force tab enable
-#define PRINT2FILE			16	//Allow print to file option on board list menu
-#define SHOW_TIMING_DIALOG	32	//Allow to view Timing Dialog for every board in Screen's BdList (05-12-08)
-#define SHOW_HISTORY_DIALOG	64	//Allow to view History Dialog for every board in Screen's BdList (03-05-14)
 
 /* Defining of error codes from lowest to highest priority for display */
-#define NUM_ERRORS            16
-
-#define NO_ERROR_CODE				 0
-#define EXCESS_DATA_DROPOUTS		 1
-#define WTH_OFF_TARGET				 2
-#define THK_OFF_TARGET				 3
-#define ALARM_1						 4
-#define ALARM_2						 5
-#define REJECT_ALARM				 6
-#define STICKING_LASER				 7
-#define NO_LASER_DATA				 8
-#define NO_LC_DATA					 9
-#define NO_PCELL_DATA				10
-#define SKEW_IN_LUG					11
-#define NOT_EVEN_ENDED				12
-#define NOT_POSITIONABLE			13
-#define EMPTY_LUG					14
-#define EXCEPTION_IGNORED			15
-#define EXCEPTION_NOT_RECOVERABLE	16
-
-
-/******************************************************************************
+#define NUM_ERRORS                    13
+/* If any changes are made in the following NUM_ERRORS list, change the error_list
+   initialization in acquire.c */
+#define NO_ERROR_CODE                  0
+#define EXCESS_DATA_DROPOUTS           1
+#define WTH_OFF_TARGET                 2
+#define THK_OFF_TARGET                 3
+#define ALARM_1                        4
+#define ALARM_2                        5
+#define REJECT_ALARM                   6
+#define NO_LASER_DATA                  7
+#define STICKING_LASER                 8
+#define NO_LC_DATA                     9
+#define SKEW_IN_LUG                   10
+#define NOT_EVEN_ENDED                11
+#define NOT_POSITIONABLE			  12
+#define EMPTY_LUG					  13
+#define NUM_THK_COUNTS              1300
+/****************************************************************************
 ERROR MESSAGES USED IN DISPLAY & ACQUIRE
-All use param[0] and [1]
-11 Uses 0,1,2,3
-13 Uses 0,1 (and 2 with Rev: 4.0.0.10)
-*******************************************************************************
-    error_code.code				error_code.param[0]			error_code.param[1]
+    error_code.code          error_code.param[0]     error_code.param[1]
   0 NO ERROR
-  1 EXCESSIVE DATA DROPOUTS		laser#						0=top, 1=bottom
-  2 WTH OFF TARGET				Amount off target
-  3 THK OFF TARGET				Amount off target			laser#
-  4 ALARM 1 EXCEEDED			0=thk						target*1000
-								1=wth						target*1000
-  5 ALARM 2 EXCEEDED			0=thk, 1=wth				target*1000
-  6 REJECT ALARM				0=slash, 1=resaw, 2=reman
-  7 STICKING_LASER				laser# 
-  8 NO LASER DATA				laser#						0=top, 1=bottom, 2=both
-  9 NO LC DATA					board#
- 10	NO PCELL DATA
- 11 SKEW IN LUG					<0 = ?
-								0  = similar to 2
-								1  = bad data	
-								2  = skew
-								3  = New Bad Data			[1]-Min LZ, [2]-Max LZ, [3]-Min LC, [4]-Max LC
- 12 NOT EVEN ENDED
- 13 NOT_POSITIONABLE			'D'= Depth
-								'O'= Other
-								2  = 2Passes
- 14 EMPTY_LUG					Used for CS31xx Web Mode
-
+  1 EXCESSIVE DATA DROPOUTS    laser#                 0=top, 1=bottom
+  2 WTH OFF TARGET             Amount off target
+  3 THK OFF TARGET             Amount off target      laser#
+  4 ALARM 1 EXCEEDED           0=thk, 1=wth           target*1000
+  5 ALARM 2 EXCEEDED           0=thk, 1=wth           target*1000
+  6 REJECT ALARM               0=slash, 1=resaw, 2=reman
+  7 NO LASER DATA              laser#                 0=top, 1=bottom, 2=both
+  8 STICKING_LASER             laser# 
+  9 NO LC DATA                 board#
+ 10 SKEW IN LUG
+ 11 NOT EVEN ENDED
+ 12 NOT_POSITIONABLE
+ 13 EMPTY_LUG					Used for CS31xx Web Mode
 ****************************   End of NUM_ERRORS list ****************************/
+
 typedef struct {
     int code;
     int param[5];
@@ -646,6 +584,43 @@ typedef enum
 	// Change to reflect the number of defects listed that have a bit set (ONLY)
 	GRADE_NUM_DEFECTS_LISTED		= 5
 } GradeDefectType;
+
+// VisionDefectType moved to VisionDefectStruct.h;   sjf 10/19/2017
+
+
+typedef enum
+{
+	TSS_NotDefined		= 0x0000,	// saw disabled
+    TSS_EvenLength		= 0x0001,	// Typical Even Length Solutions
+	TSS_OddLength		= 0x0002,	// Typical Odd Length Solutions
+	TSS_RandomLength	= 0x0004,	// Length is cut to a variable range
+    TSS_NomLength		= 0x0008,	// Cut exactly to nominal even length 8'-0; 12'-0 etc.
+    TSS_40InchLength	= 0x0010,	// 40" Length Pallet Stock (Custom1)
+    TSS_48InchLength	= 0x0020,	// 48" Length Pallet Stock (Custom2)
+	TSS_Custom3			= 0x0040,
+	TSS_Custom4			= 0x0080,
+	TSS_SawDisabled		= 0x0100,	// consider saw disabled not usable.
+    
+	// Insert in front this symbol any new saw scheme, so the following is always last
+	// Change to reflect the number of schemes listed that have a bit set (ONLY)
+	TSS_NUM_SawSchemes		= 9
+} TrimmerSawScheme;
+
+
+// sjf 6/16/2017
+// feature added to finite control how specific product solutions are considered. 
+typedef enum
+{
+	PrdOp_Disabled		= 0x0000,	// product disabled; do not consider as possible solution.
+	PrdOp_Enabled		= 0x0001,	// product enabled; ok to consider as possible solution.
+	PrdOp_CenterOnly	= 0x0002,	// product enabled, but no strip save or can only be made with center saws
+	PrdOp_Spare1		= 0x0004,	// spare reserved; may be used for other projects that already use this value.
+	PrdOp_Spare2		= 0x0008,	// spare reserved; may be used for other projects that already use this value.
+	PrdOp_NoReEdge		= 0x0010,	// product enabled, but do not consider for Re-Edge solutions.
+	PrdOp_NoReSaw		= 0x0020,	// product enabled, but do not consider for Re-Saw solutions.
+	PrdOp_NoCutInTwo	= 0x0040,	// (future feature) product enabled, but do not consider for Cut-in-two solutions.
+	PrdOp_NoTrimSave	= 0x0080	// (future feature) product enabled, but do not consider for trim save
+}ProductOptions;
 
 
 #define THK_FLUTTER      75
@@ -695,9 +670,14 @@ typedef enum
 //---------------------------------------------------------------------------------------------------
 
 
-#define NUM_SPARES				72   // number of spares in IO_MAP; used below and in ioconfig.c 
+/* stuff to define the resident library functions */
+#define RES_SIG    0xa55a     /* unique fuction number for INT 16h  */
+
+#define NUM_SPARES				91   // number of spares in IO_MAP; used below and in ioconfig.c 
 
 #define NUM_LEN_COUNTS  ((MAX_LEN_BRD+1-MIN_LEN_BRD)*24)
+
+#define MAX_NUM_SAVED_SOL 3   //Save the top three solutions found for reference
 
 
 
@@ -760,8 +740,7 @@ typedef struct {
     short EdgeWaneWeightPct;	// Weighting applied to edge wane
     short FaceWaneWeightPct;	// Weighting applied to face wane
     int ResawAlarm;			// X out of 100 slashes to trigger alarm
-    short iRemanAlarm;		// X out of 100 slashes to trigger alarm
-    short SkewAlarm;			// Consecutive skews to trigger alarm
+    int RemanAlarm;			// X out of 100 slashes to trigger alarm
     int SlashAlarm;			// X out of 100 slashes to trigger alarm
     int MaxThickToTrimmer;		// Max thickness trimmer can pass; send alert to PLC if greater
     int iMaxGateOnReman;		// Maximum gate on reman operation
@@ -846,14 +825,13 @@ typedef struct {
     int iBoatPaddleLength;	// length in LC elements allowed to force trim on boat paddle type boards
     int iNumSortBays;			// Number of Sort Bays; compared against active set assignments
     int iUseEdgerCode;		// Evaluate edger solutions using Baxley edger code
-    int CrossCutSaw[MAX_NUM_SAWS];	// 1=Yes; 0=No
-    int iAlarmPctLoss;		// Pct * 10;  123 = 12.3%
+    int iSawScheme[MAX_NUM_SAWS];	// helps define which saws can be used for which type solutions
+    int iAlarmPctTrimLoss;	// Pct * 10;  123 = 12.3%
     int iAlarmPctResaw;		// Pct * 10;  123 = 12.3%
-    int iAlarmPctPass;		// Pct * 10;  123 = 12.3%
+    int iAlarmPctRedge;		// Pct * 10;  123 = 12.3%
     int iAlarmPctSlash;		// Pct * 10;  123 = 12.3%
-    int iAlarmPctSkew;		// Pct * 10;  123 = 12.3%
-    int iPosVerPresent;		// True if we need to send info to Position Verification System.
-    int spares[30];			// spares for future use
+    int iAlarmPctReman;		// Pct * 10;  123 = 12.3%
+    int spares[31];			// spares for future use
     
 #if MAX_NUM_SPECIES
     SPECIES species[MAX_NUM_SPECIES];
@@ -891,6 +869,7 @@ typedef struct {
 	ENET_DEVICE		DeviceInfo[4];			//info specific to Control Logix PLC
 	int				iLogixProcSlot;
 	int				iSpare[15];
+    
 	BYTE			byteIPAddress[4];
 	BYTE			byteIPAddressSpare1[4];
 	BYTE			byteIPAddressSpare2[4];
@@ -907,68 +886,6 @@ typedef struct {
        measured from even end, in lc elements */
 }  LASER_MAP;  // stored in disk file named ZMAPDATA.DAT
 
-
-#if (STD_JOESCAN)
-
-typedef struct {
-	double local_x;
-	double local_y;       
-	double theta;       
-	double c_theta;
-	double s_theta;
-    double factor;
-} L1HEAD;
-
-typedef struct {
-	L1HEAD heads[HEADS];
-} L1CFG;
-
-
-typedef struct {                  
-    int x;
-    int y;
-    int order;                      // Number points 0-480 as they go around the log clockwise.
-    int next;                       // Next point.
-    int prev;                       // Prev point.
-} RAW_POINT;
-
-typedef struct {                  // This structure may not be needed anymore.
-    int x[DAS_MAX_NUM_POINTS];
-    int y[DAS_MAX_NUM_POINTS];
-} RAW_POINT_FRAME;
-
-typedef struct {                  
-    int x[DAS_MAX_NUM_POINTS];
-    int y[DAS_MAX_NUM_POINTS];
-} RAW_POINT_DATA[MAX_NUM_SECTIONS];
-
-typedef struct TAG_RAW_POINT_DATA {
-	POINT xy[DAS_MAX_NUM_POINTS];
-} XYPOINT_DATA[MAX_NUM_SECTIONS];
-
-// LASER_TEST_DATA: The current reading from the laser measuring array ------
-typedef struct {
-    int Constant;
-    int SupplyVoltPos;
-    int InternalVoltPos;
-    int InternalVoltNeg;
-    int CaseTemp;
-    int AmbientTemp;
-    int FrameCount;
-    int LaserOutput;
-    int Reserved[16];
-    int range[NUMDATA];    // raw range readings
-    int x[SPOTS];          // readings translated to dist coordinate from line bar
-    int y[SPOTS];          // readings translated to heighth from top of chain
-} LASER_TEST_DATA[HEADS];
-
-// L1 LASER CALIB DATA: The data from laser when calibrating. 
-typedef struct {
-    int x[HEADS][SPOTS];
-    int y[HEADS][SPOTS];
-} L1_LASER_CALIB_DATA;
-
-#else
 
 /*  RAW LASER DATA  The measurement data from the last whole lug space. */
 // note: the first three words are wasted space; only the 0 element of RAW_LASER_DATA
@@ -1005,8 +922,6 @@ typedef struct {
 } LASER_TEST_DATA;
 #endif
 
-#endif
-
 #if (STD_3X00)				    //CS3x00 heads 0.200" spacing	
 
 // LASER_TEST_DATA:  The current reading from one CS3x00 laser head.
@@ -1030,34 +945,10 @@ typedef struct {
     CS3300_RANGE_STRUCT	sBottomRangeData;
 } CS3300_RANGE_DATA; 
 
-
-typedef struct {
-    int height;	// pixels used for width of board (Y Res)
-    int width;	// pixels used for length of board (X Res)
-    UINT32 CsPixels[MAX_IMAGE_Y_RES][MAX_IMAGE_X_RES];
-} CS3300_IMAGE_STRUCT;
-
-typedef struct {
-    CS3300_IMAGE_STRUCT	sTopImageData;
-    CS3300_IMAGE_STRUCT	sBottomImageData;
-} CS3300_IMAGE_DATA; 
-
 #endif // CS3x00
 
-// slm: 07-30-18 - Since using VisionDefectsStruct.h
-#if (0)
-#define MAX_NUM_VISION_DEFECTS		500
-
-typedef struct {
-    int iNumDefects;	
-    UpliftDefect sDefects[MAX_NUM_VISION_DEFECTS];
-} CS3300_DEFECT_STRUCT;
-
-typedef struct {
-    CS3300_DEFECT_STRUCT	sTopDefectData;
-    CS3300_DEFECT_STRUCT	sBottomDefectData;
-} CS3300_DEFECT_DATA;
-#endif
+// slm: 06-23-17
+//#define MAX_NUM_VISION_DEFECTS		500
 
 // slm: 06-23-17
 #if ( VISION_ENABLED )
@@ -1067,8 +958,6 @@ typedef struct {
 	UINT32 Pixels[MAX_IMAGE_Y_RES][MAX_IMAGE_X_RES];
 } VISION_IMAGE_STRUCT;
 
-#if STD_JS50
-// it possible, JS50 could drop these extra variables.  They are only used for Hermary vision; TAV_Scanner
 typedef struct {
 	UINT	iStartingEncoderValue;	// only field for TAV_Scanner image data
 	VISION_IMAGE_STRUCT	sTopImageData;
@@ -1076,13 +965,36 @@ typedef struct {
 	int iTopLaserVideoOffset[MAX_NUM_LASERS];
 	int iBottomLaserVideoOffset[MAX_NUM_LASERS];
 } VISION_IMAGE_DATA;
-#else
-typedef struct {  // CS33xx version
-	VISION_IMAGE_STRUCT	sTopImageData;
-	VISION_IMAGE_STRUCT	sBottomImageData;
-} VISION_IMAGE_DATA;
-#endif // STD_JS50
-#endif // VISION_ENABLED
+#endif
+
+#if 0
+typedef struct DefectRectangleTag
+{
+	int left;
+	int top;
+	int right;
+	int bottom;
+} DefectRectangle;
+
+typedef struct VisionDefectTag
+{
+	int id;
+	int type;
+	DefectRectangle position;	/* pixel position */
+	double area;				/* square inches */
+} VISION_DEFECT;
+
+typedef struct {
+	int iNumDefects;
+	VISION_DEFECT sDefects[MAX_NUM_VISION_DEFECTS];
+} VISION_DEFECT_STRUCT;
+
+typedef struct {
+	VISION_DEFECT_STRUCT	sTopDefectData;
+	VISION_DEFECT_STRUCT	sBottomDefectData;
+} VISION_DEFECT_DATA;
+
+#endif
 
 // slm: 09-05-08 - Only first 2 methods are initially Allowed and Released
 typedef enum
@@ -1120,7 +1032,7 @@ typedef struct {
     int iEncoderCount;
     int iPCellCount;
     int iZoneEncoderValue;
-    int iSpare;		//was weblug for CS3x00 heads
+    int iWebLugID;	//CS3x00 heads
     int iCntsPerLug;  //available on Hermary and BMX systems
 } ENCODER_TEST_DATA;
 
@@ -1149,29 +1061,16 @@ typedef struct {
        by bits in a 16-bit word format. Add 1 to round up  */
 } LIGHT_CURTAIN_MAP;  // stored on disk in file named LCM_DATA.DAT
 
-
-// slm: 08-25-17
 /* LC_MARKED_BAD:  Diodes marked as bad in lc_lyout.c are stored in
      lc_marked_bad.manual[]. Diodes marked as bad in lc_test.c are
      stored in  lc_marked_bad.auto_map[]. All diodes from either array
      marked bad are stored in light_curtain_map. Set bit to zero if bad. */
-#if (0)
-// Original declaration
 typedef struct {
-    unsigned short auto_map[NUM_LC_WORDS];
-    unsigned short manual[NUM_LC_WORDS]; /* 16 used because data is stored
+    unsigned short auto_map;
+    unsigned short manual; /* 16 used because data is stored
        by bits in a 16-bit word format. Add 1 to round up  */
-} LC_MARKED_BAD;      // stored on disk in file named LC_MBAD.dat
-#else
-// Changed to be like either Trimmer v79x, since this declaration is used on the OptWin side only
-// Note: Trimmer sizes for an extra element, to distinguich in between v7.4 + v7.5
-typedef struct {
-	unsigned short auto_map;
-	unsigned short manual; /* 16 used because data is stored
-						   by bits in a 16-bit word format. Add 1 to round up  */
-} LC_MARKED_BAD[NUM_LC_WORDS];      // stored on disk in file named LC_MBAD.dat
-
-#endif
+} LC_MARKED_BAD[NUM_LC_WORDS+1];      // stored on disk in file named LC_MBAD.dat
+// +1 added just so file size would be different between formats of 7.4 and 7.5 conversions.
 
 /* TEST LIGHT CURTAIN DATA.  Starting from the near end, each light curtain
      diode is bit mapped into 16-bit integers. The bit is set to 1 if the
@@ -1187,39 +1086,39 @@ typedef struct {
 /* PROFILE_DATA:  Data returned from laser slave which has been reduced by
 *                    applying thickness parameters to the raw data.  */
 typedef struct {
-    int lead_vne_x;   // inches times 1000 from the beginning of the lug
-    int trail_vne_x;  // for Maximum Wane rule
-    int lead_vne1_x;   // inches times 1000 from the beginning of the lug
-    int trail_vne1_x;  // for Basic Wane rule
-    int lead_thick_x;
-    int trail_thick_x;
-    int lead_scant_t;
-    int trail_scant_t;
+    unsigned int lead_vne_x;   // inches times 1000 from the beginning of the lug
+    unsigned int trail_vne_x;  // for Maximum Wane rule
+    unsigned int lead_vne1_x;   // inches times 1000 from the beginning of the lug
+    unsigned int trail_vne1_x;  // for Basic Wane rule
+    unsigned int lead_thick_x;
+    unsigned int trail_thick_x;
+    unsigned int lead_scant_t;
+    unsigned int trail_scant_t;
+    //  int sqr_indication;     // one bit for each width class (bit 0 = width class[0])
 } PROFILE_GRADE_THICK;
 
-
-// change here? Change above also!!
 typedef struct {
-    int thk_array[MAX_NUM_CNTS_PER_LUG];
-    int wane_up_or_dn;    // wane up is TRUE - Edger only 
-    int sawn_thick;       // used to find sawn face
-    int exceeds_bow;      // profile is bowed is TRUE
-    int lead_edge_x;
-    int lead_edge_y;
-    int trail_edge_x;
-    int trail_edge_y;
     
-#if (STD_JOESCAN)
-    int bot_edge;			// for linear
-    int top_edge;			// for linear
-    int iLengthFromEvenEnd;	// for linear
+#if ( ! VER763x )
+    unsigned int lead_edge_hole_x;	// hole or split detection
+    unsigned int trail_edge_hole_x;	// hole or split detection       
 #endif
     
-    int max_thick;
+#if ( !VER64xx )
+    unsigned int wane_up_or_dn;  
+    unsigned int sawn_thick;       // used to find sawn face
+#endif
+    unsigned int exceeds_bow;      // profile is bowed is TRUE
+    unsigned int lead_edge_x;
+    unsigned int lead_edge_y;
+    unsigned int trail_edge_x;
+    unsigned int trail_edge_y;
+    unsigned int max_thick;
     PROFILE_GRADE_THICK grade_thick[MAX_GRD_THK_COMBO];
     int cut[MAX_SAW_CUTS];    // place cut will take place for this station - Edger only
+    int thk_array[MAX_NUM_CNTS_PER_LUG];	// added 6/2016
 } PROFILE_DATA_STN;
-typedef PROFILE_DATA_STN PROFILE_DATA[MAX_NUM_LASERS+1];  // used by engine only to keep thk_array
+typedef PROFILE_DATA_STN PROFILE_DATA[MAX_NUM_LASERS+1]; // stored as part of LAST_BOARD_DATA
 
 
 // PLAN_DATA:  Leading and trailing edge data from the light curtain.
@@ -1246,18 +1145,30 @@ typedef struct {
     int beam_width;  // stored encoder counts of 1/64 inch
 } LC_CALIB_STRUCT;
 typedef LC_CALIB_STRUCT LC_CALIB[TOT_DIODES];
-
-/* Photo Cell Calibration */
 typedef struct {
-    int pcell_curtain_offset; // offset calculated by cal from M24 laser to pcell
-    int iPCell_Offset_Top[MAX_NUM_LASER_PCELLS];
-    int iPCell_Offset_Bot[MAX_NUM_LASER_PCELLS];
-    int positioner_laser[MAX_NUM_LASER_PCELLS]; //laser number at the Pcell.
-    int iPCellTopDist[MAX_NUM_LASER_PCELLS];
-    int iPCellBotDist[MAX_NUM_LASER_PCELLS];
-    int iXdiffTop[ (23*13)+6 ];	// only used on M24 (23 laser spots x 13 max heads) + 6
-    int iXdiffBot[ (23*13)+6 ];	// only used on M24 (23 laser spots x 13 max heads) + 6
-} PC_CALIB;
+	int iOffset[TOT_DIODES];
+} LC_CALIB_OFFSET;
+
+
+// structure is an array of the center positions of each laser profile, after rotation is done.
+// It is stored as count, range.
+typedef struct{  
+	int iX;		// Count of the Center position of the profile, After profile is rotated
+	int iY;		// Range reading of the center of the profile, After profile is rotated
+}CENTERVALUE[MAX_NUM_LASERS];
+
+// a - values define the x,y value to normalize an entire piece, if normalizing to this profile
+// b - values define the x,y value to normalize an individual profile to itself.
+typedef struct { 
+	int Xa0; // a0 x,y will always be the rotation point at a lower elevation in space
+	int Ya0;
+	int Xa1; // a1 x,y will be the rotation point higher in elevation in space
+	int Ya1;
+	int Xb0; // b0 x,y will always be the leading edge rotation point
+	int Yb0;
+	int Xb1; // b1 x,y will always be the trailing edge rotaion point
+	int Yb1;
+} EVAL_POINTS[MAX_NUM_LASERS];
 
 // status using for chromascan system
 typedef enum CSSTATUS
@@ -1266,11 +1177,6 @@ typedef enum CSSTATUS
 	CS_READY,
 	CS_ERROR
 } CS_STATUS;
-
-typedef struct {
-	int iTopCnt;
-	int iBotCnt;
-} LZ_DROPOUT_CNT; 
 
 typedef struct {
 	char cUserName[20];
@@ -1282,32 +1188,26 @@ typedef struct {
 
 /* GENERAL STUFF (to be input at start-up by Hi-Tech ?)  */
 typedef struct  {
-    char cust_name[40];       /* customer name */
-    char cust_loc[30];        /* customer location */
-    char cust_passwordADMN[10];   /* customer defined password */
-    unsigned long job_num;    /* Hi_Tech Job number for special stuff */
-    int right_or_left;        /* HAND for specific installation,right=TRUE */
-    int Lug_Spacing;	// Size of lug spacing in inches; can not exceed max defined
-    int UseMachineCenters;	// Specify how to collect QC data
-    int calib_bar_thick;      //Thickness of calibration bar, inches times 1000
-    int calib_bar_width;      //Width     of calibration bar, inches times 1000
-    int language;             // ENGLISH=0, FRENCH=1
-    int plc_io_speed;         /* offer choice of plc/io speed 57k or 114k */
-    unsigned long validation; /* Reserved for future use */
-    USER_PROFILE UserProfile[NUM_USERS];
-    MACHINE_CENTER machine_center[MAX_NUM_MACHINE_CENTERS+1];
-    // slm: 04-25-17 - Assigned spares as for TRIMMER in Preparation of code Merge
-    int				CubicFt;				// TODO: N.U. - display as Cubic Ft instead of BrdFt
-    int				B800RangeOffset;		// TODO: N.U. - default 17000; some installs require 10000
+    char				cust_name[40];			/* customer name */
+    char				cust_loc[30];			/* customer location */
+    char				cust_passwordADMN[10];	/* customer defined password */
+    unsigned long		job_num;				/* Hi_Tech Job number for special stuff */
+    int				right_or_left;			/* HAND for specific installation,right=TRUE */
+    int				Lug_Spacing;			// Size of lug spacing in inches; can not exceed max defined
+    int				UseMachineCenters;		// Specify how to collect QC data
+    int				calib_bar_thick;		//Thickness of calibration bar, inches times 1000
+    int				calib_bar_width;		//Width     of calibration bar, inches times 1000
+    int				language;				// ENGLISH=0, FRENCH=1
+    int				plc_io_speed;			/* offer choice of plc/io speed 57k or 114k */
+    unsigned long		validation;				/* Reserved for future use */
+    USER_PROFILE		UserProfile[NUM_USERS];
+    MACHINE_CENTER	machine_center[10+1];	//left hardcoded to 10 so it did not mess up struct size.
+    int				CubicFt;				// display as Cubic Ft instead of BrdFt
+    int				B800RangeOffset;		// default 17000; some installs require 10000
     float				fDistPerLzEncoderTick;	// default (1.0/LZ_CNTS_PER_INCH_HARD)
     int				iEncoderCntPerInch;		// only on JS50, Encoder resolution adjustable
     int				spare[20];
 } CUST_DATA;  // stored in disk file named CUSTDATA.DAT
-
-
-
-
-#define NUM_SOL_SPEC 4
 
 /* IMPLEMENT_DATA:  Data supplied by the optimizer engine used to tell
 /* a decision implementation subsystem the actions specified by the
@@ -1323,42 +1223,26 @@ typedef struct {
     int odd_length_saw;
     // open this one?
     int open_tipple[MAX_NUM_SMART_TIPPLES];
-    int reman[NUM_SOL_SPEC];       // needs to be re-edged and possibly resawn
-    int resaw[NUM_SOL_SPEC];       // needs to be resawn only
-    // edger pass is no resaw or reman indication
+    int reman[2];          // needs to be re-edged and possibly resawn
+    short wane_up_or_down; // defines how wane is positioned on board
+    short PlanerMark;      // Defines which side to mark for planer (top or bottom)
+    int spare2;
+    int resaw[2];          // needs to be resawn only
+    int beg_ele;           // beginning of scanned board data in LC elements
+    int end_ele;           // end of scanned board data in LC elements
     int diverter;          // needs to be diverted
     int lc_good;           // true if lc data is valid
     int alarm;             // enunciates alarm
     int stop_chain;        // solution not positionable, inhibits chain
     int bowed_board;       // set for bowed boards
-    
-    int ne_posn;           // which near end positioner to raise - Edger
-    int fe_posn;           // which far end positioner to raise - Edger
-    
     int fe_gate_movement;  // when ioconfig specified use far end gate
-    // depth of cut on near end lead along with
-    //    far end depth tells where to position
-    int ne_cut_depth;
-    int fe_cut_depth;
-    int ne_width;          // width at near end positioner
-    int fe_width;          // width at far end positioner
-    int wane_down;         // true if wane is down - Edger
-    int flip_board;        // true if board turner to be used - Edger
-    int ne_pos_lz;         // lz location of near end positioner - Edger
-    int fe_pos_lz;         // lz location of far end positioner - Edger
-    int iFirstLz;			 // first lz having valid data
-    int iLastLz;			 // last lz having valid data
-    // slm: 08-25-17 - changed name to be as in Trimmer v79x (Next 2 items)
-    int beg_ele;			 // First LC/vision Diode (was iFirstDiode)
-    int end_ele;			 // Last LC/vision diode (was iLastDiode)
-    int iNeSawLoc;         // location of saw at initial laser read - Linear Edger
-    int iFeSawLoc;         // location of saw 6' from end - Linear Edger
-    int iCrossCutSaw;		 // array reference to cross cut trim saw location
-    // slm: 05-22-14 Used as Mouse trap to debug OptWin croscut issues in BdList View  
-    int iSolutionPhase;	 // 0= No CrossCut (CC) solution, 1=CC (full Length), 2=CC NE, 3=CC FE
-    int MeasuredVolumeIn;	 // volume of piece as is coming in. 
+    
+    int density;           // density of board
+    int MeasuredVolume;    // calculated volume
+    int raw_thk;
+    int raw_wth;
     int iVisionDataGood;	 // True if vision data is valid.
-    int iSpare[10];		 // spares
+    int iSpare[15];		 // spares
 } IMPLEMENT_DATA;        // Information of how to implement decision
 
 typedef struct {
@@ -1374,170 +1258,32 @@ typedef struct {
 
 typedef struct {
     int category;             // category classification
-    
-    //Added defines for Kitchens multi-grade select
-    int iLeadGrade;						// Lead board grade input
-    int iCenterGrade;					// Center board grade input
-    int iTrailGrade;					// Trail board grade input
-    
     int product;              // product classification
-    int rdm_width;            // raw width of random width solution
-    int grade_thick;          // grade-thickness classification - Edger
+    int rdm_width;            // Raw Width for Random Width solutions.
     int grade;                // grade classification
     int thick;                // thickness classification
     int width;                // width classification
-    int length;				// length classification
+    int length;               // length classification
     int board_relative_worth; // price or volume
-    int FarBegin;				// last station to start good wood
     int beg_station;          // beginning station of this piece
     int actual_len;           // actual length of solution
-    int iStatus;              // Multi-use status word added for Lampe & Malphrus
+    int bias;                 // gives general position of piece
     int pass_const;           // tells whether piece needs resaw, re-edge, etc.
     int beg_square;           // beginning of square section
     int len_square;           // length of square solution
-    CUTTING_SOL Cuttings;
+    int twist;				// twist in product
+    int bow;					// bow in product
+    int crook;				// crook in product
+    int EqFaceWane;
+    int EqEdgeWane;
+    int PctClrFace;			// percentage of clear face in product.
+    int Volume;				// Volume of cut length - used for accustic graders
+    int CutLength;			// Cut length - used for accustic graders
+    int spare[14];
 } SOL_SPEC_BRD;
-typedef SOL_SPEC_BRD SOLUTION_SPEC[NUM_SOL_SPEC];  // set for the improbable case
-// of four boards
-/******************** Optimization Data - Fit Information *****************/
-/*
-  This structure is designed to have all necessary data to
-  re-create the image and solution for later debugging.
-*/
+typedef SOL_SPEC_BRD SOLUTION_SPEC[2];  // set for 2 board solutions
 
-#define MAX_ERROR_CODES 4
-//Defines the error codes used in conjunction with the erro type below for product fit errorcodes array
-enum FAILURE_ERROR_CODES{
-	NO_ERRORS,
-	THK_UNDER_MIN,
-	THK_OVER_MAX,
-	THK_BASIC_WANE,
-	THK_MAX_WANE,
-	THK_SCANT_WANE,
-	WID_UNDER_MIN,
-	WID_OVER_MAX,
-	WID_BASIC_WANE,
-	WID_MAX_WANE,
-	WID_SCANT_WANE,
-	LEN_UNDER_MIN,
-	LEN_OVER_MAX,
-	LEN_BASIC_WANE,
-	LEN_MAX_WANE,
-	LEN_SCANT_WANE,
-	FACE_UNDER_MIN,
-	FACE_OVER_MAX,
-	FACE_BASIC_WANE,
-	FACE_MAX_WANE,
-	FACE_SCANT_WANE,
-	INTERFERENCE,
-	NOT_POS_GENERAL,
-	NOT_POS_SOL_WID_0,
-	NOT_POS_NE,
-	NOT_POS_FE,
-	NOT_POS_HIT_LEAD,
-	NOT_POS_HIT_TRAIL,
-	CHIP_DEPTH_LEAD,
-	CHIP_DEPTH_TRAIL,
-	FREEDOM,
-	MAN_OVERRIDE_GRADE,
-	MAN_OVERRIDE_THICK,
-	MAN_OVERRIDE_WIDTH,
-	GRADE_FAILED_DOWNGRADE,
-	WANE_LIMIT_NOT_SET,			// slm: 01-07-15
-	DEFECT_ERROR,				// slm: 04-01-15
-	LAST_ITEM
-};
-
-
-typedef struct
-{ /* !!! index = 0 is not used, so that negative multiboard indices
-                                                                            are unique.  Otherwise 0 == -0 */
-    int NbrBoards;
-    int Index1;              /* index to SortedList if (NbrBoards = 1)
-                                or index to BoardFits if (NbrBoards > 1)
-                                or -1 if end of fit list */
-    
-    int Index2;              /* index to BoardFits if (NbrBoards > 1) */
-    
-    int iGrade;				 /* the actual grade of the product. */
-    int NEPin;               /* near end pin number */
-    int FEPin;               /* far end pin number */
-    int NearBegin;
-    int FarBegin;
-    int FinalBegin;          /* Beginning of combo from lumber line -
-                                comes from WidthFit[].Line[][].FinalBegin */
-    int TrlMostLdEdge;       /* Location of lead edge with combo against
-                                trailing limit - calculated from
-                                (WidthFit[].Line[][].TrlLWaneLimit - thk) */
-    int LdMostTrlEdge;       /* same (only different) */
-    
-    int LdFace;              /* lead edge face limit */
-    int TrlFace;             /* trail edge face limit */
-    
-    int lead_edge;           /* lead edge for board */
-    int trail_edge;          /* trail edge for board */
-    
-    int Width;               /* includes Kerf for multiboards */
-    long int Value[MAX_NUM_LEN]; /* cents.  Includes deducts */
-    
-    // slm: 3.13.2.9 - Renamed + Used for multibits operation
-    //  int PassFlag;            /* 0 if not pass, NZ if pass */
-    int Flags;				 // Bit 0 Set = Pass
-    // Bit 1 Set = Not Positionable: Chip Depth
-    // slm: 4.0.0.10
-    // Bit 2 Set = Not Positionable: Servo Limit NE
-    // Bit 3 Set = Not Positionable: Servo Limit FE
-    // Bit 4 Set = Not Positionable: Side Wall Crash Lead
-    // Bit 5 Set = Not Positionable: Side Wall Crash Trail
-    // Bit 6 Set = Not Positionable: Saw Shift Violation
-    // Bit 7 Set = Not Positionable: Limited By Width
-    // Bit 8 Set = Not Positionable: Invalid Pin Selection
-    
-	// slm: 06-12-14 - Expanded usage with Bit 16..23 to contain code path execution to justify addition of a new fit to list
-	// The above additional bits utilization is enabled/controlled from inside ThickFit()
-    
-	int TClass;              /* thickness class to find thickness flags */
-    int TCombined;           /* true if this is a combo that uses more
-                                than one thickness - optimizer only combines
-                                two different thicknesses i.e. stack and jacket
-                                boards can be different thicknesses */
-    int LClass1;             /* Length class to find min lens */
-    int LClass2;             /* Length class to find min lens */
-    int LCombined;           /* true if this is a combo */
-    int NbrBoardsStack;      /* number of boards in the solution stack */
-	int iLeadTrailPos;		//The position this board was fitted for.  0 = Lead, 1 = Trail in ProductFits
-    int RandomWidth1;        // 0 if not a Random Width Solution
-    int RandomWidth2;        // 0 if not a Random Width Solution
-    int RandomWidth3;        // 0 if not a Random Width Solution
-    int RandomWidth4;        // 0 if not a Random Width Solution
-    
-    int iPushOrPull;         // For Hardwood.  0 if neither, 1 if push, 2 if pull
-    int iPullWidth;          // Quantify pull width
-    int iPushWidth;          // Quantify push width
-    int iPushWidthValue;     // How much is it worth?
-    
-	int iCrashValue;		 // Value is used at this time as Diagnostic, since PLC does not use it yet
-	CUTTING_SOL Cuttings;
-	bool bTrashCase;
-    
-	// Used by Solution History	
-	FAILURE_ERROR_CODES eErrorCodes[MAX_NUM_LEN]; //error codes added GMB 3/4/14 for edger board debugging features
-	TCHAR strFailLocation[25]; //the location in the code where the failure occured
-	int iFailureLineNum; //linenumber of failure
-    
-} BOARDFITS;
-
-
-//to track the skew information per angle so we can recreate boards in optwin for debugging GMB 3-4-14
-typedef struct {
-	int		iAngleNumber;		// Initial angle thread was created for (-4,-3,-2,-1,0,1,2,3,4) original 9 angles, 0 split taper, others are degrees of full taper on each side
-	int		iAngleDegrees;		// Signed value away from Centerline in degrees in multiples of 7 degrees (-28,-21,-14,-7,0,7,14,21,28)
-	int		iCaseID;			// Intended to operate as engine 4..12: Value 0..9.  Used to keep track of which thread is running which engine in MT environment
-	int		iAngleIndex;	    // Converts the signed AngleNumber to an unsigned index that is used for storage array locations of each angle's information
-	int     iSkewDegrees;		// Calculated in Skew() (Value is skew value * 10000).  Actually the slope that skew uses to align the laser data to solve with
-	int		iSpare;
-	double  dSlope;				// slm: 07-01-14
-} ANGLE_INFO;
+typedef SOLUTION_SPEC  TOP_SOL_SPEC[MAX_NUM_SAVED_SOL];  //save top solutions for reference
 
 /************* input output maps  **************************/
 #define IO_IN	0
@@ -1549,112 +1295,72 @@ typedef struct {
     int in_or_out;
 } INPUT_OUTPUT_MAP;
 
+/* To add new items to this list, see instructions in the file ioconfig.c.
+   All items in this list are set via input in ioconfig.c which is called
+   thru AF12 from EXEC UTILITIES menu */
 typedef struct {
-    
-    //transverse I/O
-    //inputs
     INPUT_OUTPUT_MAP encoder;              // Electro - Cam sequencer (8 max; input)
+    INPUT_OUTPUT_MAP second_saw_sol;       // If more than 16 Saws (8 max; output)
+    INPUT_OUTPUT_MAP saw_solenoids;        // Trim Saws (16 max; output)
+    INPUT_OUTPUT_MAP tipple_solenoids;     // 1st. set of tipples (8 max-o)
+    INPUT_OUTPUT_MAP gate_solenoids;       // fence (8 max-o)
+    INPUT_OUTPUT_MAP fe_gate_solenoids;    // far-end fence; Canadian (8 max-o)
+    INPUT_OUTPUT_MAP category;             // binary value of cat_pb (3-o)
+    INPUT_OUTPUT_MAP cut_length;           // cut_len of sol. inches*10 (16-o)
+    INPUT_OUTPUT_MAP nom_length;           // nom_len of sol. inches*10 (16-o)
+    INPUT_OUTPUT_MAP slash;                // bit indicates no brd value(1-o)
+    INPUT_OUTPUT_MAP conveyor_enable;      // (1-o)
+    INPUT_OUTPUT_MAP mark_board;           // mark a board for test (1-o)
+    INPUT_OUTPUT_MAP alarm;                // board out of spec (1-o)
+    INPUT_OUTPUT_MAP fe_gate_action;       // Gate action (# gate incr.) (7-i)
     INPUT_OUTPUT_MAP display_select;       // Select Vorne display option (3-i)
-    INPUT_OUTPUT_MAP grd_input;            // grd pb input (16-i)
+    INPUT_OUTPUT_MAP saws_to_slash;        // Saw locations with lumber (16-o)
+    // Select man inputs as override/preselect (1-i)
+    INPUT_OUTPUT_MAP manual_preselect_toggle;
     INPUT_OUTPUT_MAP ne_cutoffs;           // Near end cutoffs (4-i)
     INPUT_OUTPUT_MAP fe_cutoffs;           // Far end cutoffs (4-i)
-    INPUT_OUTPUT_MAP force_lead;           // pb to force a fixed width board on lead side (1-i)
-    INPUT_OUTPUT_MAP force_center;         // pb to force a fixed width board in center (1-i)
-    INPUT_OUTPUT_MAP force_trail;          // pb to force a fixed width board on trail side (1-i)
-    INPUT_OUTPUT_MAP force_pb1;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb2;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb3;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb4;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb5;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb6;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb7;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb8;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP force_pb9;            // pb to force a fixed width board (1-i)
-    INPUT_OUTPUT_MAP bark_allow_lead;      // pb to force a Lead bark allowance (1-i)
-    INPUT_OUTPUT_MAP bark_allow_trail;     // pb to force a Trail bark allowance (1-i)
-    INPUT_OUTPUT_MAP scan_in_progress;     // board currently being scanned (1-i)
-	// Select man inputs as override/preselect (1-i)
-    INPUT_OUTPUT_MAP machine_center_select; // (4-i)
-    INPUT_OUTPUT_MAP manual_preselect_toggle;
-    INPUT_OUTPUT_MAP cat_pb;               // input category pb (5-i)
-    
-    //outputs
-    INPUT_OUTPUT_MAP scanner_alarm;        //scanner alarm status (1-o)
-    INPUT_OUTPUT_MAP calc_in_progress;     // optimizer calculations are in progress (1-o)
-    INPUT_OUTPUT_MAP positioner_mask;      // which positioner to raise (5-o)
-    INPUT_OUTPUT_MAP positioner_usable_mask; // which pos'ners are enabled (5-o)
-    INPUT_OUTPUT_MAP zone_diagnostic;      // res_opt zone feedback (3-o)
-    INPUT_OUTPUT_MAP edger_word0;          // multiplexed raw thick and product thick for top head (16-o)	
-    INPUT_OUTPUT_MAP edger_word1;          // first word multiplexed data (16-o)
-    INPUT_OUTPUT_MAP edger_word2;          // second word multiplexed data (16-o)
-    INPUT_OUTPUT_MAP edger_word3;          // third word multiplexed data (16-o)
-    INPUT_OUTPUT_MAP edger_word4;          // fourth word multiplexed data (16-o)
-    INPUT_OUTPUT_MAP conveyor_enable;      // scanner through feed chains running (1-o)
-    INPUT_OUTPUT_MAP alarm;                // board out of spec (1-o)
+    INPUT_OUTPUT_MAP gate_action;          // Gate action (# gate incr.) (7-i)
+    INPUT_OUTPUT_MAP nom_thick;            // Nominal thickness passed to sorter (16-o)
+    INPUT_OUTPUT_MAP nom_width;            // Nominal width passed to sorter (16-o)
     INPUT_OUTPUT_MAP skewed_board;         // no solution; brd skewed (1-o)
-    INPUT_OUTPUT_MAP reman;                // ne or fe reman (2-o)
     INPUT_OUTPUT_MAP resaw;                // ne or fe resaw (2-o)
-    INPUT_OUTPUT_MAP mark_board;           // mark a board for test (board in lug) (1-o)
-    INPUT_OUTPUT_MAP ne_valid;             // edger_words = near end data (1-o)
-    INPUT_OUTPUT_MAP fe_valid;             // edger_words = far end data (1-o)
-    INPUT_OUTPUT_MAP saw_valid;            // edger_words = saw width data (1-o)
-    INPUT_OUTPUT_MAP wane_down;            // board is wane down (1-o)
-    INPUT_OUTPUT_MAP board_turner;         // board turner (1-o)
-    INPUT_OUTPUT_MAP slash;                // bit indicates no brd value(1-o)
-    INPUT_OUTPUT_MAP overwidth_board;      // signal board is overwidth (1-o)
-    INPUT_OUTPUT_MAP overthick_board;      // signal board is overthick (1-o)
-    INPUT_OUTPUT_MAP underlength_board;    // signal board is underlength (1-o)
-    
-    // Begin add for Lampe & Malphrus
-    INPUT_OUTPUT_MAP flitch_pb;            // pb to indicate flitch (1-i)
-    INPUT_OUTPUT_MAP pass_pb;              // pb to indicate flitch "pass" (1-i)
-    INPUT_OUTPUT_MAP thk_selector;         // selector switch for 5/4-7/4 (1-i)
-    INPUT_OUTPUT_MAP num_brds_pb;          // pb for # brds in a cant (4-i)
-    INPUT_OUTPUT_MAP timber_pb;            // pb to select timber size (2-i)
-    
-    INPUT_OUTPUT_MAP PLC_WatchDog;         // (8-i) Input counter from PLC is repeated back in Block Xfer.
-    INPUT_OUTPUT_MAP ForceSquareEdge;      // (2-i) Input to force sqr edge along board
+    INPUT_OUTPUT_MAP reman;                // ne or fe reman (2-o)
+    INPUT_OUTPUT_MAP cat_pb;               // input category pb (5-i)
+    INPUT_OUTPUT_MAP grd_input;            // grd pb input (16-i)
+    INPUT_OUTPUT_MAP zone_diagnostic;      // res_opt zone feedback (3-o)
+    INPUT_OUTPUT_MAP output_grd_pb;        // binary value of grd_pb for ne (5-o)
+    INPUT_OUTPUT_MAP alarm_1_and_2;        // alarm1 and alarm2 (2-o)
+    INPUT_OUTPUT_MAP alarm_slash_reject;   // alarm for consec. slashes or reject (3-o)
+    INPUT_OUTPUT_MAP divert_reject;        // Flag to PLC for Divert Parcel (1-o)
+    INPUT_OUTPUT_MAP sec_saws_to_slash;    // more that 16 saws (8-o)
+    INPUT_OUTPUT_MAP machine_center_select; // (4-i)
+    INPUT_OUTPUT_MAP odd_length_saw;       // (1-o)
+    INPUT_OUTPUT_MAP output_grd_pb_2;      // binary value of grd_pb for fe(5-o)
+    INPUT_OUTPUT_MAP scanner_alarm;        // (8-o) signal plc if scanner malfunctions
+    INPUT_OUTPUT_MAP weight_input;         // (16-i) wieght used for density
+    INPUT_OUTPUT_MAP species_output;       // (3-o) species used with wieght
+    INPUT_OUTPUT_MAP density;              // (10-o) Denisty lb/ft3*10
+    INPUT_OUTPUT_MAP test_board;           // (1-i) Used with acquire_mode for board test
+    INPUT_OUTPUT_MAP random_length;        // (1-o) Flag to indicate solution is Random Length
+    INPUT_OUTPUT_MAP no_trim;              // (1-i) input to handle no-trim case
+    INPUT_OUTPUT_MAP force_trim;           // (1-i) input to disable reman and resaw, forces trim solution
+    INPUT_OUTPUT_MAP fe_grade_input;       // (5-i) grd pb input (binary number 1-16)
+    INPUT_OUTPUT_MAP cut_in_two_loc;       // (4-i) input to define cut-in-two location (binary number 1-15ft).
+    INPUT_OUTPUT_MAP center_defect_trim;   // (3-i) input to define center defect trim  (binary number 1-7ft).
+    INPUT_OUTPUT_MAP brd_volume;           // (16-o) output for volume of raw length brd
+    INPUT_OUTPUT_MAP wane_up_or_down;      // (2-o) LSB-wane down; MSB-wane up
+    INPUT_OUTPUT_MAP OverThkForTrimmer;    // (1-o) Output turns on when boards is to thick to pass thru Trimmer.
+    INPUT_OUTPUT_MAP PLC_WatchDog;         // (4-i) Input counter from PLC is repeated back in Block Xfer.
+    INPUT_OUTPUT_MAP UpTimePct;            // (16-i) Input of Pct up time from PLC. Displayed on Vorne. Format 78.2% = 782
     INPUT_OUTPUT_MAP B8_COM_Lost;          // (1-o) Output to tell PLC if B8 ENET Com Lost
+    INPUT_OUTPUT_MAP MarkForPlaner;        // (2-o) Output to define best planer orientation LSB=Top; MSB=Bottom.			
+    INPUT_OUTPUT_MAP Grader_ID;            // (4-i) Input of Grader ID; Binary value of (1-15)			
     INPUT_OUTPUT_MAP CalModeBit;           // (1-o) Output to tell PLC System is in Calibrate Mode
-    INPUT_OUTPUT_MAP test_board;           // (1-i) 
-    INPUT_OUTPUT_MAP Lz_On_Flag;           // (1-i) Input: Flag to Opt to disable or enable lasers; 1=LZ ON; 0=LZ OFF
+    INPUT_OUTPUT_MAP Lz_On_Flag;           // (1-i) Input: 1=LZ ON; 0=LZ OFF
     INPUT_OUTPUT_MAP Lz_Pwr_ON;			 // (1-o) Output: Flag to PLC; Scanner is ON and READY
-    INPUT_OUTPUT_MAP ForcedWidth;			 // (5-i) Input forced width in decimal form
-    
-    
-    /* Linear I/O for JoeScan Linear Edger Project; moved and added at bottom of list */	
-    //// Linear I/O
-    ////inputs
-    INPUT_OUTPUT_MAP data_acknowledge;	 // (1-i) (Linear Only) acknowledgement that PLC got data (1-i)
-    INPUT_OUTPUT_MAP skew_inhibit;		 // inhibit skewing of saws (1-i)
-    
-    ////outputs
-    INPUT_OUTPUT_MAP target_thick;		 //thickness for top head (1-o)
-    INPUT_OUTPUT_MAP raw_length;			 //board length in inches (1-o)
-    INPUT_OUTPUT_MAP nearend_cut;			 //cutline distance from linebar at 0"
-    INPUT_OUTPUT_MAP farend_cut;			 //cutline distance from linebar at 72"
-    INPUT_OUTPUT_MAP lead_width;			 //target width for single or linebar side
-    INPUT_OUTPUT_MAP trail_width;			 //target width for second board
-    
-    ////outputs -- status bits
-    INPUT_OUTPUT_MAP data_valid;       // solution is complete; data sent to PLC (1-o)
-    INPUT_OUTPUT_MAP strip_test;			//(1-i)Force edger to cut 1/2" strip
-    INPUT_OUTPUT_MAP ForceLz_Reset;		//(1-i)Force lasers to reset from PLC input
     INPUT_OUTPUT_MAP PLC_WatchDog_Out;     // (4-o) Output counter to PLC is repeated back.
-    
-    INPUT_OUTPUT_MAP CrossCutEnable;     // (1-i) Input Allow PLC to disable Crosscut solutions.
-    
-    INPUT_OUTPUT_MAP WidthForceLead;     // (8-i) Binary Input defines width PB.
-    INPUT_OUTPUT_MAP WidthForceCenter;   // (8-i) Binary Input defines width PB.
-    INPUT_OUTPUT_MAP WidthForceTrail;    // (8-i) Binary Input defines width PB.
-    
-    INPUT_OUTPUT_MAP GradeInputLead;     // (8-i) Binary Input defines grade PB.
-    INPUT_OUTPUT_MAP GradeInputCenter;   // (8-i) Binary Input defines grade PB.
-    INPUT_OUTPUT_MAP GradeInputTrail;    // (8-i) Binary Input defines grade PB.
-    
-    INPUT_OUTPUT_MAP UsePinEnableBit8;    // (1-i) handle how enable bits are addressed.
-    
-    // Spares
+    INPUT_OUTPUT_MAP PalletRunMode;		 // (8-i) Input Special for Beasley Job 1429-01.
+    INPUT_OUTPUT_MAP InputLugID;			 // (16-i) Input Lug ID from PLC; passed back to PLC with output solution
     INPUT_OUTPUT_MAP spare[NUM_SPARES];    // NUM_SPARES defined above
 } IO_MAP;
 
@@ -1669,54 +1375,37 @@ typedef struct {
 /* MANUAL_PRESELECTS specify when an operator pre-selects a cutoff or gate
    action to remove a visual defect */
 typedef struct {
-    int ne2;				 // cut 2' off near end
-    int ne4;				 // cut 4' off near end
-    int ne6;				 // cut 6' off near end
-    int ne8;				 // cut 8' off near end
-    int fe2;				 // cut 2' off far end
-    int fe4;				 // cut 4' off far end
-    int fe6;				 // cut 6' off far end
-    int fe8;				 // cut 8' off far end
-    int ne_cutoff;		 // position in lc elements of selected NE cutoffs
-    int fe_cutoff;		 // position in lc elements of selected FE cutoffs
-    int gate;				 // perform programmed gate action
-    int fe_gate;			 // perform programmed gate action on fe
-    // Begin add for Lampe & Malphrus
-    int flitch;            // evaluate this board as a flitch
-    int pass;              // "pass" this flitch/board
-    int thk_selector;      // 0 = 5/4; 1 = 7/4; thickness of boards
-    int three_board_cant;  // make three boards
-    int six_board_cant;    // make six boards
-    int nine_board_cant;   // make nine boards
-    int twelve_board_cant; // make twelve boards
-    int timber1_cant;      // make a small timber
-    int timber2_cant;      // make a large timber
-    int cant_selected;     // TRUE if any of prev six TRUE
-    // End add for Lampe & Malphrus
-	// Begin add for Hardwood edger
-    int force_lead;        // pb to force a fixed width board on lead side 
-    int force_center;      // pb to force a fixed width board in center
-    int force_trail;       // pb to force a fixed width board on trail side 
-    int force_width;       // pb to force a fixed width board 
-    
-    // Added defines for Kitchens multi-grade select
-    int iLeadGrade;				 // forced lead grade
-    int iCenterGrade;			 // forced center grade
-    int iTrailGrade;			 // forced trail grade
-    
-    int bark_allow_lead;   // pb to force a lead bark allowance 
-    int bark_allow_trail;  // pb to force a trail bark allowance 
-    
-    // slm: Added with 3.13.2.7 - Required for Battle Lbr Co.
-    int iForceSquareEdge;  // SQ_NONE, SQ_LEAD, SQ_TRAIL, SQ_BOTH
+    int ne2;        // cut 2' off near end
+    int ne4;        // cut 4' off near end
+    int ne6;        // cut 6' off near end
+    int ne8;        // cut 8' off near end
+    int fe2;        // cut 2' off far end
+    int fe4;        // cut 4' off far end
+    int fe6;        // cut 6' off far end
+    int fe8;        // cut 8' off far end
+    int PalletRunMode; // job specific input for Beasley 1429-01
+    int ne_cutoff;  // position in lc elements of selected NE cutoffs
+    int AutoNoTrim; // Board is at min length; force an Auto No Trim.
+    int fe_cutoff;          // position in lc elements of selected FE cutoffs
+    int CenterDefectTrim;   // length of center defect trim
+    int gate;               // perform programmed gate action
+    int category;     // input Category from operator
+    int fe_gate;      // perform programmed gate action on fe
+    int graderID;     // ID of Grader; tracks which grader gave input.		
+    int species;	  // Species given by operator
+    int grade_input;  // grade input for ne or full length
+    int weight;	      // weight of board from PLC
+    int CenterCut;    // location of forced cut-in-two
     int test_board;   // board was marked for board test
-    
-    int NE_Crush;		// record value of expected crush on Near-End
-    int FE_Crush;		// record value of expected crush on Far-End
-    int spares[6];
+    int force_trim;   // reman and resaw disabled for this board solution.
+    int no_trim;      // board marked as no-trim
+    int fe_grade_input; // grade input for fe
+    int rdm_length_prd;	// force output of random length data.
+    int InputLugID;		// Input Lug ID from PLC to track solution.
+    int spares[14];
 } MANUAL_PRESELECTS;
 
-// slm: 07-16-09 - Expanded to break down Process Laser + Assigned all remaing spares
+// It used overlay the spares in MANUAL_PRESECT, before expansion
 // times should be stored in uSeconds
 typedef struct
 {
@@ -1725,69 +1414,26 @@ typedef struct
         struct
         {
             unsigned int engine1;				// 0
-            unsigned int engine1a;				// 1
-            unsigned int engine2;				// 2
-            unsigned int engine3;				// 3
-            unsigned int engine4;				// 4 SplitTaper
-            unsigned int engine5;				// 5 1st Skew
-            unsigned int engine6;				// 6
-            unsigned int engine7;				// 7
-            unsigned int engine8;				// 8
-            unsigned int engine9;				// 9
-            unsigned int engine10;				// 10
-            unsigned int engine11;				// 11
-            unsigned int engine12;				// 12 Last Skew
-            unsigned int engine13;				// 13
-            unsigned int engineTotalSkew;		// 14
-            unsigned int engineTotalSolution;	// 15
-#if (STD_3X00)
-            unsigned int CS3x00_SocketTLz;		// 16 Top Lasers
-            unsigned int CS3x00_SocketTVz;		// 17 Top Vision
-            unsigned int CS3x00_SocketBLz;		// 18 Bottom Lasers
-            unsigned int CS3x00_SocketBVz;		// 19 Bottom Vision
-            unsigned int CS3x00_SocketTotal;	// 20 total Socket Read Time
-            unsigned int CS3x00_FindDefects;	// 21 time to find defects (uplift)
-            unsigned int CS3x00_ParseTime;		// 22 total CS3x00 time; time from first socket read until uplift processing is complete
-            unsigned int na23;
-            unsigned int na24;
-            unsigned int na25;
-#elif (STD_JOESCAN)
-            unsigned int JS_RcvProfiles;		// 16 Time required to receive profiles from start of board to end	
-            unsigned int JS_MoveToXLat;			// 17 Move profiles to XLat
-            unsigned int JS_StopSyncMode;		// 18 Stop sync mode on JoeScan heads 
-            unsigned int JS_ProcessLasers;		// 19 Total Process laser data: [23+24+25]
-            unsigned int JS_TotalScanTime;		// 20 Time from start of receiving profiles to end of process laser data
-            unsigned int na21;
-            unsigned int na22;
-            unsigned int JS_ProcessLasers0;		// 23: Process laser data: Phase[0]
-            unsigned int JS_ProcessLasers1;		// 24: Process laser data: Phase[1]
-            unsigned int JS_ProcessLasers2;		// 25: Process laser data: Phase[2]
-#else
-            unsigned int na16;		
-            unsigned int na17;
-            unsigned int na18;
-            unsigned int na19;
-            unsigned int na20;
-            unsigned int na21;
-            unsigned int na22;
-            unsigned int na23;
-            unsigned int na24;
-            unsigned int na25;
-#endif
-            unsigned int na26;
-            unsigned int na27;
-            unsigned int Skew;					// 28 Skew time for the angle we have chosen
-#if (STD_3X00)
-            unsigned int DefectEval;			// 29 Skew time for the angle we have chosen
-#else
-            unsigned int na29;
-#endif
-            unsigned int na30;
-            unsigned int na31;					// 31: Reserved to report Engine # that solved
+            unsigned int engine2;				// 1
+            unsigned int engine3;				// 2
+            unsigned int engine4;				// 3
+            unsigned int engine5;				// 4
+            unsigned int engine6;				// 5
+            unsigned int engineTotalSolution;	// 6
+            unsigned int CS3x00_SocketTLz;		// 7 Top Lasers
+            unsigned int CS3x00_SocketTVz;		// 8 Top Vision
+            unsigned int CS3x00_SocketBLz;		// 9 Bottom Lasers
+            unsigned int CS3x00_SocketBVz;		// 10 Bottom Vision
+            unsigned int CS3x00_SocketTotal;	// 11 total Socket Read Time
+            unsigned int CS3x00_FindDefects;	// 12 time to find defects (uplift)
+            unsigned int CS3x00_ParseTime;		// 13 total CS3x00 time; time from first socket read until uplift processing is complete
+            unsigned int DefectEval;			// 14 Time to DefectEval for Grade Defects w/Vision Present
+            unsigned int Lz_Rotate;				// 15 Time to process bow and twist in engine1
         } ByName;
-        unsigned int ByPhase[32];
+        unsigned int ByPhase[32];	// There are some Un-named Spares(16)
     } Value;
 } TIMING;
+
 
 /* GOOD_WOOD_ELE points to the beginning and length of good wood boundaries
 /* for a grade_thick-width-pass_const combo. Sized for two boards. */
@@ -1825,10 +1471,30 @@ typedef struct {         // 0 = overall_pass, 1 = over max thk
 } BOOLEAN_PF;            // 8 = under min face or any combination thereof
 typedef BOOLEAN_PF BOOLEAN_PF_MAP[MAX_NUM_LASERS+1];  // was MAX_NUM_PROFILES
 
+// typically tally stored to database every 10 minutes.
+// to track the last 60 minutes, we will store the last six 10 minute intervals.
+// a time value will be stored in struct for actual reference.
+#define NUM_SNAP_TALLY 6
+
+typedef struct {
+    time_t			logged_time;		// time/date last updated 
+    unsigned long int bdft_in;			// amount of lumber entering optimizer
+    unsigned long int bdft_out;			// amount of lumber to sorter
+    unsigned long int bdft_slash;			// amount of lumber slashed
+    unsigned long int bdft_reman;			// amount of lumber sent to be re-edged
+    unsigned long int bdft_resawn;		// amount of lumber sent to be resawn only
+    unsigned long int in;					// # coming into system excluding reman&resaw
+    unsigned long int out;				// # going to sorter(T)/trimmer(E)
+    unsigned long int num_slashes;		// # slash into two ft blocks
+    unsigned long int num_resawn;			// # boards to be resawn only
+    unsigned long int num_reman;			// # boards to be re-edged
+    unsigned long int num_skews;			// # skews  (adds to total in)
+    unsigned long int spare[9];			// reserved for future use
+} SNAP_TALLY;
+
 /* TALLY_DATA:  Data supplied by the optimizer engine used to leave a paper
 /* trail of the decisions the optimizer engine made and report production
 /* to mill management */
-
 typedef struct {
     struct {
         unsigned long int in;			// # coming into system including reman&resaw
@@ -1887,13 +1553,14 @@ typedef struct {
     unsigned long int ActualBdFtOut;    // Actual bdft includes actual length of Random Lengths
     unsigned long int bdft_passed;      // amount of lumber passed - Edger Only
     
-    time_t clear_time;    /* time/date last cleared, DOS format */
-    time_t time_running;  /* same as res_data.time_running */
-    time_t time_enabled;  /* same as res_data.time_enabled */
+    time_t			clear_time;    /* time/date last cleared, DOS format; changed from long to time_t in VC2005 */
+    time_t			time_running;  /* same as res_data.time_running */
+    time_t			time_enabled;  /* same as res_data.time_enabled */
     unsigned long int num_skews; // number of skew-in-lugs
     unsigned long int RoundedBdFtOut;    // Bdft_out rounding each board to the nearest whole bdft
     unsigned long int LPM;			// Lugs Per Minute
     unsigned long int PulsesPS;		// Encoder Pulses Per Second
+    
     // Begin adds for Edger only
     unsigned long int in;  // # coming into system excluding reman&resaw
     unsigned long int out;              // # going to sorter(T)/trimmer(E)
@@ -1921,436 +1588,99 @@ typedef struct {
     time_t uLastScanTime;
     time_t uProcessTime;
     unsigned long int u2Pass;
-    unsigned long int iCrossCutNum;
-    unsigned long int iCrossCutBdftGained;
-    unsigned long int iCrossCutValueGained;
-    unsigned long int iCrossCutValidLength;
-    unsigned long int iCrossCutWidthMismatch;
-    int spares[11];
+    
+    SNAP_TALLY		SnapTallyData[NUM_SNAP_TALLY];		// snap shot of last 60 minutes in 10 minute chuncks.
+    
+    int spares[16];
 } TALLY_DATA_STRUCT;
 typedef TALLY_DATA_STRUCT TALLY_DATA[MAX_NUM_CATEGORY];   // Production tally information
 
-#define MAX_PV_PROFILES			 312		// 26ft @ 1" density (max data expected)
 
-// PosVerData Struct
+#define MAX_NUM_PF_ITEMS	24
+
+// These items are Length Specific (32 reasons allowed)
+#define	pfTWIST				0x00000001	// Failed to Meet Twist Requirements
+#define pfBOW				0x00000002	// Failed to Meet Bow Requirements
+#define pfCROOK				0x00000004	// Failed to Meet Crook Requirements
+#define pfSQR_END			0x00000008	// Failed to Meet Sqr End Requirements
+#define pfBASIC_WANE		0x00000010	// Not Enough GW Length for Basic Wane Requirements
+#define pfPRICE				0x00000020	// More valuable solution found
+#define pfMAX_WANE			0x00000040  // Exceeds Max Wane Limits for this Minimum Length
+#define pfEQ_WANE			0x00000080  // Failed to Meet Equivalent Wane Area
+#define pfSURFACE_AREA		0x00000100  // Failed to Meet Equivalent Wane Area
+#define pfWANE_ON_2_EDGES	0x00000200	// Failed because wane was detected on two edges.
+#define pfMAX_ORDER_FILLED	0x00000400  // Product has reached max bdft out allowed for this shift
+#define pfSHORT_LENGTH		0x00000800  // Board physically too short to make this length
+#define pfTAPER				0x00001000  // Failed NE-FE allowed taper for random width
+#define pfNO_PRD_RESAW		0x00002000  // This Product not allowed for Resaw
+#define pfNO_PRD_REEDGE		0x00004000	// This Product not allowed for Re-edge
+#define pfNO_SAW_OR_GATE	0x00008000	// This Product mechanically limited by gate and saw options
+
+// These items are product Specific (32 reasons allowed)
+#define pfNOTCH_FOUND		0x00000100	// Dectect Notch in Light Curtian data
+#define pfSPARE1			0x00000200	// spare : replaced meaning
+#define pfBELOW_MIN_THK		0x00000400  // Thickness is below minimum required
+#define pfBELOW_MIN_WTH		0x00000800  // Width is below minimum required
+#define pfINPUT_GRADE		0x00001000  // Grade PB# not allowed for the input grade.
+#define pfNO_RESAW			0x00002000  // Resaw is not an option for this thickness class
+#define pfOVER_MAX_WIDTH	0x00004000	// Width is over maximum allowed 
+#define pfOVER_MAX_THICK	0x00008000	// Thick is over maximum allowed
+#define pfFAILED_VISION		0x00010000	// Failed to pass vision parameter tests.
+
+// These items are non-product related.
+#define pfMAX_LEN_TRIMMER	0x00010000	// Exceeds Max Length to Trimmer; forcing gate trim
+#define pfMAX_LEN_EDGER		0x00020000	// Exceeds Max Length to Edger
+#define pfMANUAL_PRESELECT	0x00040000	// Manual Preselect given for solution
+#define pfMIN_LEN_CONVEY	0x00080000  // Overall Length is below Minimum Len Conveyable
+#define pfMIN_LEN_TO_EDGER	0x00100000  // Overall Length is below Minimum Len Conveyable at Edger
+
+
+/* PASS_FAIL_FLAGS stores information regarding what optimizer found
+/* as it processed the solution.  Stores info for each product and length.*/
+
+/* expanded from short to int so more pass-fail reason could be used.  sjf 6/15/2016 */
 typedef struct {
-	int Location;				// inches*100	- Distance of Laser from NE.
-	int CenterLine;				// inches*1000	- center line location of solution for reference
-	int LocLeadFaceBreakPt;		// inches*1000	- X encoder location of face break point
-	int DistLeadFaceFromSaw;	// inches*1000	- distance between face and edge of board.
-	int LocTrailFaceBreakPt;	// inches*1000	- X encoder location of face break point
-	int DistTrailFaceFromSaw;	// inches*1000	- distance between face and edge of board.
-	int StripFaceLead;			// inches*1000	- amount of face expected on strip
-	int StripFaceTrail;			// inches*1000	- amount of face expected on strip.
-	int StripWidthLead;			// inches*1000	- amount of width expected on strip
-	int StripWidthTrail;		// inches*1000	- amount of width expected on strip.
-} POS_VER_PROFILE_DATA;
-
-typedef struct {
-    int BrdID;					// ID number of Data set
-    int TargetThk[MAX_NUM_BRDS];	// inches*1000 for each board cut
-    int TargetWth[MAX_NUM_BRDS];	// inches*1000 for each board cut
-    int iNumPrfl;					// number of valid profiles in this data
-    int iPinUsedNE;				// if pin used on NE; location given in inches*100
-    int iPinUsedFE;				// if pin used on FE; location given in inches*100
-    POS_VER_PROFILE_DATA PrflData[MAX_PV_PROFILES];
-} POS_VER_STRUCT; 
-typedef POS_VER_STRUCT POS_VER_DATA[10];  // for now will hold rolling buffer of last 10 through optimizer
-
-
-
-#define MAX_ANGLES 100   /* maximum size for angle arrays */
-#define MAX_FITS   2400  /* max number of solutions for one optimization pass */
-#define MAX_BRDS    30   /* Why this many ? (Legacy from Canter ???) */
-
-// SLM: 4.0.2.6
-// The last 2 boards do not contain any edge board details
-#define BEST_PASS_SOLUTION_SLOT		0
-#define BEST_RESAW_SOLUTION_SLOT	1
-
-// slm: Used since V4.0.0.6 of Solutione Engine
-//==========================================================================================
-#define PRIMARY_ANGLES		9	// Used by current Edger Optimization Engine
-#define SECONDARY_ANGLES	4	// Used by future Edger Optimization Engine to Refine Solution
-// Results for Secondary angles are stored in array after primary
-#define TOTAL_ANGLES		(PRIMARY_ANGLES + SECONDARY_ANGLES)
-
-// TODO: change later
-// after Secondary angle solution logic has been implemented
-//#define LAST_USED_ANGLE		(TOTAL_ANGLES-1)
-#define LAST_USED_ANGLE		(PRIMARY_ANGLES-1)
-#define MID_ANGLE_CONVERT	(LAST_USED_ANGLE / 2)
-//==========================================================================================
+	int pf_len;  //Product-Length related pass-fail issues.
+} LEN_PF_MAP;
 
 typedef struct {
-    int LdEdgeLimit;    /* 0 indicates null entry for [2] fits */
-    int TrlEdgeLimit;   /* limit based on vne */
-    int NearBegin;
-    int FarBegin;
-    int FinalBegin;     /* chosen because of lwane */
-    int LdLWaneLimit;   /* limit based on lwane evaluation */
-    int TrlLWaneLimit;
-    
-	// Used by Solution History
-	FAILURE_ERROR_CODES eErrorCodes; //error codes added GMB 3/4/14 for edger board debugging features
-} PRODUCTFIT;
-
-/* for every product , there is a set of these - 
-   they correspond to the scanner "slices" */
-typedef struct {
-    PRODUCTFIT ProductFit[MAX_NUM_PRODUCTS][MAX_NUM_LEN][2];
-    
-    int NumBF;  /* number of board fits in board_fits */
-    int IndexLst[MAX_BRDS];
-    
-    BOARDFITS BoardFits[MAX_FITS];
-}FITS;
-
-//used to describe all necessary details about each board in a solution.  Used in the Top Fits List as an array
-typedef struct
-{ 
-    int Index;              // Category.brd_prd index that describes the board used in this position of a FIT
-    int iSingleFitIndex;    // Single Fit Index ID - Used to justify the way the solution was unwinded
-    int LClass;             /* Length class to find min lens */
-    int LdMostTrlEdge;      
-    int TrlMostLdEdge;      /* Location of lead edge with combo against
-                                trailing limit - calculated from
-                                (WidthFit[].Line[][].TrlLWaneLimit - thk) */
-    int LdFace;             /* lead edge face limit */
-    int TrlFace;            /* trail edge face limit */
-    int lead_edge;          /* lead edge for board */
-    int trail_edge;         /* trail edge for board */
-    int Width;              /* includes Kerf for multiboards */
-    long int Value;			/* cents.  Includes deducts */
-    int RandomWidth;        // 0 if not a Random Width Solution
-    int iPushOrPull;        // For Hardwood.  0 if neither, 1 if push, 2 if pull
-    int iPullWidth;         // Quantify pull width
-    int iPushWidth;         // Quantify push width
-    int iPushWidthValue;    // How much is it worth?
-	int iLeadTrailPos;		// The position this board was fitted for.  0 = Lead, 1 = Trail in ProductFits
-	int iSpare[3];			// In case we forgot something else, sing RW is untested at this time
-	PRODUCTFIT ProductFit;  //describes the lead / trail limits, near, far and final begin
-	POINT cpBoardCorners[4];//x,y coordinates for all 4 corners.  X is in Lasers, Y is Inches * 1000
-} SINGLE_BOARDFIT; //holds pertinent info on a single fit entry, later used in an array to describe a complete board fit for history
-
-//expanded fits list struct used to create a unwound version of the top 100 best fits for History GMB
-typedef struct
-{
-	SINGLE_BOARDFIT Board[MAX_NUM_BRDS]; //array of single boards that make up this solution
-    int			NbrBoardsStack;     /* number of boards in the solution stack */
-	int			Flags;				//meaning the same as in BoardFits
-	long int	lTotalValue;
-	int			iTotalSolutionWidth;
-	int			iCrashValue;		 // Value is used at this time as Diagnostic, since PLC does not use it yet
-	bool		bTrashCase;
-	int			iFitIndex;
-	int			iFreedom;			//difference between the limits - solution width including kerfs
-	int			iLeadBoardLeadEdge;	 //absolute limit of the lead board pushed all the way to the lead edge
-	int			iTrailBoardTrailEdge;//absolute limit of the trail board pushed all the way to the trail
-}TOP_FITS_LIST;
-
-typedef struct{
-	int iFitIndex;
-	int iOrigIndex1;
-	int iOrigIndex2;
-	int iOrigLClass;
-	int iOrigFitValue;
-	int iWidth;		// slm: 08-08-14
-}FITS_BY_VALUE;
-
-//===============================================================================================
-// slm: 4.0.2.6 - expose a portion of the solution record for new use
-//===============================================================================================
-typedef struct {
-    int ThickCode;							// thickness code
-    int WidthCode;							// Width code
-    int LenCode;							// length code
-    int Product;							// product code
-    int Nbr;								// number of these boards (center Stack)
-    int Begin;								// start of board in LC Units
-	CUTTING_SOL Cuttings;
-} ONE_DESCRIPTION;
-
-typedef struct
-{
-	int iCategory;							// Used by Optwin only
-	int nCandidatesPass;					// How many where of this type 
-	int nCandidatesResaw;					// How many where of this type 
-	int Array[MAX_NUM_PRODUCTS];			// 0= Possible Edge, 1= Resaw, 2= Pass
-	ONE_DESCRIPTION Pass;					// More "Convenient" of the Pass Type	
-	ONE_DESCRIPTION Resaw;					// More "Convenient"of the Resaw Type
-} PRELIMINARY_SOLUTION;
-//===============================================================================================
-
-
-typedef struct { 
-    int Status;              /* bits
-                              0 Not positionable,
-                              1 early stop, time limited
-                              2 added board(s) to reach chip limit,
-                              3 manual override
-                              //---------------------------------------------------
-                              4 bad laser data
-                              5 cant too wide
-                              6 canter size limited solution
-                              7 infeed table limited solution
-                              //---------------------------------------------------
-                              8 Lampe & Malphrus, pass flitch
-                              9 off center due to chip or throat limit
-                              10 cant stack requires reedging  , hardwood use--push
-                              11 shifted to get legal linebar  , hardwood use--pull
-                              //---------------------------------------------------
-                              12 bad light curtain data
-                              13 cant too high
-                              14 invalid pins, only one selected.
-                              15 both legal linebar and chipdepth not possible
-  
-                               ------------------------------------------------------
-                               Defined in V4.0.0.6 of Edger Engine
-                               ------------------------------------------------------
-                                  Bit 16..18 How solution was obtained
-                                    000= Live/Loaded - Default state
-                               16 LSB 0 \ 
-                               17     1  > 1..7 = See Simulation Mode in Control Panel
-                               18 MSB 2 /         See Simulate.h (Operating Mode)
-  
-                                  Bit 19..20 - Simulation Extension mode
-                               19 1= LS= Limited Solution Range via Simulation control Panel
-                               20 1= FS= Forced Solution via Simulation Control Panel
-  
-                                  Bit 21..22 - Set only while Simulating in Sweep mode
-                                    00 = Not Sweeping - Normal State
-                                    01 = Sweep/Start
-                                    11 = I= Intermediate Direction while in Sweep mode
-                                    10 = Sweep/End
-                               21 1= SS= This solution uses the Most Extreme Direction (Sweep/Start)
-                               22 1= SE= This solution uses the Most Extreme Direction (Sweep/End)
-                               
-                                  Bit 23 and 24 if on, are on one or the other
-                               23 1= OS= Override - Simulated via control Panel 
-                               24 1= OO= Override - Original Overrides with one in Simulation Control Panel 
-  
-                               25
-                               26 
-                               27 
-                              //---------------------------------------------------
-                               28 1= EO= Engine limited Solution because of Override control
-                               29 1= EL= Engine limited Solution because of Other Factors (Appearance, customer Id, etc)
-                               30 1= MO= Manual Override controls found in original data to solve for
-                               31 Reserved - do not use
-                             */
-    long int Value;          /* solution Value:  lumber Value less deducts */
-    int TrlMostLdEdge;       /* location of lead edge with solution in
-                                the trailmost position */
-    int LdMostTrlEdge;       /* same for other side */
-    int LineBar;             /* LineBar limit */
-    int OffsetPositionable;  /* Offset that makes board positionable */
-    int Width;               /* Width of solution, total stack height */
-    int Angle;               /* Angle scanned-image rotated for solution */
-    int CantHeight;          /* cant thickness */
-    int Gang;                /* destination Gang */
-    ONE_DESCRIPTION Stack[MAX_BRDS];       /* Up to 9 sideboards with center Stack */
-    int LdFace;              /* lead edge face limit */
-    int TrlFace;             /* trail edge face limit */
-    
-    char NEPin;              /* near end pin number */
-    char FEPin;              /* far end pin number */
-    int NEPos;               /* servo position of near end pin */
-    int FEPos;               /* servo position of far end pin */
-    int LdSawCut[2];         /* location of lead edge cut */
-    int TrlSawCut[2];        /* location of trail edge cut */
-    double line_m;
-    int line_b;
-    
-} SOLUTION;
-
-enum eREMAN_BIT_DEF : char {
-	NO_REMAN = 0x0000,
-	RE_EDGE = 0x0001,
-	PASS_WIDTH = 0x0002,
-	RE_SAW = 0x0004,
-	PASS_THK = 0x0008,
-};
+	int pf_prd;  //product related pass-fail issues.
+    LEN_PF_MAP Len[MAX_NUM_LEN];  
+} PRD_PF_MAP;
 
 typedef struct {
-    float LdAngle;            /* taper for lead vne in Width counts/profile */
-    float TrlAngle;           /* taper for trail vne */
-    int Angles[MAX_ANGLES];   /* Sequence of tapers optimized */
-    int CantWidth;            /* maximum Width of cant */
-    int CantLength;           /* maximum length of cant */
-    //    char BoardWidthClass[MAX_NUM_PRODUCTS];
-    //                              /* bit 0 1/0 = 1 == this Product needs re edge  */
-    //                              /* bit 1 2/0 = 2 == has min wth for min lth     */
-    //    char BoardThickClass[MAX_NUM_PRODUCTS]; /* bit 0 1/0 = 1 == this Product needs resaw */
-    //                                            /* bit 1 2/0 = 2 == has min thk for min lth  */
-    //    int pass_beg[MAX_NUM_PRODUCTS];  /* beg w/ no resaw/reman */
-    //    int pass_len[MAX_NUM_PRODUCTS];  /* length w/ no resaw/reman */
-	eREMAN_BIT_DEF RemanStatus[MAX_NUM_PRODUCTS][MAX_NUM_LEN];
-    /* bit 0 1/0 = 1 == this Product needs re edge  */
-    /* bit 1 2/0 = 2 == has min wth for min lth     */
-    /* bit 2 3/0 = 4 == this Product needs resaw    */
-    /* bit 3 4/0 = 8 == has min thk for min lth     */
-	char spare[MAX_NUM_PRODUCTS];
-    int pass_beg[MAX_NUM_PRODUCTS][MAX_NUM_LEN];  /* beg w/ no resaw/reman */
-    int pass_len[MAX_NUM_PRODUCTS][MAX_NUM_LEN];  /* length w/ no resaw/reman */
-} PREEVAL;
-
-/*********** Cant: Scan data and Solution *******************/
-typedef struct {
-    
-    PROFILE_DATA Profile;    /* laser data */
-    
-    int CantStatus;          /* bits: (lsb)0 operator inputs,
-                                 1 light curtain data, 2 laser #1 data,
-                                 3 laser #2 data, 4 scan data filtered,
-                                 5 optimized, 6 made, 7 tallied */
-    
-    int FirstProfile;        /* first profile on board */
-    int LastProfile;         /* last profile on board */
-    int BeginProfile;        /* profile after ne_cutoff excluded */
-    int EndProfile;          /* profile after fe_cutoff excluded */
-    
-    struct{
-        char grade;              /* grade number: > 0  highest grade
-                                                 < 0  only legal grade */
-        char GangThk[4];        /* thickness code (1-16) for gangs, 0=n/a */
-    } Oper;
-    
-    PREEVAL PreEval;
-    SOLUTION Solution;		// slm: 3.13.2.10 - Created typedef for various uses
-    
-} CANT;
-
-
-#define NUM_THKS_MIN_WANE 17  // 16 divisions; 17 points
-typedef struct {
-    int thks[NUM_THKS_MIN_WANE];
-    float divisor;
-} MINWANE;
-
-// Bit 0 of Global Reason must be ON, else ignore all structure data display
-typedef struct
-{
-	int iGlobalReason;					// Why the forced solution failed on this angle
-	int iReasonByBoard[NUM_SOL_SPEC];	// Used to identify failure at board level (if possible)
+    PRD_PF_MAP Prd[MAX_NUM_PRODUCTS];  
+	int Other;  //non-product related pass-fail issues.
 } SOL_PF_MAP;
-
-// Container for a ProductFit from the original list
-typedef struct
-{
-	int			OriginalIndex;	// Index to backtrack source of this data from original list
-	PRODUCTFIT	Limit[2];		// Product limit: Lead + Trail
-} PRODUCTFIT_DIAG;
-
-// Container for a BoardFit from the original list
-typedef struct
-{
-	int			OriginalIndex;	// Index to backtrack source of this data from original list
-	BOARDFITS	Limit;
-} BOARDFIT_DIAG;
-
-// Solution justification + details about solution for the angles attempted
-// At this time WhyNot structure is not filled in
-// Probably it will be completed in Version 5 of Engine
-#define BOARDFITS_DIAG_SIZE		7
-typedef struct {			// For this angle...
-	SOL_PF_MAP		WhyNot;			// Data valid only when in FORCE mode (Certain Boards and no other)
-	SOLUTION		Solution;		// Solution Description for this direction
-    // Room for products saw generated + 1 Strip save
-	PRODUCTFIT_DIAG ProductFit[NUM_SOL_SPEC+1];
-	BOARDFIT_DIAG	BoardFits[BOARDFITS_DIAG_SIZE];	// Subset of the whole Fit List used by BestSolution
-	int				nFitsUsed;		// Utilized of MAX_FITS
-	int				iWidth[NUM_SOL_SPEC+1];			// Solution Target Width (Dimension / RW)
-	int				iBeginLC[2][NUM_SOL_SPEC+1];	// Solution Product Begin [0]=Near, [1]=Far
-	int				BoardFitIndex[3];	// Where Double, triple, etc... being in Fit List
-	int				iCrashValue;		// Value is used at this time as Diagnostic to justify reason for shifting solution
-	int				bAddedFits;			// slm: 07-09-14 Without, not all the work done by Engine is exposed in Solution History
-	int				iFreedom;			// slm: 12-11-14 - Carried over from Engine
-	float			fSkew;				// slm: 12-18-14 Value calculated in Engine, added to help debugging
-	int				iMostLeadEdge;		// slm: 01-05-15 For the Rotated Skewed Data (Needed to simplify drawing in Solution History, not used in View Drawing)
-	int				iMostLeadProfile;	// slm: 01-05-15 For the Rotated Skewed Data (Profile with most negative Leading Edge if present, else -1)
-	int				AmountAddedBySkew;	// slm: 02-08-15 - Good to Know + Used in Solution History to Plot Failed Boards
-	int				AmountAddedBySkewLC;// slm: 02-08-15 - Good to Know
-	int				nRWBoards;			// slm: 10-14-15 - Use to use value reported in iFreedom or not (Ignore Freedom if > 0, since it is Zero)
-	int				nRWCuttings;		// slm: 10-14-15 - Use to use value reported in iFreedom or not (Ignore Freedom if > 0, since it is Zero)
-	int				Spare[6];			// Room to grow
-} SOLUTION_NEW;
-
-
-// calculated on every board being solved
-typedef struct {
-	int	iBestDirection;			// Signed value: MIN_SWEEP_ANGLE to MAX_SWEEP_ANGLE
-	int	iBestDirectionIndex;	// Translated Directions into Solution[]: 0 to MAX_ANGLES-1
-	int	iBoardId[NUM_SOL_SPEC];	// Normally other than -1 when valid (FORCE)
-    // This section was extracted from PREEVAL
-    float LdAngle;				//   taper for lead vne in Width counts/profile
-    float TrlAngle;				//   taper for trail vne
-    int Angles[HISTORY_MAX_ANGLES];		//   Sequence of tapers optimized
-    int CantWidth;				//   maximum Width of cant
-    int CantLength;				//   maximum length of cant
-    // End
-    // Used to compare/validate solution at the Office
-	SOLUTION_NEW SolutionSummary[HISTORY_MAX_ANGLES];	// of this LAST_USED_ANGLE+1 are shown
-	int	iCaseID;				// slm: 06-20-08: This is the MT engine that produced the Best Solution
-	float fSlopeNoSolution;		// slm: 07-09-14
-	int	Spare[4];				// Room to grow
-} DETAILS_BY_DIRECTION;
-
-
 
 // LAST BOARD DATA
 typedef struct {
     unsigned int io_num;
-    PLAN_DATA plan_data;			// 10-30-17 (raw plan_data)
-    PLAN_DATA smooth_plan_data;	// 10-30-17 (New Addition)
-    PROFILE_DATA_STN profile_data[MAX_NUM_LASERS+1];
-    
-#if ( DYNA_VISION_MODEL == 8 )
-    RAW_LASER_PCELL_DATA photocell_data;
-#endif
-    
-#if (STD_JOESCAN)
-    //  RAW_LASER_DATA     raw;
-    RAW_POINT_DATA     raw_pt_data;
-    RAW_POINT_DATA     xlat_pt_data;
-#endif
-#if (STD_JOESCAN)
-    joescan::jsProfile jsRawProfile[JS_MAXHEADS][JS_MAXPROFILES+JS_PROFILESTOREAD]; // allow overrun baseD on number of profiles read at a time
-#endif
-    
+    PLAN_DATA plan_data;			// 11-30-17 (raw plan_data)
+    PLAN_DATA smooth_plan_data;	// 11-30-17 (New Addition)
+    PROFILE_DATA profile_data;
     PASS_WOOD_LEN pass_wood_len;
     NO_WANE_LEN no_wane_len;
     GOOD_WOOD_LEN good_wood_len;
-    //  BOOLEAN_PF_MAP pf_map; 
     IMPLEMENT_DATA implement_data;
     SOLUTION_SPEC solution_spec;
     ERROR_CODE error_code;
     MANUAL_PRESELECTS manual_preselects;
     TIMING Timing;
+    SOL_PF_MAP sol_pf_map;
+    CENTERVALUE iCenterTopValue;
+    RAW_LASER_DATA NormRawLasersBottom;
+    RAW_LASER_DATA NormRawLasersTop;
+    TOP_SOL_SPEC TopSolSpec;
     
-#if( STD_B8 )
-    PCELLHISTORY PCellHistory;
-    SCANNEDOBJECTCOPY LaserBuffer;
+#if (NUM_LZ_PER_UNIT == 8)
+    SCANNEDOBJECTCOPY LaserBuffer;  // B8/B900 data
 #endif
     
-    // Added defines for Kitchens multi-grade select
-	int iMinInputGrade;		// min grade entered
-	int iMaxInputGrade;		// max grade entered
-    //  int input_grade;
-    
-#if (STD_JOESCAN)
-    int input_skew_zero;
-#endif
+    int Twist[MAX_NUM_LASERS];
+    int iEdgeThkData[MAX_NUM_LASERS+1];
+    int input_grade;
     int input_machine;
-    
-    // Used by Solution History
-    BOARDFITS History_BoardFits[HISTORY_MAX_ANGLES][HISTORY_MAX_FITS];//save the history of the board fits for debugging in optwin 2-5-14 GMB
-    BOARDFITS History_NoFits[HISTORY_MAX_ANGLES][HISTORY_MAX_FITS];   //save the history of the NON-board fits for debugging in optwin 3-4-14 GMB
-    DETAILS_BY_DIRECTION DetailSolution;								//best fit for each angle
-    ANGLE_INFO AngleInfo[HISTORY_MAX_ANGLES];							//save the details on the amount of skew etc. for each angle
-    TOP_FITS_LIST TopFitsList[HISTORY_MAX_ANGLES][HISTORY_MAX_TOP_FITS];//The top N fits decomposed into single indexes that point to the singles in the board_fits list.  No unwinding necessary
-    
-    //  CANT cant_solution;
 } LAST_BOARD_DATA;
 
 
@@ -2364,6 +1694,7 @@ typedef struct {
     unsigned int io_num;  // current board number
     int zone;             // current zone
 } POSITION_STATUS;
+
 
 typedef struct {
 	char thk_name[16];
@@ -2396,9 +1727,22 @@ typedef struct {
 } QC_LEN_ALARMS;
 
 typedef struct {
+	char prfl_name[16];
+	int index;              // used for display sorting
+	unsigned int target_t;  // inches * 1000
+	unsigned int target_w;  // inches * 1000
+	int alarm1_plus;        // inches * 1000
+	int alarm1_minus;       // inches * 1000
+	int alarm2_plus;        // inches * 1000
+	int alarm2_minus;       // inches * 1000
+	int spare[4];			// future; may allow alarm for Thk and Wth seperatly
+} QC_PRFL_ALARMS;
+
+typedef struct {
 	QC_THK_ALARMS thk[MAX_GRADE_THICK_MC];
 	QC_WTH_ALARMS wth[MAX_WIDTH_MC];
 	QC_LEN_ALARMS len[MAX_NUM_LEN];
+	QC_PRFL_ALARMS profile[MAX_QC_PRFL_MC];
 } QC_ALARMS;  // used by quality control program
 
 // used to save QC Screen format data
@@ -2460,8 +1804,26 @@ typedef struct  {
 } QC_THICK;
 
 typedef struct {
-	QC_WIDTH width[MAX_NUM_MACHINE_CENTERS+1][MAX_WIDTH_MC];
-	QC_THICK thick[MAX_NUM_MACHINE_CENTERS+1][MAX_GRADE_THICK_MC];
+	struct {
+        int thk_measure[NUM_QC_THK_SAMPLES];    // inches times 1000
+        int wth_measure[NUM_QC_WTH_SAMPLES];    // inches times 1000
+        int reject_flg;
+        int reedge_flg;
+        int resaw_flg;
+        int slash_flg;
+        long  int trimbdf;
+        long  int totbdf;
+	} board_num[NUM_QC_BRD_SAMPLES];
+	int next_num;            // next element of board_num to fill
+	int do_trend;            // flag that 10 boards are full
+	int target_t;
+	int target_w;
+} QC_PROFILE;  // used by quality control program/machine centers
+
+typedef struct {
+	QC_WIDTH	width[MAX_NUM_MACHINE_CENTERS+1][MAX_WIDTH_MC];
+	QC_THICK	thick[MAX_NUM_MACHINE_CENTERS+1][MAX_GRADE_THICK_MC];
+	QC_PROFILE	profile[MAX_QC_PRFL_MC];
 } QC;  // used by quality control program/machine centers
 
 
@@ -2499,29 +1861,51 @@ typedef struct   {
     int spares[10];
 } TREND_WIDTH;
 
-typedef struct {   // used by QC shift thickness trend program
-    
-    // system statistics tracked over the shift
-    // pct values are *10; ex.  14.7% = 147
-    // defined as shorts to save memory; values never over 1000 = 100.0%
-    typedef struct {
-		short pctFullLugs;		// pct number of full lugs
-		short pctTimeRunning;	// pct minutes chain has been running
-		short pctTrimLoss;		// pct trim loss
-		short pctEdge;			// pct number of boards edged
-		short pctResaw;			// pct number of boards resawn
-		short pctReject;		// pct number of boards re-edged AND/OR resawn
-		short pctSlash;			// pct number of boards Slashed
-		short pctSkew;			// pct number of skews detected.
-		short pctSpare[4];
-		int   BdftOut;			// Bdft Out during interval
-		int   Spare[4];
-    } TREND_SYSTEM;
-    
+typedef struct   { 
+    float thk_mean;
+    float thk_within;
+    float thk_between;
+    float wth_mean;
+    float wth_within;
+    float wth_between;
+    int num_re_edged;
+    int num_resawn;
+    int num_reject;
+    int num_slash;
+    int num_samples;
+    int bf_trim;
+    int bf_input;
+    int spares[10];
+} TREND_PROFILE;
+
+
+// system statistics tracked over the shift
+// pct values are *10; ex.  14.7% = 147
+// defined as shorts to save memory; values never over 1000 = 100.0%
+typedef struct {
+    short pctFullLugs;		// pct number of full lugs
+    short pctTimeRunning;	// pct minutes chain has been running
+    short pctTrimLoss;		// pct trim loss
+    short pctEdge;			// pct number of boards edged
+    short pctResaw;			// pct number of boards resawn
+    short pctReject;		// pct number of boards re-edged AND/OR resawn
+    short pctSlash;			// pct number of boards Slashed
+    short pctSkew;			// pct number of skews detected.
+    short pctSpare[4];
+    int   BdftOut;			// Bdft Out during interval
+    int   Spare[4];
+} TREND_SYSTEM;
+
+typedef struct {   // used by QC shift trend program
 	TREND_THICK thick[MAX_NUM_MACHINE_CENTERS+1][NUM_INTERVALS][MAX_GRADE_THICK_MC];
 	int next_tnum[MAX_NUM_MACHINE_CENTERS+1][MAX_GRADE_THICK_MC];   // next interval to fill
+    
 	TREND_WIDTH width[MAX_NUM_MACHINE_CENTERS+1][NUM_INTERVALS][MAX_WIDTH_MC];
 	int next_wnum[MAX_NUM_MACHINE_CENTERS+1][MAX_WIDTH_MC];         // next interval to fill
+    
+	TREND_PROFILE profile[NUM_INTERVALS][MAX_QC_PRFL_MC];
+	int next_pnum[MAX_QC_PRFL_MC];         // next interval to fill
+    
 	TREND_SYSTEM system[NUM_INTERVALS];
 	int next_sysnum;	// next interval to fill
 } TREND;
@@ -2643,11 +2027,14 @@ typedef struct {
     int WaneAllowedOnOneEdgeOnly;
     int DoNotUseWanePercentages;  //thk and wth values stored as inches*1000 instead of percent
     GradeDefectType iVisionDefectTypes;		// 32 bit field indicating which type of defects to use or ignore for grade
-    int MaxKnotDiameter;			// maximum single knot size allowed
-    int SumKnotDiameterAllowed;	// maximum sum of knots in a given sub length
+    int MaxKnotDiameter;			// maximum single knot size allowed (diameter)
+    int SumKnotDiameterAllowed;	// maximum sum of knots in a given sub length (diameter)
     int SectionLengthForSum;		// length of section defined for SumKnotDiameterAllowed
-    int KnotDistanceFromSawline;	// keep knots x distance for edge of board (reduce chance of edge knots)
-    int spare[10];
+    int KnotDistanceFromEdge;		// keep knots x distance for edge of board (reduce chance of edge knots)
+    int MaxKnotArea;				// maximum single knot size allowed (area)
+    int SumKnotAreaAllowed;		// maximum sum of knots in a given sub length (area)
+    eSUM_FACES eSumPreference;	// how to sum face(s) for SumKnotDiameterAllowed/SumKnotAreaAllowed
+    int spare[7];
     CUTTINGS sCuttings;  // subproduct descriptions for cutting units
 } G_CLASS;
 
@@ -2660,18 +2047,19 @@ typedef struct L1 {  // length data stored in sorted order (all categories are t
     int lower;
 } SORTED_LEN[MAX_NUM_LEN];
 
-// replace Cat and Brd_Products structures for new way
+
 /* Board Product contains full discription for manufactured products */
 /*** Items marked with '@' filled at dn_load ***/
-#if (V5_NEW_WAY)
+
+
 typedef struct {
     int lengthID;
     int index;           // used for display sorting
     unsigned int scant_len_allowed; //@ LC elements
-    unsigned int end_len_wane_limit;  //LC elements; limits wane dist from end
+    unsigned int end_len_wane_limit;  //LC elements; limits wane dist from end; sqr end length
     int price;                      // price/piece
     unsigned int bdft;              // total bdft for product
-    int product_enable;             // 1=make product, 0 = disable
+    int product_enable;             // 1=make product, 0 = disable, see also enum ProductOptions 
     int CurveLimitID;               // Cant and Sharp Chain Only
     int iBow;                       // bow allowed for this length; inches*1000
     int iCrook;                     // crook allowed for this length; inches*1000
@@ -2726,46 +2114,37 @@ typedef CAT CATEGORY[MAX_NUM_CATEGORY];
 
 typedef struct {
 	int shift;
-	//COleDateTime date;
 	VARIANT_BOOL IsMetric;
 	CAT category[MAX_NUM_CATEGORY];
 	TALLY_DATA_STRUCT tally[MAX_NUM_CATEGORY];
 } TALLY_DATA_STRUCT_DELTA;
+//typedef TALLY_DATA_STRUCT_DELTA TALLY_DATA_DELTA;   // Production tally information
 
+#ifdef USE_DLL
+// slm: 03-05-20
+// FYI: While working to compile for 64 bit, discovered that code no longer compiles if it is set to Zero
+#define USING_EDGER_CODE		1
+#else
+#ifdef USE_LIB
+#define USING_EDGER_CODE	1
+#else
+#define USING_EDGER_CODE	0
+#endif
 #endif
 
-// uncomment after decel-specifiers defined.
-typedef struct {
-	unsigned int crefWidthColor[ MAX_NUM_WIDTH ];
-}WIDTHCOLORREF;
-
-typedef  struct {				// or -1 = any or not used - depending on the context
-	int ProductId;				// 0 to MAX_NUM_PRODUCTS-1 
-	int LengthId;				// 0 to MAX_NUM_LEN-1
-}  PRODUCT_BY_LENGTH;
-
-typedef  struct {				// or -1 = any or not used - depending on the context
-	int ProductId;				// 0 to MAX_NUM_PRODUCTS-1 
-	int LengthId;				// 0 to MAX_NUM_LEN-1
-	int iFitsIndex;		//points to the original fit index in FitsPtr->BoardFits[]
-}  FITS_UNWIND;
-
-typedef struct {
-	int iUseSimParams;
-	MANUAL_PRESELECTS manual_preselects;
-	int iMode;
-	int iAngleNo;
-	int iGradeMin;
-	int iGradeMax;
-	int iTest[6];
-	int iBoardFitToShowFrom;	// 4.0.1.4: Valid Value if > 0
-	int iBoardFitLastShown;		// 4.0.1.4: Used by Engine only, reset by OptWin
-	PRODUCT_BY_LENGTH iProductID[4];	// V5 - changed
-	PRODUCT_BY_LENGTH iProductUse[4];
-	int spare[20];						// V5 - new
-}SIM_PARAMS;
+// This section brings in definitions imported from the edger environment
+// needed to communicate with the DLL (Opt_Str.h - Edger flavor)
+// Replace than, the following section with the statement #include "Opt_Str_Common.h"
+#if (USING_EDGER_CODE)
+#define RULES			CAT
+#define SORTED_LIST     CAT
 
 
+#include "Opt_Str_Common.h"
+
+#include "EdgerSet.h"
+#include "EngineParams.h"
+#endif
 
 
 #endif

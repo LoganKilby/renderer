@@ -1,6 +1,29 @@
 #include "board_processing.h"
 
 internal void
+ReadImageData(SBoardData *Board, u32 *PixelsOut, u32 *Width, u32 *Height)
+{
+    int ImageWidth = Board->vs_image_data.sTopImageData.width;
+    int ImageHeight = Board->vs_image_data.sTopImageData.height;
+    
+    PixelsOut = (u32 *)malloc(sizeof(u32) * ImageWidth * ImageHeight);
+    
+    if(PixelsOut)
+    {
+        for(u32 Row = 0; Row < ImageHeight; ++Row)
+        {
+            for(u32 Col = 0; Col < ImageWidth; ++Col)
+            {
+                PixelsOut[Row * ImageWidth + Col] = Board->vs_image_data.sTopImageData.Pixels[Row][Col];
+            }
+        }
+        
+        *Width = ImageWidth;
+        *Height = ImageHeight;
+    }
+}
+
+internal void
 PushVertex(vertex_buffer *Buffer, v6 Element)
 {
     Assert(Buffer->ElementCount < Buffer->ElementCapacity);

@@ -1,7 +1,5 @@
-/* date = August 16th 2021 10:50 am */
-
-#ifndef ENUMERATIONS_H
-#define ENUMERATIONS_H
+#ifndef _ENUMERATIONS_H
+#define _ENUMERATIONS_H
 
 //------------------------------------ WHY -------------------------------------------
 // This file was created when I started to clean-up code, so it is better constructed
@@ -58,5 +56,4 @@ enum eSUM_FACES : int {
 	TOGETHER,				// 0:  Sum top and bottom together
 	SEPARATE				// 1:  Sum top and bottom separately
 };
-
-#endif //ENUMERATIONS_H
+#endif

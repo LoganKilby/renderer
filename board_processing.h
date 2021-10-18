@@ -7,6 +7,11 @@
 
 // TODO: Add support for runtime laser selection
 #define STD_824S1 1
+#define STD_M6 0
+#define SCANNER_ANGLED 0
+
+#include "include/board_processing/VisionDefectStruct.h"
+//#include "include/board_processing/TAV_Interface.h"
 #include "include/board_processing/hi_tech.h"
 
 // Idk

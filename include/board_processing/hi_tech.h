@@ -1,14 +1,14 @@
+// hi-tech.h
+
 #ifndef _HI_TECH_H
 #define _HI_TECH_H
 
-// YOU MUST DEFINE A LASER BEFORE INCLUDING hi_tech.h
-// Example: #define STD_824S1
-
 //#include "tchar.h"
 #include "opt_str.h"
-#include "edger_set.h"
+//#include "LineLaserStructs.h"
 
-//#include "edgerset.h"
+//#include <afxdisp.h>		// for COleDateTime
+
 
 #if ((!STD_824S1) && (!STD_JS50))
 #define	HT_NO_DATA					-32768
@@ -16,11 +16,13 @@
 #define	HT_NO_DATA					0
 #endif
 
-#define NO_LZ_TEST_DATA					32768
+#define NO_LZ_TEST_DATA				 32768
 
 #define	HT_CLIENT_TO_SERVER_SIZE		3000000		// 3Mb covers size of all data going to engine 
 
-#if (STD_3X00 || STD_824S1 || STD_JS50)
+#if (VISION_ENABLED)
+#define HT_SERVER_TO_CLIENT_SIZE	600000000	// 400Mb reserved for TAV systems
+#elif (STD_3X00 || STD_824S1 || STD_JS50)
 #define HT_SERVER_TO_CLIENT_SIZE	70000000	// 70Mb reserved for 3X00 systems
 #elif STD_JOESCAN
 #define HT_SERVER_TO_CLIENT_SIZE	25000000	// 20Mb reserved for joescan
@@ -31,6 +33,21 @@
 #define HT_NO_SOLUTION			-1
 #define HT_UNDEFINED			-1
 
+// sjf: 02-12-19	Moved from StdAfx.h to here so both Optwin and Optimizer share the same setting.
+//					This value allows the defect struct to remain without vision data.
+//					Future intent is to be like edger and evaluate wane defects with cutting units.
+//					Defect Struct adds about 32KB, if feature never develops - can consider removing
+//					from non-vision builds by setting value equal to status of VISION_ENABLED.
+// slm: 07-05-17
+// Set to 1 for anything newer than V79x Hermary (which includes the New Scanner Vision development)
+// Set to 0 to be compatible to the v79x Hermary (no vision), where no defect data is not in SBoardData
+// This means all Configurations prior the Developed Vision new Version
+//---------------------------------------------------------------------------------------
+// Used to Bridge into Edger Environment from which we import VISION Code
+// Note: EDG_V56X does not exist in this environment
+// Must match value in Engine
+#define NEW_V79X					1
+
 // define the structure used to hold the shift start time information for use
 // by the tally database operations
 #define MAX_NUM_SHIFTS 3
@@ -38,31 +55,27 @@
 #define SHIFT1_START 360
 #define SHIFT1_STOP 1080
 
-#if (STD_JS50)
-//#define LINE_LZ_MAX_POINTS			1457	// FULL	// maximum number of JS50 points available per head.
-#define LINE_LZ_MAX_POINTS			728	// Half	// maximum number of JS50 points available per head.
-#else
-#define LINE_LZ_MAX_POINTS			108
-#endif
-
-#define LINE_LZ_MAX_HEADS			28		// Maximum value expected for any system.
-
-#define LINE_LZ_CNTS_PER_LUG		MAX_NUM_CNTS_PER_LUG
-
-#define PP_BUFFER					2
-
-#if (STD_JS50)
-#define MAX_CAMERAS_PER_HEAD		2
-#else
-#define MAX_CAMERAS_PER_HEAD		1
-#endif
-
 typedef struct
 {
 	BOOL	bBreakEnabled[ 7 ][ MAX_NUM_BREAKS ];
 	int		aiStartMinute[ 7 ][ MAX_NUM_BREAKS ];
 	int		aiStopMinute[ 7 ][ MAX_NUM_BREAKS ];
 } SBreakInfo;
+
+typedef struct
+{
+	int				iFuncCode;
+	BOOL			bIsManualMode;
+	int				iCurrManualShiftNumber;
+	int				iPrevManualShiftNumber;
+	//COleDateTime	dtManualShiftStartTime;
+	//COleDateTime	dtPrevManualShiftStartTime;
+	//COleDateTime	dtPrevManualShiftEndTime;
+	int				iShiftNumber[ 7 ][ MAX_NUM_SHIFTS ];
+	int				aiStartMinute[ 7 ][ MAX_NUM_SHIFTS ];
+	int				aiStopMinute[ 7 ][ MAX_NUM_SHIFTS ];
+	SBreakInfo		sBreakInfo;
+} SShiftInfo;
 
 typedef struct
 {
@@ -78,6 +91,46 @@ typedef struct
 	int				aiStopMinute[ 7 ][ MAX_NUM_SHIFTS ];
 	SBreakInfo		sBreakInfo;
 } SShiftInfo_UpDown; //used for upload / download ONLY.  Must convert DATE vars to COleDateTime::m_Date
+
+typedef struct
+{
+	int					iFuncCode;
+    
+#ifdef TRIMMER
+	QC					qc;
+	QC_ALARMS			qc_alarms;
+#endif
+    
+	IO_MAP				io_map;
+	BRD_DATA			brd_data;
+	LC_CALIB			lc_beam_width;
+	CATEGORY			category;
+	CUST_DATA			cust_data;
+	IO_BIT_MAP			io_bit_map;
+	ENET_COMM			enet_comm;
+    
+	LASER_MAP			laser_map;
+	LASER_CALIBRATION	laser_calib;
+	LIGHT_CURTAIN_MAP	lc_map;
+    
+    
+#ifdef EDGER 
+	EDG_DATA            edg_data;
+#elif CANTER
+	EDG_DATA            edg_data;
+#endif
+    
+#if (DYNA_VISION_MODEL == 120)
+	VISION_PARAMETERS	vision_parameters;
+#endif
+    
+#if (STD_824S1 || STD_JS50)
+	//CLineLzStruct::HEAD_MAP		HeadMap;
+	//CLineLzStruct::HeadCalib	HeadCal;
+#endif
+    
+	TCHAR				szConfigName[ 50 ];
+} SUploadDownloadBuf;
 
 // in the following structure, the iShiftNumber is to be interpreted as follows:
 //
@@ -165,88 +218,78 @@ typedef struct
 	int		aiStopMinute[ 7 ][ MAX_NUM_BREAKS ];
 } SBreakInfoForDialog;
 
+// prototypes for functions related to SShiftInfo
+BOOL	LoadShiftInfoFromDialogData(	const SShiftInfoForDialog& sShiftInfoForDialog, SShiftInfo& sShiftInfo, 
+                                 int& iBadDayNum, int& iBadShiftNum );
+void	LoadDialogDataFromShiftInfo( const SShiftInfo& sShiftInfo, SShiftInfoForDialog& sShiftInfoForDialog );
+void	SetDefaultShiftInfo( SShiftInfo& sShiftInfo);
+void	GetCurrentShiftInfo(	const SShiftInfo& sShiftInfo, int iCurrentDayOfWeek, int iCurrentTimeInMinutes,
+                         int& iShiftNum, int& iShiftStartTime, int& iShiftStartDay,
+                         int& iShiftStopTime, int& iShiftStopDay );
+void	GetPreviousShiftInfo(	const SShiftInfo& sShiftInfo, int iCurrentDayOfWeek, int iCurrentTimeInMinutes,
+                          int& iShiftNum, int& iShiftStartTime, int& iShiftStartDay,
+                          int& iShiftStopTime, int& iShiftStopDay );
+int		GetBreakTimeFromCurrentShiftBegin( const SShiftInfo& sShiftInfo, time_t ClearTime );
+int		GetBreakTime( const SShiftInfo& sShiftInfo );
+int		GetTimeUntilCurrentShiftEnds( const SShiftInfo& sShiftInfo, int iCurrentDayOfWeek, int iCurrentTimeInMinutes );
+int		GetTimeFromCurrentShiftBegin( const SShiftInfo& sShiftInfo, int iCurrentDayOfWeek, int iCurrentTimeInMinutes );
+
+int		GetCurrentDayIndex( int iOleDateTimeDayOfWeek );
+int		GetCurrentDayIndexLocal( int iLocalDateTimeDayOfWeek );
+int		GetNextDayIndex( int iCurrentDayIndex );
+int		GetPrevDayIndex( int iCurrentDayIndex );
+
+int		GetNumShiftsOnDay( const SShiftInfo& sShiftInfo, int iCurrentDayIndex );
+
+void	GetFirstShiftInfo(	const SShiftInfo& sShiftInfo, int iCurrentDayIndex, int& iShiftNum, 
+                       int& iStartTime, int& iStopTime, int& iStopDayIndex );
+void	GetSecondShiftInfo(	const SShiftInfo& sShiftInfo, int iCurrentDayIndex, int& iShiftNum, 
+                        int& iStartTime, int& iStopTime, int& iStopDayIndex );
+void	GetThirdShiftInfo(	const SShiftInfo& sShiftInfo, int iCurrentDayIndex, int& iShiftNum, 
+                       int& iStartTime, int& iStopTime, int& iStopDayIndex );
+void	GetLastShiftInfo(	const SShiftInfo& sShiftInfo, int iCurrentDayIndex, int& iShiftNum, 
+                      int& iStartTime, int& iStopTime, int& iStopDayIndex );
+
+void	GetShiftInfo( const SShiftInfo& sShiftInfo, int iCurrentDayIndex, 
+                  int iShiftNum, int& iStartTime, int& iStopTime, int& iStopDayIndex );
+
+
 // structures detailing the data that is saved for each board
 // when implementing a shift simulation
 struct SRawLaserData
 {
-#if (!STD_JOESCAN)
-    RAW_LASER_DATA		bot_raw_laser_data	;
-    RAW_LASER_DATA		top_raw_laser_data	;
-#else
-    XYPOINT_DATA sorted_xlat_data;
-    LAST_BOARD_DATA last_board_data;
+	RAW_LASER_DATA		bot_raw_laser_data	;
+	RAW_LASER_DATA		top_raw_laser_data	;
+};
+
+// by keeping this struct the same on edger and trimmer
+// edger and trimmer can be compiled to read same ShiftSim Data
+struct SBoardDataForShiftSim
+{
+    
+#if ( NUM_LZ_PER_UNIT == 8 )
+	PCELLHISTORY		PCellHistory		;
+	SCANNEDOBJECTCOPY	LaserBuffer			;
+#elif (!STD_824S1 && !STD_JS50)
+	SRawLaserData		RawLaserData		;
 #endif
-};
-
-
-#if 1
-// a simple x,y point with Brightness data (if available)
-struct LineLzPoint
-{
-    unsigned short x;	// X inch units  (0 to 65,535)  - Range value
-    short y;			// Y inch units  (-32,768 to 32,767)  - along length; 0=center of head.
-#if (STD_JS50)
-    char brightness;	// 0 to 255 gray scale image
+    
+#if (VISION_ENABLED) // for Vision systems
+	VISION_IMAGE_DATA	vs_image_data		;
 #endif
-};
-#else
-// a simple x,y point with Brightness data (if available)
-// test as int; may allow faster processing on x64 machine than shorts and char?
-//	Error	LNK1248	image size(B05B0000) exceeds maximum allowable size(80000000)
-struct LineLzPoint
-{
-    int x;			// X inch units  (0 to 65,535)  - Range value
-    int y;			// Y inch units  (-32,768 to 32,767)  - along length; 0=center of head.
-    int brightness;	// 0 to 255 gray scale image
-};
+    
+#if (!STD_824S1)	// just save raw laser data on hermary
+	PLAN_DATA			RawLCData			;
 #endif
-
-struct LineLzStorageStruct
-{
-#if (STD_JS50)
-    int camera;
-#endif
-    unsigned int encoder;
-    int numPoints;
-    LineLzPoint p[LINE_LZ_MAX_POINTS];	// x, y
+    
+	MANUAL_PRESELECTS	ManualPreselects	;
+	int					iMinInputGrade		;  // for edger
+	int					iMaxInputGrade		;  // for edger
+	int					iInputGrade			;  // for trimmer
+	int					iInputMachine		;
+	int					iCategory			;
+	UINT				io_num				;  // mainly for Hermary case; added 9/2018 sjf
 };
-
-
-struct H_BufferStruct
-{
-    LineLzStorageStruct H_Buffer[LINE_LZ_MAX_HEADS / 2][LINE_LZ_CNTS_PER_LUG];
-};
-
-
-typedef struct DefectRectangleTag
-{
-	int left;
-	int top;
-	int right;
-	int bottom;
-} DefectRectangle;
-
-typedef struct VisionDefectTag
-{
-	int id;
-	int type;
-	DefectRectangle position;	/* pixel position */
-	double area;				/* square inches */
-} VISION_DEFECT;
-
-
-#define MAX_NUM_VISION_DEFECTS		500
-#define VISION_NUM_DEFECT_TYPES		(7)
-typedef struct {
-	int iNumDefects;
-	VISION_DEFECT sDefects[MAX_NUM_VISION_DEFECTS];
-} VISION_DEFECT_STRUCT;
-
-typedef struct {
-	VISION_DEFECT_STRUCT	sTopDefectData;
-	VISION_DEFECT_STRUCT	sBottomDefectData;
-} VISION_DEFECT_DATA;
-
 
 //-----------------------------------------------------------------------------
 // TODO: Make sure folowing expressions are immune by alignment issues,
@@ -258,26 +301,53 @@ typedef struct {
 // This was required because some memory pads insert by compiler, at times, in between terms of the structure
 // This resulted in miss-calculating the expression for SIM_BOARD_SIZE
 // Now we mimic OptWin operation where there we use only sizeof(SBoardData)
-// sjf: 09/2017 moved to Hi-Tech.h so optwin and optimizer use the same struct format.  
+// MWP: 12/2017 moved to Hi-Tech.h so optwin and optimizer use the same struct format.  
+// structure for board data being Viewed
+// a simple x,y point with Brightness data (if available)
+struct LineLzPoint
+{
+    unsigned short x;	// X inch units  (0 to 65,535)  - Range value
+    short y;			// Y inch units  (-32,768 to 32,767)  - along length; 0=center of head.
+#if (STD_JS50)
+    char brightness;	// 0 to 255 gray scale image
+#endif
+};
+
+#define LINE_LZ_MAX_HEADS			28		// Maximum value expected for any system.
+
+#define LINE_LZ_CNTS_PER_LUG		MAX_NUM_CNTS_PER_LUG
+#define LINE_LZ_MAX_POINTS			108
+
+struct LineLzStorageStruct
+{
+#if (STD_JS50)
+    int camera;
+#endif
+    unsigned int encoder;
+    int numPoints;
+    LineLzPoint p[LINE_LZ_MAX_POINTS];	// x, y
+};
+
+struct H_BufferStruct
+{
+    LineLzStorageStruct H_Buffer[LINE_LZ_MAX_HEADS / 2][LINE_LZ_CNTS_PER_LUG];
+};
+
 typedef struct SBoardData_Tag
 {
-#if (!STD_JOESCAN)
 	RAW_LASER_DATA		bot_raw_laser_data;
 	RAW_LASER_DATA		top_raw_laser_data;
-#endif
     
 	LAST_BOARD_DATA		last_board_data;
 	BOOLEAN_PF_MAP		pf_map;
     
-#if (!EDG_56x || VISION_ENABLED)	// always present in version 57x and later.
+	// slm: 06-23-17 - Imported from EDGER
+	// V79x New: This is now always present, even if no VISION_ENABLED
+#if (NEW_V79X || VISION_ENABLED)
 	VISION_DEFECT_DATA	 vs_defect_data;  // top and bottom image defect data
 #endif
-    
 #if( VISION_ENABLED )
-	//CS3300_RANGE_DATA	 cs_range_data		;  // top and bottom range data
-	//CS3300_IMAGE_DATA	 cs_image_data;  // top and bottom image data
 	VISION_IMAGE_DATA	 vs_image_data;  // top and bottom image data
-    
 #endif
     
     // slm: 03-11-16 Addition

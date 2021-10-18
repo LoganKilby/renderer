@@ -24,6 +24,8 @@
 #define STD_824S1					   0   // Profile only version of Hermary Lasers
 #define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
 
+#define STD_JS50					   0  // JoeScan JS50 Model heads.  Allow Profile and vision data
+
 
 /********************  M6  ***********************/
 #elif STD_M6
@@ -34,9 +36,10 @@
 
 #define STD_3X00					   0  // CS3300 or CS3100
 
-#define STD_JS50					   0   // JoeScan Line Scan Lasers
 #define STD_824S1					   0   // Profile only version of Hermary Lasers
 #define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
+
+#define STD_JS50					   0  // JoeScan JS50 Model heads.  Allow Profile and vision data
 
 
 /********************  JoeScan  ***********************/
@@ -48,9 +51,10 @@
 
 #define STD_3X00					   0  // CS3300 or CS3100
 
-#define STD_JS50					   0   // JoeScan Line Scan Lasers
 #define STD_824S1					   0   // Profile only version of Hermary Lasers
 #define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
+
+#define STD_JS50					   0  // JoeScan JS50 Model heads.  Allow Profile and vision data
 
 
 /********************  CS31xx  ***********************/
@@ -62,9 +66,10 @@
 
 #define STD_3X00					   1  // CS3300 or CS3100
 
-#define STD_JS50					   0   // JoeScan Line Scan Lasers
 #define STD_824S1					   0   // Profile only version of Hermary Lasers
 #define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
+
+#define STD_JS50					   0  // JoeScan JS50 Model heads.  Allow Profile and vision data
 
 
 /********************  CS33xx  ***********************/
@@ -76,9 +81,10 @@
 
 #define STD_3X00					   1  // CS3300 or CS3100
 
-#define STD_JS50					   0   // JoeScan Line Scan Lasers
 #define STD_824S1					   0   // Profile only version of Hermary Lasers
 #define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
+
+#define STD_JS50					   0  // JoeScan JS50 Model heads.  Allow Profile and vision data
 
 
 /********************  STD_824S1  ***********************/
@@ -90,10 +96,10 @@
 
 #define STD_3X00					   0  // CS3300 or CS3100
 
-#define STD_JS50					   0   // JoeScan Line Scan Lasers
-#define STD_824S1					   1   // Profile only version of Hermary Lasers
-#define SCANNER_ANGLED				   0	// 1 if scanning at angle;  0 if scanning at 90 degrees.
+#define STD_824S1					   1  // Profile only version of Hermary Lasers
+#define SCANNER_ANGLED				   0  // 1 if scanning at angle;  0 if scanning at 90 degrees.
 
+#define STD_JS50					   0  // JoeScan JS50 Model heads.  Allow Profile and vision data
 
 /********************  STD_JS50  ***********************/
 #elif STD_JS50
@@ -109,10 +115,17 @@
 
 #define STD_JS50					   1  // JoeScan JS50 Model heads.  Allow Profile and vision data
 
+#
 #endif
 
-// add in when doing JS-50
-#if defined(VISION_ENABLED) || defined(STD_33xx)
+// 15 Categories; B8   (Beasley 1429-01) (Rogers 1464-01)
+#ifdef CAT_15
+#define CAT_15						1  
+#else
+#define CAT_15						0  
+#endif
+
+#if defined(VISION_ENABLED) || defined(CS3300)
 #define VISION_ENABLED				   1  // Set to one when using CS3300 heads or other Vision Hardware
 #else
 #define VISION_ENABLED				   0  // else zero for lasers only

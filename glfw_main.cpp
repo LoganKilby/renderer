@@ -14,9 +14,9 @@
 
 #include "input.cpp"
 #include "camera.cpp"
-#include "board_processing.cpp"
 #include "opengl_code.cpp"
 #include "renderer.cpp"
+#include "board_processing.cpp"
 
 // NOTE: If the object's texture has an unexpected color or is black, verify that the in/out 
 // varibles match across the shader program. This is NOT a link error; There are no error 
@@ -73,6 +73,7 @@ int WinMain(HINSTANCE hInstance,
     glfwSetCursorPos(Window, WindowWidth / 2.0f, WindowHeight / 2.0f);
     GLFWmonitor *Monitor = glfwGetPrimaryMonitor();
     const GLFWgammaramp *GammaRamp = glfwGetGammaRamp(Monitor);
+    
     GLenum GlewError = glewInit();
     if(GlewError == GLEW_OK)
     {
@@ -129,17 +130,24 @@ int WinMain(HINSTANCE hInstance,
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     
-    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Edger/Hermary/board39.brd");
+    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Trimmer/Hermary/Vision/board1.brd");
     
     board_color_segments ColorSegments = {};
     ColorSegments.vne = {1.0f, 0.0f, 0.0f};
     ColorSegments.vne_1 = {1.0f, 0.65f, 0.0f};
     ColorSegments.thick = {0.0f, 1.0f, 0.0f};
     ColorSegments.scant = {1.0f, 1.0f, 0.0f};
+    
+    u32 *Pixels = 0;
+    u32 ImageWidth, ImageHeight;
+    ReadImageData(BoardData, Pixels, &ImageWidth, &ImageHeight);
+    
+#if 0
     QPC_StartCounter();
     ProcessProfileData(&GlobalVertexStorage, BoardData, 8, ColorSegments);
     UploadBufferedVertices(GlobalVertexStorage, ProfilePointsVAO);
     QPC_EndCounterPrint("Vertices processed");
+#endif
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;

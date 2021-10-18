@@ -701,3 +701,9 @@ CreateShadowCubeMap()
     
     return Result;
 }
+
+internal void
+LoadImageFromMemory(u32 *Pixels, u32 Width, u32 Height)
+{
+    
+}
