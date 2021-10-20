@@ -1,26 +1,19 @@
 #include "board_processing.h"
 
-internal void
-ReadImageData(SBoardData *Board, u32 *PixelsOut, u32 *Width, u32 *Height)
+internal u32 *
+LoadVisionImagePixels(VISION_IMAGE_STRUCT *Image)
 {
-    int ImageWidth = Board->vs_image_data.sTopImageData.width;
-    int ImageHeight = Board->vs_image_data.sTopImageData.height;
+    u32 *Result = (u32 *)malloc(sizeof(u32) * Image->width * Image->height);
     
-    PixelsOut = (u32 *)malloc(sizeof(u32) * ImageWidth * ImageHeight);
-    
-    if(PixelsOut)
+    for(u32 Row = 0; Row < Image->height; ++Row)
     {
-        for(u32 Row = 0; Row < ImageHeight; ++Row)
+        for(u32 Col = 0; Col < Image->width; ++Col)
         {
-            for(u32 Col = 0; Col < ImageWidth; ++Col)
-            {
-                PixelsOut[Row * ImageWidth + Col] = Board->vs_image_data.sTopImageData.Pixels[Row][Col];
-            }
+            Result[Row * Image->width + Col] = Image->Pixels[Row][Col];
         }
-        
-        *Width = ImageWidth;
-        *Height = ImageHeight;
     }
+    
+    return Result;
 }
 
 internal void

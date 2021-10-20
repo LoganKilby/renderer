@@ -82,7 +82,7 @@ int WinMain(HINSTANCE hInstance,
         printf("Renderer: "); printf((char *)glGetString(GL_RENDERER)); printf("\n");
         printf("OpenGL Version: "); printf((char *)glGetString(GL_VERSION)); printf("\n\n");
         
-        glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
         //glEnable(GL_BLEND);
@@ -132,15 +132,37 @@ int WinMain(HINSTANCE hInstance,
     
     SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Trimmer/Hermary/Vision/board1.brd");
     
+    // TODO: Use opengl to copy the sub-image
+    u32 TopImageWidth = BoardData->vs_image_data.sTopImageData.width;
+    u32 TopImageHeight = BoardData->vs_image_data.sTopImageData.height;
+    u32 *TopImagePixels = (u32 *)malloc(sizeof(u32) * TopImageWidth * TopImageHeight);
+    for(u32 Row = 0; Row < TopImageHeight; ++Row)
+    {
+        for(u32 Col = 0; Col < TopImageWidth; ++Col)
+        {
+            TopImagePixels[Row * TopImageWidth + Col] = BoardData->vs_image_data.sTopImageData.Pixels[Row][Col];
+        }
+    }
+    texture_unit TopBoardTexture = LoadTextureU32(TopImagePixels, TopImageWidth, TopImageHeight, 4);
+    
+    
+    int BottomImageWidth = BoardData->vs_image_data.sBottomImageData.width;
+    int BottomImageHeight = BoardData->vs_image_data.sBottomImageData.height;
+    u32 *BottomImagePixels = (u32 *)malloc(sizeof(u32) * BottomImageWidth * BottomImageHeight);
+    for(u32 Row = 0; Row < TopImageHeight; ++Row)
+    {
+        for(u32 Col = 0; Col < TopImageWidth; ++Col)
+        {
+            BottomImagePixels[Row * BottomImageWidth + Col] = BoardData->vs_image_data.sBottomImageData.Pixels[Row][Col];
+        }
+    }
+    texture_unit BottomBoardTexture = LoadTextureU32(BottomImagePixels, BottomImageWidth, BottomImageHeight, 4);
+    
     board_color_segments ColorSegments = {};
     ColorSegments.vne = {1.0f, 0.0f, 0.0f};
     ColorSegments.vne_1 = {1.0f, 0.65f, 0.0f};
     ColorSegments.thick = {0.0f, 1.0f, 0.0f};
     ColorSegments.scant = {1.0f, 1.0f, 0.0f};
-    
-    u32 *Pixels = 0;
-    u32 ImageWidth, ImageHeight;
-    ReadImageData(BoardData, Pixels, &ImageWidth, &ImageHeight);
     
 #if 0
     QPC_StartCounter();
@@ -155,6 +177,10 @@ int WinMain(HINSTANCE hInstance,
     VertexShaderID = LoadAndCompileShader("shaders/board_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/board_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BoardProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    
+    VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
+    FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
+    opengl_shader_program DefaultProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
     
     float SecondsElapsed;
     float PrevTime = 0;
@@ -219,20 +245,24 @@ int WinMain(HINSTANCE hInstance,
                                             0.1f, 
                                             1000.0f);
         
-        // Draw
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
+        
+        MVP = ProjectionMatrix * ViewMatrix;
+        SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        RenderCube();
+        
+        glBindTexture(GL_TEXTURE_2D, BottomBoardTexture.Id);
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(1.25f, 0.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f, 0.2f, 1.0f));
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(3, 0, 0));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        glBindVertexArray(ProfilePointsVAO);
-        glDrawArrays(GL_POINTS, 0, GlobalVertexStorage.ElementCount);
+        SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        RenderCube();
         
         OutputErrorQueue();
         
-        // UI
         if(DrawUI)
         {
             ImGui_ImplOpenGL3_NewFrame();
@@ -276,78 +306,6 @@ int WinMain(HINSTANCE hInstance,
     }
     
     return 0;
-}
-
-void DebugRenderCube()
-{
-    local_persist unsigned int CubeVAO;
-    local_persist unsigned int CubeVBO;
-    
-    if (CubeVAO == 0)
-    {
-        float vertices[] = {
-            // back face
-            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-            1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-            1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-            1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-            // front face
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-            1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-            1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-            // left face
-            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-            // right face
-            1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-            1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-            1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-            1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-            1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-            1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-            // bottom face
-            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-            1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-            1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-            1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-            // top face
-            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-            1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-            1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-            1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-        };
-        
-        glGenVertexArrays(1, &CubeVAO);
-        glGenBuffers(1, &CubeVBO);
-        glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glBindVertexArray(CubeVAO);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    
-    glBindVertexArray(CubeVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
 }
 
 struct transparent_sort_object

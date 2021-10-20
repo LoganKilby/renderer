@@ -14,6 +14,8 @@
 //#include "include/board_processing/TAV_Interface.h"
 #include "include/board_processing/hi_tech.h"
 
+// NOTE: vision image data is packed BGRA
+
 // Idk
 struct v3
 {
