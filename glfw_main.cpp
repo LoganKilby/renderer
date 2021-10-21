@@ -61,12 +61,9 @@ int WinMain(HINSTANCE hInstance,
         printf("ERROR: GLFW failed to initialize\n");
     }
     
-    //glfwWindowHint(GLFW_SAMPLES, 4); // NOTE: Multsample buffer for MSAA, 4 samples per pixel
     QPC_StartCounter();
-    GLFWwindow *Window = glfwCreateWindow(WindowWidth, WindowHeight, "Test window", NULL, NULL);
+    GLFWwindow *Window = glfwCreateWindow((int)WindowWidth, (int)WindowHeight, "Test window", NULL, NULL);
     glfwMakeContextCurrent(Window);
-    //glfwSetFramebufferSizeCallback(Window, GLFW_FramebufferSizeCallback);
-    //glfwSetScrollCallback(Window, GLFW_MouseScrollCallback);
     glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetKeyCallback(Window, GLFW_KeyCallback);
     glfwSetCursorPosCallback(Window, GLFW_MouseCallback);
@@ -145,7 +142,6 @@ int WinMain(HINSTANCE hInstance,
     }
     texture_unit TopBoardTexture = LoadTextureU32(TopImagePixels, TopImageWidth, TopImageHeight, 4);
     
-    
     int BottomImageWidth = BoardData->vs_image_data.sBottomImageData.width;
     int BottomImageHeight = BoardData->vs_image_data.sBottomImageData.height;
     u32 *BottomImagePixels = (u32 *)malloc(sizeof(u32) * BottomImageWidth * BottomImageHeight);
@@ -164,16 +160,13 @@ int WinMain(HINSTANCE hInstance,
     ColorSegments.thick = {0.0f, 1.0f, 0.0f};
     ColorSegments.scant = {1.0f, 1.0f, 0.0f};
     
-#if 0
     QPC_StartCounter();
     ProcessProfileData(&GlobalVertexStorage, BoardData, 8, ColorSegments);
     UploadBufferedVertices(GlobalVertexStorage, ProfilePointsVAO);
     QPC_EndCounterPrint("Vertices processed");
-#endif
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
-    unsigned int GeometryShaderID;
     VertexShaderID = LoadAndCompileShader("shaders/board_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/board_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BoardProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
@@ -197,7 +190,7 @@ int WinMain(HINSTANCE hInstance,
     Camera.Up = glm::vec3(0.0f, 1.0f, 0.0f);
     Camera.Orientation.Yaw = -90.0f;
     Camera.LookSpeed = 0.1f;
-    Camera.PanSpeed = 0.3f;
+    Camera.PanSpeed = 1.0f;
     Camera.FieldOfView = 45.0f;
     Camera.Mode = FLY_MODE;
     
@@ -218,7 +211,7 @@ int WinMain(HINSTANCE hInstance,
     {
         glfwPollEvents();
         
-        SecondsElapsed = glfwGetTime();
+        SecondsElapsed = (f32)glfwGetTime();
         FrameTime = SecondsElapsed - PrevTime;
         PrevTime = SecondsElapsed;
         
@@ -226,8 +219,8 @@ int WinMain(HINSTANCE hInstance,
             UpdateCamera(Window, &Camera, FrameTime);
         
         // TODO: Remove keyboard polling from UpdateCamera
-        input_command *Command;
-        while(Command = PopCommand(&GlobalInputState))
+        input_command *Command = PopCommand(&GlobalInputState);;
+        while(Command)
         {
             // TODO: I could dispatch from here to different places. If we're in a fly camera view
             // I would want wasd keys to go to the move camera function or something...
@@ -235,8 +228,9 @@ int WinMain(HINSTANCE hInstance,
             {
                 ToggleUI(Window, &DrawUI);
             }
+            
+            Command = PopCommand(&GlobalInputState);
         }
-        
         
         ViewMatrix = GetViewMatrix(Camera);
         ViewSubMatrix = glm::mat4(glm::mat3(ViewMatrix));
@@ -247,16 +241,26 @@ int WinMain(HINSTANCE hInstance,
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.0001f, 0.0001f, 0.0001f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
+        glBindVertexArray(ProfilePointsVAO);
+        glDrawArrays(GL_POINTS, 0, GlobalVertexStorage.ElementCount);
+        glBindVertexArray(0);
+        
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
         
-        MVP = ProjectionMatrix * ViewMatrix;
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5, 0, 0));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
         RenderCube();
         
         glBindTexture(GL_TEXTURE_2D, BottomBoardTexture.Id);
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(3, 0, 0));
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(5, 0, 0));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
         RenderCube();
@@ -286,7 +290,7 @@ int WinMain(HINSTANCE hInstance,
                     ClearVertexBuffer(&GlobalVertexStorage);
                     ProcessProfileData(&GlobalVertexStorage, BoardData, 8, ColorSegments);
                     UploadBufferedVertices(GlobalVertexStorage, ProfilePointsVAO);
-                    long long MilisecondsElapsed = QPC_EndCounter() / 1000.0l;
+                    f64 MilisecondsElapsed = QPC_EndCounter() / (f64)1000;
                     ImGui::SameLine();
                     ImGui::Text("%Lf\n", MilisecondsElapsed);
                     clicked = 0;
@@ -336,11 +340,11 @@ void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
     if(Camera.Mode == STATIC_MODE)
         return;
     
-    float XOffset = (XPos - GlobalInputState.PrevMousePos.x) * Camera.LookSpeed;
-    float YOffset = (GlobalInputState.PrevMousePos.y - YPos) * Camera.LookSpeed;
+    float XOffset = (f32)(XPos - GlobalInputState.PrevMousePos.x) * Camera.LookSpeed;
+    float YOffset = (f32)(GlobalInputState.PrevMousePos.y - YPos) * Camera.LookSpeed;
     
-    GlobalInputState.PrevMousePos.x = XPos;
-    GlobalInputState.PrevMousePos.y = YPos;
+    GlobalInputState.PrevMousePos.x = (f32)XPos;
+    GlobalInputState.PrevMousePos.y = (f32)YPos;
     
     Camera.Orientation.Yaw += XOffset;
     Camera.Orientation.Pitch += YOffset;

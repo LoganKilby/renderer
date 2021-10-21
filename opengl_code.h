@@ -5,13 +5,8 @@
 
 #if UNIFORM_ASSERTIONS_ENABLED
 #define AssertUniformLoc(Integer) if(Integer == -1) {*(int *)0 = 0;}
-// NOTE: AssertFrameBuf: The offscreen buffer is supposed to be bound before any draw calls occur.
-//       If attempting to draw the offscreen buffer without it being the current framebuffer, assume
-//       the caller forgot to bind it.
-#define AssertFrameBuf(FB_ID) int ID; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &ID); if(FB_ID != ID) Assert(0);
 #else
 #define AssertUniformLoc(Integer)
-#define AssertFrameBuf(FB_ID)
 #endif
 
 static void SetUniform3fv(int Program, char *Name, glm::vec3 Data);

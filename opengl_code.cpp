@@ -19,7 +19,7 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
         break;
         default:
         {
-            printf("WARNING: No Support for the shader type passed to CompileShader with filename %s\n", Filename);
+            ShaderTypeString = "WARNING: invalid shader type";
         }
     }
     
@@ -135,6 +135,10 @@ OutputOpenglError(int ErrorCode)
         {
             Message = "GL_CONTEXT_LOST";
         } break;
+        default:
+        {
+            Message = "UNKNOWN ERROR CODE";
+        }
     }
     
     fprintf(stderr, "WARNING: OpenGL error (%s)\n", Message);
@@ -513,7 +517,7 @@ DebugPrintUniforms(GLuint ProgramID, char *ProgramName)
     GLenum Type;
     
     fprintf(stderr, "DEBUG INFO: Uniform Dump :: Program(\"%s\", %d)\n", ProgramName, ProgramID);
-    for(unsigned int UniformID = 0; UniformID < UniformCount; ++UniformID)
+    for(int UniformID = 0; UniformID < UniformCount; ++UniformID)
     {
         glGetActiveUniform(ProgramID, UniformID, 100, &Length, &Size, &Type, &Buffer[0]);
         fprintf(stderr, "\t%s\n", Buffer);
@@ -677,7 +681,6 @@ CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
 internal void
 DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
 {
-    AssertFrameBuf(OffScreen.FrameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glEnable(GL_FRAMEBUFFER_SRGB);
     glDisable(GL_DEPTH_TEST);

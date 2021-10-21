@@ -5,9 +5,9 @@ LoadVisionImagePixels(VISION_IMAGE_STRUCT *Image)
 {
     u32 *Result = (u32 *)malloc(sizeof(u32) * Image->width * Image->height);
     
-    for(u32 Row = 0; Row < Image->height; ++Row)
+    for(u32 Row = 0; Row < (u32)Image->height; ++Row)
     {
-        for(u32 Col = 0; Col < Image->width; ++Col)
+        for(u32 Col = 0; Col < (u32)Image->width; ++Col)
         {
             Result[Row * Image->width + Col] = Image->Pixels[Row][Col];
         }
@@ -81,13 +81,11 @@ ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade
 {
     PROFILE_DATA_STN *Profiles = &BoardData->last_board_data.profile_data[0];
     
-    float ZOffsetPerProfile = 25.0f;
+    float ZOffsetPerProfile = 25.0f; // TODO: This is currently kind of arbitrary
     float XOffsetPerSample = (1.0f / 64.0f) * 1000; // in 1000th's of an inch
-    int ProfileCount = MAX_NUM_LASERS + 1;
+    int ProfileCount = ArrayCount(BoardData->last_board_data.profile_data);
     
     float ProfileOffset;
-    float SampleOffset;
-    float SampleY;
     
     int StartIndex = BoardData->last_board_data.implement_data.beg_ele;
     int EndIndex = BoardData->last_board_data.implement_data.end_ele + 1;
@@ -124,11 +122,23 @@ ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade
             int VNEEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne_x;
             
             int SampleCount = 0;
-            for(int SampleIndex = 0; SampleIndex < 2300; ++SampleIndex) // thk_array[]
+            
+            float SampleY;
+            float MaxSampleY;
+            for(int SampleIndex = 0; 
+                SampleIndex < ArrayCount(Profiles[ProfileIndex].thk_array); 
+                ++SampleIndex) // thk_array[]
             {
-                SampleY = Profiles[ProfileIndex].thk_array[SampleIndex];
+                SampleY = (f32)Profiles[ProfileIndex].thk_array[SampleIndex];
                 if(SampleY)
                 {
+                    MaxSampleY = (f32)Profiles[ProfileIndex].max_thick;
+                    if(SampleY > MaxSampleY)
+                    {
+                        SampleY = MaxSampleY;
+                    }
+                    
+                    //SampleY = Profiles[ProfileIndex].sawn_thick;
                     // NOTE: By incrementing distance for every valid y-value instead of for every
                     // possible y-value the result looks more reasonable
                     Vertex.x = LeadEdgeX + (SampleCount++ * XOffsetPerSample);
@@ -162,9 +172,9 @@ ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade
                         Vertex.b = ColorSegments.vne.b;
                     }
                     
-                    Vertex.x = Map(Vertex.x, 0, 32000, -1, 1);
-                    Vertex.y = Map(Vertex.y, -4000, 4000, -1, 1);
-                    Vertex.z = Map(Vertex.z, 0, MaxZ, -1, 1);
+                    //Vertex.x = Map(Vertex.x, 0, 32000, -1, 1);
+                    //Vertex.y = Map(Vertex.y, -4000, 4000, -1, 1);
+                    //Vertex.z = Map(Vertex.z, 0, MaxZ, -1, 1);
                     PushVertex(VertexBuffer, Vertex);
                 }
             }
