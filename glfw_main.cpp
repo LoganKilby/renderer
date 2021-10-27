@@ -28,7 +28,6 @@ internal void GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Ac
 internal void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
 internal void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
 internal void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
-internal void TransparencyDepthSort(glm::vec3 *Array, int ArrayCount, glm::vec3 CameraPosition);
 internal void DebugRenderCube(void);
 
 global_variable input_state GlobalInputState;
@@ -311,12 +310,6 @@ int WinMain(HINSTANCE hInstance,
     
     return 0;
 }
-
-struct transparent_sort_object
-{
-    float Length;
-    int Index;
-};
 
 void GLFW_FramebufferSizeCallback(GLFWwindow *Window, int Width, int Height)
 {
