@@ -7,7 +7,7 @@ PushInputCommand(input_state *Input, input_command Command)
     Input->CommandBuffer[Input->CommandsBuffered++] = Command;
 }
 
-internal void
+static void
 ProcessKeyboardInput(input_state *Input, int Key, int Scancode, int Action, int Mods)
 {
     button_state *KeyState = &Input->KeyTable[Key];
@@ -47,7 +47,7 @@ ProcessKeyboardInput(input_state *Input, int Key, int Scancode, int Action, int 
     }
 }
 
-internal input_command *
+static input_command *
 PopCommand(input_state *Input)
 {
     input_command *Result;

@@ -1,6 +1,6 @@
 #include "board_processing.h"
 
-internal u32 *
+static u32 *
 LoadVisionImagePixels(VISION_IMAGE_STRUCT *Image)
 {
     u32 *Result = (u32 *)malloc(sizeof(u32) * Image->width * Image->height);
@@ -16,41 +16,65 @@ LoadVisionImagePixels(VISION_IMAGE_STRUCT *Image)
     return Result;
 }
 
-internal void
-PushVertex(vertex_buffer *Buffer, v6 Element)
+static void
+PushAttributes(vertex_buffer *Buffer, v3 Point, v3 Color, v2 TexCoords)
 {
-    Assert(Buffer->ElementCount < Buffer->ElementCapacity);
-    Buffer->Memory[Buffer->ElementCount++] = Element;
+    Assert(Buffer->Count < Buffer->Capacity);
+    vertex_attributes Attributes = {Point, Color, TexCoords};
+    u32 Index = Buffer->Count++;
+    *(Buffer->Attributes + Index) = Attributes;
 }
 
-internal void
+static void
+PushAttributes(vertex_buffer *Buffer, v3 Point, v3 Color)
+{
+    Assert(Buffer->Count < Buffer->Capacity);
+    vertex_attributes Attributes = {Point, Color, V2(0.0f)};
+    u32 Index = Buffer->Count++;
+    *(Buffer->Attributes + Index) = Attributes;
+}
+
+static void
+PushAttributes(vertex_buffer *Buffer, v3 Point)
+{
+    Assert(Buffer->Count < Buffer->Capacity);
+    vertex_attributes Attributes = {Point, V3(0.0f), V2(0.0f)};
+    u32 Index = Buffer->Count++;
+    *(Buffer->Attributes + Index) = Attributes;
+}
+
+static void
 ClearVertexBuffer(vertex_buffer *Buffer)
 {
-    int CapacityInBytes = Buffer->ElementCapacity * sizeof(v6);
-    memset(Buffer->Memory, 0, CapacityInBytes);
-    Buffer->ElementCount = 0;
+    int CapacityInBytes = Buffer->Capacity * sizeof(vertex_attributes);
+    memset(Buffer->Attributes, 0, CapacityInBytes);
+    Buffer->Count = 0;
 }
 
-internal vertex_buffer
-CreateVertexBuffer(int ElementsToAllocate)
+static vertex_buffer
+CreateVertexBuffer(u32 ElementCount)
 {
     vertex_buffer Result = {};
-    Result.ElementCapacity = ElementsToAllocate;
-    Result.Memory = (v6 *)malloc(Result.ElementCapacity * sizeof(v6));
-    
+    Result.Capacity = ElementCount;
+    Result.Attributes = (vertex_attributes *)malloc(ElementCount * sizeof(vertex_attributes));
     return Result;
 }
 
-internal void
-UploadBufferedVertices(vertex_buffer Buffer, unsigned int VertexAttributeObject)
+static void
+UploadBufferedVertices(vertex_buffer *Buffer)
 {
-    glBindVertexArray(VertexAttributeObject);
-    int BufferedBytes = Buffer.ElementCount * sizeof(v6);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, BufferedBytes, Buffer.Memory);
-    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, Buffer->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, Buffer->Count * sizeof(vertex_attributes), Buffer->Attributes);
 }
 
-internal void *ReadFile(char *Filename)
+static void
+V3UpdateBufferObject(u32 BufferObj, size_t SizeInBytes, v3 *Data)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, BufferObj);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, SizeInBytes, Data);
+}
+
+static void *ReadFile(char *Filename)
 {
     FILE *FileHandle = fopen(Filename, "rb");
     fseek(FileHandle, 0L, SEEK_END);
@@ -64,41 +88,51 @@ internal void *ReadFile(char *Filename)
     return Result;
 }
 
-internal float
-Map(float Value, float L1, float H1, float L2, float H2)
+inline f32
+Map(f32 Value, f32 A, f32 B, f32 C, f32 D)
 {
-    float Result = L2 + (Value - L1) * (H2 - L2) / (H1 - L1);
-    Assert(Result >= L2 && Result <= H2);
+    
+    f32 Result = (Value - A) / (B - A) * (D - C) + C;
+    Assert((Result >= C) && (Result <= D));
+    
     return Result;
-};
+}
 
 // Smooth data plan size: MAX_NUM_FT_OF_LIGHT_CURTAIN * NUM_LIGHT_CURTAIN_ELEMENTS_FT
 // MAX_NUM_FT_OF_LIGHT_CURTAIN = MAX_LEN_BRD + 1
 // NUM_LIGHT_CURTAIN_ELEMENTS_FT = 48
 
-internal void
-ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade, board_color_segments ColorSegments)
+static vertex_buffer
+ProcessProfileData(SBoardData *BoardData, int Grade, board_color_segments ColorSegments)
 {
     PROFILE_DATA_STN *Profiles = &BoardData->last_board_data.profile_data[0];
+    u32 ProfileCount = ArrayCount(BoardData->last_board_data.profile_data);
+    u32 SampleCount = ArrayCount(Profiles[0].thk_array);
+    u32 ElementCount = ProfileCount * SampleCount;
+    vertex_buffer Result = CreateVertexBuffer(ElementCount);
     
-    float ZOffsetPerProfile = 25.0f; // TODO: This is currently kind of arbitrary
-    float XOffsetPerSample = (1.0f / 64.0f) * 1000; // in 1000th's of an inch
-    int ProfileCount = ArrayCount(BoardData->last_board_data.profile_data);
+    f32 ZOffsetPerProfile = 25.0f; // TODO: This is currently kind of arbitrary
+    f32 XOffsetPerSample = (1.0f / 64.0f) * 1000; // in 1000th's of an inch
     
-    float ProfileOffset;
+    u32 StartIndex = BoardData->last_board_data.implement_data.beg_ele;
+    u32 EndIndex = BoardData->last_board_data.implement_data.end_ele + 1;
     
-    int StartIndex = BoardData->last_board_data.implement_data.beg_ele;
-    int EndIndex = BoardData->last_board_data.implement_data.end_ele + 1;
+    f32 MinX = 0;
+    f32 MaxX = 288000.0f;
     
-    float MinX = 0;
-    float MaxX = 32000.0f;
-    float MinY = -4000.0f;
-    float MaxY = 4000.0f;
-    float MaxZ = ZOffsetPerProfile * ProfileCount;
-    float MinZ = 0.0f;
+    f32 MinY = -22000.0f;
+    f32 MaxY = 22000.0f;
     
-    v6 Vertex;
-    for(int ProfileIndex = StartIndex; ProfileIndex < EndIndex; ++ProfileIndex) // profiles[]
+    f32 MinZ = 0.0f;
+    f32 MaxZ = ZOffsetPerProfile * ProfileCount;
+    
+    v3 Vertex;
+    v3 Color;
+    v2 TexCoords;
+    f32 ProfileOffset;
+    for(int ProfileIndex = StartIndex; 
+        ProfileIndex < EndIndex; 
+        ++ProfileIndex)
     {
         if(Profiles[ProfileIndex].lead_edge_x)
         {
@@ -121,68 +155,172 @@ ProcessProfileData(vertex_buffer *VertexBuffer, SBoardData *BoardData, int Grade
             int VNEStartX = Profiles[ProfileIndex].grade_thick[Grade].lead_vne_x;
             int VNEEndX = Profiles[ProfileIndex].grade_thick[Grade].trail_vne_x;
             
-            int SampleCount = 0;
-            
-            float SampleY;
-            float MaxSampleY;
+            f32 SampleY;
+            f32 MaxSampleY;
             for(int SampleIndex = 0; 
                 SampleIndex < ArrayCount(Profiles[ProfileIndex].thk_array); 
-                ++SampleIndex) // thk_array[]
+                ++SampleIndex)
             {
                 SampleY = (f32)Profiles[ProfileIndex].thk_array[SampleIndex];
+                //SampleY = (f32)Profiles[ProfileIndex].max_thick;
                 if(SampleY)
                 {
+#if 0
                     MaxSampleY = (f32)Profiles[ProfileIndex].max_thick;
+                    
                     if(SampleY > MaxSampleY)
                     {
                         SampleY = MaxSampleY;
                     }
-                    
+#endif
                     //SampleY = Profiles[ProfileIndex].sawn_thick;
                     // NOTE: By incrementing distance for every valid y-value instead of for every
                     // possible y-value the result looks more reasonable
-                    Vertex.x = LeadEdgeX + (SampleCount++ * XOffsetPerSample);
-                    Vertex.y = LeadEdgeY + SampleY;
+                    Vertex.x = (SampleIndex * XOffsetPerSample);// + LeadEdgeX;
+                    //Vertex.y = LeadEdgeY + SampleY;
+                    Vertex.y = SampleY;
                     Vertex.z = ProfileOffset;
+                    
+                    if(Vertex.x < MinX) MinX = Vertex.x;
+                    if(Vertex.x > MaxX) MaxX = Vertex.x;
+                    if(Vertex.y < MinY) MinY = Vertex.y;
+                    if(Vertex.y > MaxY) MaxY = Vertex.y;
+                    if(Vertex.z < MinZ) MinZ = Vertex.z;
+                    if(Vertex.z > MaxZ) MaxZ = Vertex.z;
                     
                     // NOTE: grade_thick for each grade (represented by color) can be unique
                     // per-profile.
                     if((Vertex.x >= ScantStartX) && (Vertex.x <= ScantEndX))
                     {
-                        Vertex.r = ColorSegments.scant.r;
-                        Vertex.g = ColorSegments.scant.g;
-                        Vertex.b = ColorSegments.scant.b;
+                        Color = V3(ColorSegments.scant.r, ColorSegments.scant.g, ColorSegments.scant.b);
                     }
                     else if((Vertex.x >= ThickStartX) && (Vertex.x <= ThickEndX))
                     {
-                        Vertex.r = ColorSegments.thick.r;
-                        Vertex.g = ColorSegments.thick.g;
-                        Vertex.b = ColorSegments.thick.b;
+                        Color = V3(ColorSegments.thick.r, ColorSegments.thick.g, ColorSegments.thick.b);
                     }
                     else if((Vertex.x >= VNE1StartX) && (Vertex.x <= VNE1EndX))
                     {
-                        Vertex.r = ColorSegments.vne_1.r;
-                        Vertex.g = ColorSegments.vne_1.g;
-                        Vertex.b = ColorSegments.vne_1.b;
+                        Color = V3(ColorSegments.vne_1.r, ColorSegments.vne_1.g, ColorSegments.vne_1.b);
                     }
-                    else if((Vertex.x >= VNEStartX) && (Vertex.x <= VNEEndX))
+                    else //if((Vertex.x >= VNEStartX) && (Vertex.x <= VNEEndX))
                     {
-                        Vertex.r = ColorSegments.vne.r;
-                        Vertex.g = ColorSegments.vne.g;
-                        Vertex.b = ColorSegments.vne.b;
+                        Color = V3(ColorSegments.vne.r, ColorSegments.vne.g, ColorSegments.vne.b);
                     }
                     
-                    //Vertex.x = Map(Vertex.x, 0, 32000, -1, 1);
-                    //Vertex.y = Map(Vertex.y, -4000, 4000, -1, 1);
-                    //Vertex.z = Map(Vertex.z, 0, MaxZ, -1, 1);
-                    PushVertex(VertexBuffer, Vertex);
+                    //TexCoords.x = Map(Vertex.x, 0, 288000, -1, 1);
+                    //TexCoords.y = Map(Vertex.y, 0, 22000, -1, 1);
+                    PushAttributes(&Result, Vertex);
                 }
             }
         }
     }
+    
+    Result.MaxX = MaxX;
+    Result.MinX = MinX;
+    Result.MinY = MinY;
+    Result.MaxY = MaxY;
+    Result.MinZ = MinZ;
+    Result.MaxZ = MaxZ;
+    
+    return Result;
 }
 
-internal void
+// CLineLzStruct::LinLzPoint
+struct image_point
+{
+    u16 x;
+    s16 y;
+    char brightness;
+};
+
+static vertex_buffer
+ExtractJS50Raw(SBoardData *BoardData)
+{
+    H_BufferStruct *TopData = &BoardData->H_Top_Raw;
+    H_BufferStruct *BottomData = &BoardData->H_Bot_Raw;
+    
+    u32 LaserCount = ArrayCount(TopData->H_Buffer);
+    u32 SamplesPerLaser ArrayCount(TopData->H_Buffer[0]);
+    u32 PointsPerLaser = ArrayCount(TopData->H_Buffer[0][0].p);
+    u32 ElementCount = LaserCount * SamplesPerLaser * PointsPerLaser * 2;
+    vertex_buffer Result = CreateVertexBuffer(ElementCount);
+    
+    f32 ZOffsetPerLaserLine = (1.0f / 64.0f) * 1000;
+    f32 AccumulatingZOffset = 0.0f;
+    
+    f32 YOffsetPerLaserHead = 24000.0f;
+    f32 AccumulatingYOffset = 0.0f;
+    
+    v3 Vertex;
+    v3 Color = V3(1.0f);
+    
+    for(u32 LaserHeadIndex = 0; 
+        LaserHeadIndex < LaserCount; 
+        ++LaserHeadIndex)
+    {
+        for(u32 SampleIndex = 0; 
+            SampleIndex < SamplesPerLaser; 
+            ++SampleIndex)
+        {
+            LineLzStorageStruct *LaserLine = &TopData->H_Buffer[LaserHeadIndex][SampleIndex];
+            // NOTE: If points exist, they are laid out from index 0 ... numPoints - 1
+            int PointCount = LaserLine->numPoints;
+            if(PointCount)
+            {
+                
+                LineLzPoint Point;
+                for(u32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+                {
+                    Point = LaserLine->p[PointIndex];
+                    
+                    Vertex.x = Point.y + YOffsetPerLaserHead * LaserHeadIndex;
+                    Vertex.y = Point.x;
+                    Vertex.z = ZOffsetPerLaserLine * SampleIndex;
+                    Color = V3((f32)Point.brightness / 255.0f);
+                    
+                    PushAttributes(&Result, Vertex, Color);
+                }
+            }
+        }
+    }
+    
+    for(u32 LaserHeadIndex = 0; 
+        LaserHeadIndex < LaserCount; 
+        ++LaserHeadIndex)
+    {
+        for(u32 SampleIndex = 0; 
+            SampleIndex < SamplesPerLaser; 
+            ++SampleIndex)
+        {
+            
+            LineLzStorageStruct *LaserLine = &BottomData->H_Buffer[LaserHeadIndex][SampleIndex];
+            // NOTE: If points exist, they are laid out from index 0 ... numPoints - 1
+            int PointCount = LaserLine->numPoints;
+            if(PointCount)
+            {
+                LineLzPoint Point;
+                
+                for(u32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+                {
+                    Point = LaserLine->p[PointIndex];
+                    
+                    Vertex.x = Point.x;
+                    Vertex.y = Point.y + YOffsetPerLaserHead * LaserHeadIndex;
+                    Vertex.z = ZOffsetPerLaserLine * SampleIndex;
+                    Color = V3((f32)Point.brightness / 255.0f);
+                    
+                    PushAttributes(&Result, Vertex, Color);
+                }
+                
+                AccumulatingZOffset += ZOffsetPerLaserLine;
+            }
+        }
+    }
+    
+    return Result;
+}
+
+static void
 WriteRawVertexData(char *Filename, v3 *Data, int Count)
 {
     FILE *FileHandle = fopen(Filename, "w+");
@@ -201,47 +339,14 @@ WriteRawVertexData(char *Filename, v3 *Data, int Count)
     fclose(FileHandle);
 }
 
-internal bool
-FloatLessThanEqual(float A, float B)
+static void
+CreateTextureCoordinates(vertex_buffer *Buffer, f32 TextureWidth, f32 TextureHeight)
 {
-    return A <= B ? true : false;
-}
-
-internal bool
-FloatGreaterThanEqual(float A, float B)
-{
-    return A >= B ? true : false;
-}
-
-internal std::vector<v3>
-FilterRawData(std::vector<v3> *RawData, bool CompareFunction(float, float))
-{
-    std::vector<v3> Result;
-    
-    float YValueSum = 0.0f;
-    float AverageHeight;
-    
-    for(int i = 0; i < RawData->size(); ++i)
+    v2 TexCoords;
+    for(u32 i = 0; i < Buffer->Count; ++i)
     {
-        YValueSum += abs((*RawData)[i + 1].y - (*RawData)[i].y);
+        TexCoords.x = Map(Buffer->Attributes[i].Point.z, 0, TextureWidth, 0, 1);
+        TexCoords.y = Map(Buffer->Attributes[i].Point.x, 0, TextureHeight, 0, 1);
+        Buffer->Attributes[i].TexCoords = TexCoords;
     }
-    
-    AverageHeight = YValueSum / RawData->size();
-    
-    v3 CurrentPoint;
-    v3 NextPoint;
-    v3 PrevPoint = (*RawData)[0];
-    for(int i = 0; i < RawData->size(); ++i)
-    {
-        CurrentPoint = (*RawData)[i];
-        NextPoint = (*RawData)[i + 1];
-        PrevPoint = (*RawData)[i - 1];
-        
-        if(abs(CurrentPoint.y) - abs(PrevPoint.y) < AverageHeight)
-        {
-            Result.push_back(CurrentPoint);
-        }
-    }
-    
-    return Result;
 }

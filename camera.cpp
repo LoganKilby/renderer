@@ -1,4 +1,4 @@
-internal void
+static void
 UpdateCamera(GLFWwindow *Window, camera *Camera, float dt)
 {
     // TODO: Remove GLFWwindow and use my own input management system
@@ -26,7 +26,7 @@ UpdateCamera(GLFWwindow *Window, camera *Camera, float dt)
 
 // This is under the assumption that Camera.Front has been updated and normalized
 // with the using the camera's Orientation angles
-internal glm::mat4
+static glm::mat4
 GetViewMatrix(camera Camera)
 {
     glm::mat4 Result = glm::lookAt(Camera.Position, Camera.Position + Camera.Front, Camera.Up);

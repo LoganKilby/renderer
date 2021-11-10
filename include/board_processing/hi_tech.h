@@ -316,7 +316,11 @@ struct LineLzPoint
 #define LINE_LZ_MAX_HEADS			28		// Maximum value expected for any system.
 
 #define LINE_LZ_CNTS_PER_LUG		MAX_NUM_CNTS_PER_LUG
+#if STD_JS50
+#define LINE_LZ_MAX_POINTS 728
+#else
 #define LINE_LZ_MAX_POINTS			108
+#endif
 
 struct LineLzStorageStruct
 {

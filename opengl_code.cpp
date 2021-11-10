@@ -1,7 +1,7 @@
 #include "opengl_code.h"
 #include "renderer.h"
 
-internal GLuint
+static GLuint
 LoadAndCompileShader(char *Filename, GLenum ShaderType)
 {
     GLuint ResultID = 0;
@@ -56,7 +56,7 @@ LoadAndCompileShader(char *Filename, GLenum ShaderType)
 
 // TODO: Probably want to take an array of compiled shaders
 // TODO: Probably don't need a program struct
-internal opengl_shader_program
+static opengl_shader_program
 CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID, GLuint GeometryShaderID)
 {
     opengl_shader_program Result;
@@ -96,7 +96,7 @@ CreateShaderProgram(GLuint VertexShaderID, GLuint FragmentShaderID, GLuint Geome
     return Result;
 }
 
-internal void
+static void
 OutputOpenglError(int ErrorCode)
 {
     char *Message;
@@ -144,7 +144,7 @@ OutputOpenglError(int ErrorCode)
     fprintf(stderr, "WARNING: OpenGL error (%s)\n", Message);
 }
 
-internal bool
+static bool
 CheckErrorCode()
 {
     bool Result = false;
@@ -159,7 +159,7 @@ CheckErrorCode()
     return Result;
 }
 
-internal void
+static void
 OutputErrorQueue()
 {
     GLenum ErrorCode = glGetError();
@@ -171,7 +171,7 @@ OutputErrorQueue()
     }
 }
 
-internal void
+static void
 SetShaderMaterial(GLuint Program,
                   char *UniformName,
                   material Material)
@@ -201,7 +201,7 @@ SetShaderMaterial(GLuint Program,
     free(Location);
 }
 
-internal void
+static void
 SetShaderSpotLight(GLuint Program, char *StructName, spot_light Light)
 {
     int MaxUniformLength, MaxAttributeLength;
@@ -272,7 +272,7 @@ int GetMaxAttributeLength(unsigned int Program)
     return Result;
 }
 
-internal void
+static void
 SetShaderPointLight(GLuint Program, char *StructName, point_light Light)
 {
     int MaxUniformLength, MaxAttributeLength;
@@ -317,7 +317,7 @@ SetShaderPointLight(GLuint Program, char *StructName, point_light Light)
     free(UniformName);
 }
 
-internal void
+static void
 SetShaderDirectionalLight(GLuint Program, char *StructName, directional_light Light)
 {
     int MaxUniformLength, MaxAttributeLength;
@@ -351,7 +351,7 @@ SetShaderDirectionalLight(GLuint Program, char *StructName, directional_light Li
 }
 
 #ifdef STB_IMAGE_IMPLEMENTATION
-internal texture_unit
+static texture_unit
 LoadTexture(char *Filename)
 {
     texture_unit Result = {};
@@ -377,7 +377,7 @@ LoadTexture(char *Filename)
             } break;
             default: 
             {
-                printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Filename);
+                printf("WARNING: Image %s has an unsupported static pixel format. Aborting texture creation...\n", Filename);
                 // TODO: Return a default texture
                 return Result;
             }
@@ -404,53 +404,76 @@ LoadTexture(char *Filename)
 }
 #endif
 
-internal texture_unit
-LoadTextureU32(u32 *Data, int Width, int Height, int Channels)
+static texture_unit
+LoadTexture2D(u32 *Data, s32 Width, s32 Height, s32 Channels, GLenum MemoryOrder, GLenum PixelDataType)
 {
-    
+    // JS-50 internal format: GL_BRGA
     texture_unit Result = {};
     
-    if(Data)
+    if(!Data)
     {
-        GLenum PixelFormat;
-        GLenum TexParam;
-        switch(Channels)
-        {
-            // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
-            case 4: 
-            {
-                PixelFormat = GL_RGBA; 
-                TexParam = GL_CLAMP_TO_EDGE;
-            } break;
-            case 3:
-            {
-                PixelFormat = GL_RGB;
-                TexParam = GL_REPEAT;
-            } break;
-            default: 
-            {
-                printf("WARNING: Image has an unsupported internal pixel format. Aborting texture creation...\n");
-                // TODO: Return a default texture
-                return Result;
-            }
-        }
-        
-        glGenTextures(1, &Result.Id);
-        glBindTexture(GL_TEXTURE_2D, Result.Id);
-        //glPixelStorei(GL_PACK_LSB_FIRST, false);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Width, Height, 0, GL_BGRA, GL_UNSIGNED_BYTE, Data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, TexParam);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, TexParam);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        
-        printf("INFO: Texture loaded. (Texture ID: %d)\n", Result.Id);
-    }
-    else
-    {
+        // TODO: Load default texture
         printf("WARNING: Texture data missing. Unable to load from memory.\n");
     }
+    
+    GLenum WrapParam;
+    switch(Channels)
+    {
+        // NOTE: Specular maps loaded as PNGs should be RGBA (maybe other formats work too)
+        case 4: 
+        {
+            WrapParam = GL_CLAMP_TO_EDGE;
+        } break;
+        case 3:
+        {
+            WrapParam = GL_REPEAT;
+        } break;
+        default: 
+        {
+            printf("WARNING: Image has an unsupported static pixel format.\n");
+            WrapParam = GL_CLAMP_TO_EDGE;
+        }
+    }
+    
+    glGenTextures(1, &Result.Id);
+    glBindTexture(GL_TEXTURE_2D, Result.Id);
+    //glPixelStorei(GL_PACK_LSB_FIRST, false);
+    glTexImage2D(GL_TEXTURE_2D, 0, Channels, Width, Height, 0, MemoryOrder, PixelDataType, Data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, WrapParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, WrapParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    Result.Width = Width;
+    Result.Height = Height;
+    Result.Channels = Channels;
+    Result.MemoryOrder = MemoryOrder;
+    Result.Pixels = Data;
+    Result.PixelDataType = PixelDataType;
+    Result.WrapParam = WrapParam;
+    Result.FilterParam = GL_LINEAR;
+    
+    printf("INFO: Texture loaded. (Texture ID: %d)\n", Result.Id);
+    
+    return Result;
+}
+
+static texture_unit
+CreateSubTexture2D(texture_unit *BaseTexture,  u32 SubWidth, u32 SubHeight, u32 MipLevel = 0, u32 XOffset = 0, u32 YOffset = 0)
+{
+    texture_unit Result = {};
+    glGenTextures(1, &Result.Id);
+    glBindTexture(GL_TEXTURE_2D, Result.Id);
+    glTextureSubImage2D(BaseTexture->Id, MipLevel, XOffset, YOffset, SubWidth, SubHeight, BaseTexture->MemoryOrder, BaseTexture->PixelDataType, BaseTexture->Pixels);
+    
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, BaseTexture->WrapParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, BaseTexture->WrapParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, BaseTexture->FilterParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, BaseTexture->FilterParam);
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
     
     return Result;
 }
@@ -459,7 +482,7 @@ LoadTextureU32(u32 *Data, int Width, int Height, int Channels)
 // Some uniforms are set every frame. So maybe in the future I can just assert that
 // the uniform location passed as an argument is valid
 
-internal void
+static void
 SetUniform3fv(int Program, char *Name, glm::vec3 Data)
 {
     glUseProgram(Program);
@@ -468,7 +491,7 @@ SetUniform3fv(int Program, char *Name, glm::vec3 Data)
     glUniform3fv(UniformLocation, 1, &Data[0]);
 }
 
-internal void
+static void
 SetUniform1f(int Program, char *Name, float Data)
 {
     glUseProgram(Program);
@@ -477,7 +500,7 @@ SetUniform1f(int Program, char *Name, float Data)
     glUniform1f(UniformLocation, Data);
 }
 
-internal void
+static void
 SetUniformMatrix4fv(int Program, char *Name, glm::mat4 Data)
 {
     glUseProgram(Program);
@@ -486,7 +509,7 @@ SetUniformMatrix4fv(int Program, char *Name, glm::mat4 Data)
     glUniformMatrix4fv(UniformLocation, 1, GL_FALSE, &Data[0][0]);
 }
 
-internal void
+static void
 SetUniform1i(int Program, char *Name, int Data)
 {
     glUseProgram(Program);
@@ -495,7 +518,7 @@ SetUniform1i(int Program, char *Name, int Data)
     glUniform1i(UniformLocation, Data);
 }
 
-internal void
+static void
 SetUniformMatrix3fv(int Program, char *Name, glm::mat3 Data)
 {
     glUseProgram(Program);
@@ -504,7 +527,7 @@ SetUniformMatrix3fv(int Program, char *Name, glm::mat3 Data)
     glUniformMatrix3fv(UniformLocation, 1, GL_FALSE, &Data[0][0]);
 }
 
-internal void 
+static void 
 DebugPrintUniforms(GLuint ProgramID, char *ProgramName)
 {
     int UniformCount;
@@ -526,7 +549,7 @@ DebugPrintUniforms(GLuint ProgramID, char *ProgramName)
 }
 
 #ifdef STB_IMAGE_IMPLEMENTATION
-internal unsigned int
+static unsigned int
 LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *Front)
 {
     char *Paths[6] = 
@@ -566,7 +589,7 @@ LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *
                 } break;
                 default: 
                 {
-                    printf("WARNING: Image %s has an unsupported internal pixel format. Aborting texture creation...\n", Paths[PathIndex]);
+                    printf("WARNING: Image %s has an unsupported static pixel format. Aborting texture creation...\n", Paths[PathIndex]);
                     // TODO: Apply a default texture
                     return Result;
                 }
@@ -602,7 +625,7 @@ LoadCubemap(char *Right, char *Left, char *Top, char *Bottom, char *Back, char *
 }
 #endif
 
-internal offscreen_buffer
+static offscreen_buffer
 CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
 {
     offscreen_buffer Result;
@@ -678,7 +701,7 @@ CreateOffscreenBuffer(int WindowWidth, int WindowHeight)
     return Result;
 }
 
-internal void
+static void
 DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -696,7 +719,7 @@ DrawOffscreenBuffer(unsigned int PostEffectsShader, offscreen_buffer OffScreen)
     glDisable(GL_FRAMEBUFFER_SRGB);
 }
 
-internal shadow_map
+static shadow_map
 CreateShadowMap()
 {
     shadow_map Result;
@@ -724,7 +747,7 @@ CreateShadowMap()
     return Result;
 }
 
-internal shadow_map
+static shadow_map
 CreateShadowCubeMap()
 {
     shadow_map Result;
@@ -756,7 +779,7 @@ CreateShadowCubeMap()
     return Result;
 }
 
-internal void 
+static void 
 RenderQuad()
 {
     static unsigned int quadVAO, quadVBO = 0;

@@ -6,17 +6,19 @@
 #include <vector>
 
 // TODO: Add support for runtime laser selection
-#define STD_824S1 1
+#define STD_JS50 1
 #define STD_M6 0
 #define SCANNER_ANGLED 0
 
+#define PINK V3(1.0f / 255.0f, 1.0f / 192.0f, 1.0f / 203.0f)
+
 #include "include/board_processing/VisionDefectStruct.h"
 //#include "include/board_processing/TAV_Interface.h"
+
 #include "include/board_processing/hi_tech.h"
 
 // NOTE: vision image data is packed BGRA
 
-// Idk
 struct v3
 {
     union
@@ -37,6 +39,48 @@ struct v3
     };
 };
 
+struct v2
+{
+    f32 x, y;
+};
+
+struct vertex_attributes
+{
+    v3 Point;
+    v3 Color;
+    v2 TexCoords;
+};
+
+static v2
+V2(f32 a, f32 b)
+{
+    v2 result = {a, b};
+    
+    return result;
+}
+
+static v2
+V2(f32 a)
+{
+    v2 result = {a, a};
+    
+    return result;
+}
+
+static v3
+V3(f32 x, f32 y, f32 z)
+{
+    v3 result = {x, y, z};
+    return result;
+}
+
+static v3
+V3(f32 a)
+{
+    v3 result = {a, a, a};
+    return result;
+}
+
 struct board_color_segments
 {
     v3 vne;
@@ -45,28 +89,18 @@ struct board_color_segments
     v3 scant;
 };
 
-struct v6
-{
-    float x;
-    float y;
-    float z;
-    
-    float r;
-    float g;
-    float b;
-};
-
-struct raw_vertex_data
-{
-    std::vector<v6> TopData;
-    std::vector<v6> BottomData;
-};
-
 struct vertex_buffer
 {
-    v6 *Memory;
-    int ElementCapacity;
-    int ElementCount;
+    // NOTE: oraganized by { v3 Point, v3 Color, v2 TexCoord }
+    vertex_attributes *Attributes;
+    u32 VBO;
+    u32 VAO;
+    
+    f32 MaxX, MinX;
+    f32 MaxY, MinY;
+    f32 MaxZ, MinZ;
+    int Capacity;
+    int Count;
 };
 
 struct board_render_config

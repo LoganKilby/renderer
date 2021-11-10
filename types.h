@@ -3,7 +3,6 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#define internal static 
 #define local_persist static 
 #define global_variable static
 
@@ -21,6 +20,7 @@
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
 
 #define OffsetOf offsetof
+#define ConvertToMegabytes(Bytes) (f32)Bytes / 1000000.0f
 
 typedef int8_t s8;
 typedef int16_t s16;

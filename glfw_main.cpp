@@ -1,11 +1,9 @@
-#include "windows.h"
 #include "include/GL/glew.h"
+#include "include/GLFW/glfw3.h"
 #define IMGUI_IMPLEMENTATION
 #include "include/imgui/imgui_single_file.h"
-#include "include/GLFW/glfw3.h"
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
-#include "include/glm/gtc/type_ptr.hpp"
 #include "include/qpc/qpc.h"
 #include "types.h"
 #include "utility.h"
@@ -22,13 +20,12 @@
 // varibles match across the shader program. This is NOT a link error; There are no error 
 // messages for this bug.
 
-internal void ToggleUI(GLFWwindow *Window, bool *StatusUI);
-internal void GLFW_ErrorCallback(int Error, const char *Description);
-internal void GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods);
-internal void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
-internal void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
-internal void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
-internal void DebugRenderCube(void);
+static void ToggleUI(GLFWwindow *Window, bool *StatusUI);
+static void GLFW_ErrorCallback(int Error, const char *Description);
+static void GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods);
+static void GLFW_FramebufferSizeCallback(GLFWwindow *, int, int);
+static void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos);
+static void GLFW_MouseScrollCallback(GLFWwindow *Window, double XOffset, double YOffset);
 
 global_variable input_state GlobalInputState;
 global_variable board_render_config DrawConfig;
@@ -45,6 +42,9 @@ int WinMain(HINSTANCE hInstance,
     SetConsoleTitle("Debug Console");
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    
+    //board_data/Trimmer/Hermary/Vision/board1.brd
+    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Trimmer/JS50/board44.brd");
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -81,6 +81,7 @@ int WinMain(HINSTANCE hInstance,
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
+        glPointSize(1.5);
         //glEnable(GL_BLEND);
         //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -108,50 +109,19 @@ int WinMain(HINSTANCE hInstance,
         printf("INFO: Assertions turned OFF\n");
     }
     
-    int ProfileCount = MAX_NUM_LASERS + 1;
-    int SamplesPerProfile = MAX_NUM_CNTS_PER_LUG;
-    int MaxVertexCount = ProfileCount * SamplesPerProfile;
-    vertex_buffer GlobalVertexStorage = CreateVertexBuffer(MaxVertexCount);
     
-    int VertexBufferSize = GlobalVertexStorage.ElementCapacity * sizeof(v6);
-    unsigned int ProfilePointsVAO, ProfilePointsVBO;
-    glGenVertexArrays(1, &ProfilePointsVAO);
-    glGenBuffers(1, &ProfilePointsVBO);
-    glBindVertexArray(ProfilePointsVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, ProfilePointsVBO);
-    glBufferData(GL_ARRAY_BUFFER, VertexBufferSize, 0, GL_STATIC_DRAW);  
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
     
-    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Trimmer/Hermary/Vision/board1.brd");
+    // TODO: Use opengl to copy the sub-image?
+    u32 MaxImageWidth = 5760;
+    u32 MaxImageHeight = 440;
     
-    // TODO: Use opengl to copy the sub-image
-    u32 TopImageWidth = BoardData->vs_image_data.sTopImageData.width;
-    u32 TopImageHeight = BoardData->vs_image_data.sTopImageData.height;
-    u32 *TopImagePixels = (u32 *)malloc(sizeof(u32) * TopImageWidth * TopImageHeight);
-    for(u32 Row = 0; Row < TopImageHeight; ++Row)
-    {
-        for(u32 Col = 0; Col < TopImageWidth; ++Col)
-        {
-            TopImagePixels[Row * TopImageWidth + Col] = BoardData->vs_image_data.sTopImageData.Pixels[Row][Col];
-        }
-    }
-    texture_unit TopBoardTexture = LoadTextureU32(TopImagePixels, TopImageWidth, TopImageHeight, 4);
+    u32 BottomWidth = BoardData->vs_image_data.sBottomImageData.width;
+    u32 BottomHeight = BoardData->vs_image_data.sBottomImageData.height;
+    texture_unit BottomBoardTexture = LoadTexture2D(&BoardData->vs_image_data.sBottomImageData.Pixels[0][0], MaxImageWidth, MaxImageHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
     
-    int BottomImageWidth = BoardData->vs_image_data.sBottomImageData.width;
-    int BottomImageHeight = BoardData->vs_image_data.sBottomImageData.height;
-    u32 *BottomImagePixels = (u32 *)malloc(sizeof(u32) * BottomImageWidth * BottomImageHeight);
-    for(u32 Row = 0; Row < TopImageHeight; ++Row)
-    {
-        for(u32 Col = 0; Col < TopImageWidth; ++Col)
-        {
-            BottomImagePixels[Row * BottomImageWidth + Col] = BoardData->vs_image_data.sBottomImageData.Pixels[Row][Col];
-        }
-    }
-    texture_unit BottomBoardTexture = LoadTextureU32(BottomImagePixels, BottomImageWidth, BottomImageHeight, 4);
+    u32 TopWidth = BoardData->vs_image_data.sTopImageData.width;
+    u32 TopHeight = BoardData->vs_image_data.sTopImageData.height;
+    texture_unit TopBoardTexture = LoadTexture2D(&BoardData->vs_image_data.sTopImageData.Pixels[0][0], MaxImageWidth, MaxImageHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
     
     board_color_segments ColorSegments = {};
     ColorSegments.vne = {1.0f, 0.0f, 0.0f};
@@ -160,15 +130,37 @@ int WinMain(HINSTANCE hInstance,
     ColorSegments.scant = {1.0f, 1.0f, 0.0f};
     
     QPC_StartCounter();
-    ProcessProfileData(&GlobalVertexStorage, BoardData, 8, ColorSegments);
-    UploadBufferedVertices(GlobalVertexStorage, ProfilePointsVAO);
+    // NOTE: Points are representative of the "top texture"
+    vertex_buffer TopVertexData = ProcessProfileData(BoardData, 8, ColorSegments);
+    f32 PixelsPerInch = 20;
+    f32 XRangeInInches = (MaxImageWidth / 20) * 1000;
+    f32 YRangeInInches = (MaxImageHeight / 20) * 1000;
+    CreateTextureCoordinates(&TopVertexData, XRangeInInches, YRangeInInches);
+    //vertex_buffer TopVertexData = ExtractJS50Raw(BoardData);
     QPC_EndCounterPrint("Vertices processed");
+    printf("mb allocated: %.3f\n", (f32)(2 * TopVertexData.Capacity * sizeof(v3) + TopVertexData.Capacity * sizeof(v2)) / 1000000.0f);
+    
+    glGenVertexArrays(1, &TopVertexData.VAO);
+    glGenBuffers(1, &TopVertexData.VBO);
+    glBindVertexArray(TopVertexData.VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, TopVertexData.VBO);
+    glBufferData(GL_ARRAY_BUFFER, TopVertexData.Capacity * sizeof(vertex_attributes), TopVertexData.Attributes, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_attributes), (void*)offsetof(vertex_attributes, Point));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex_attributes), (void*)offsetof(vertex_attributes, Color));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex_attributes), (void*)offsetof(vertex_attributes, TexCoords));
+    glBindVertexArray(0);
+    
+    //UploadBufferedVertices(&TopVertexData);
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
     VertexShaderID = LoadAndCompileShader("shaders/board_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/board_frag.c", GL_FRAGMENT_SHADER);
     opengl_shader_program BoardProgram = CreateShaderProgram(VertexShaderID, FragmentShaderID, 0);
+    SetUniform1i(BoardProgram.Id, "scannerImage", 0);
     
     VertexShaderID = LoadAndCompileShader("shaders/default_vertex.c", GL_VERTEX_SHADER);
     FragmentShaderID = LoadAndCompileShader("shaders/default_frag.c", GL_FRAGMENT_SHADER);
@@ -241,27 +233,36 @@ int WinMain(HINSTANCE hInstance,
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.0001f, 0.0001f, 0.0001f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.00005f, 0.00005f, 0.00005f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        glBindVertexArray(ProfilePointsVAO);
-        glDrawArrays(GL_POINTS, 0, GlobalVertexStorage.ElementCount);
-        glBindVertexArray(0);
-        
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
+        glBindVertexArray(TopVertexData.VAO);
+        glDrawArrays(GL_POINTS, 0, TopVertexData.Count);
+        glBindVertexArray(0);
         
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5, 0, 0));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
         RenderCube();
         
-        glBindTexture(GL_TEXTURE_2D, BottomBoardTexture.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
+        //RenderQuad();
+        
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(5, 0, 0));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, BottomBoardTexture.Id);
         RenderCube();
         
         OutputErrorQueue();
@@ -286,9 +287,11 @@ int WinMain(HINSTANCE hInstance,
                 if(clicked & 1)
                 {
                     QPC_StartCounter();
-                    ClearVertexBuffer(&GlobalVertexStorage);
-                    ProcessProfileData(&GlobalVertexStorage, BoardData, 8, ColorSegments);
-                    UploadBufferedVertices(GlobalVertexStorage, ProfilePointsVAO);
+#if 0 // TODO Just clear color attribute and recalculate that
+                    ClearVertexBuffer(&TopVertexData);
+                    ProcessProfileData(&TopVertexData, BoardData, 8, ColorSegments);
+                    V3UpdateBufferObject(TopColorsVBO, TopVertexData.ElementCount * sizeof(v3), TopVertexData.ColorAttribute);
+#endif
                     f64 MilisecondsElapsed = QPC_EndCounter() / (f64)1000;
                     ImGui::SameLine();
                     ImGui::Text("%Lf\n", MilisecondsElapsed);
@@ -348,19 +351,19 @@ void GLFW_MouseCallback(GLFWwindow *Window, double XPos, double YPos)
         Camera.Orientation.Pitch = -89.0f;
 }
 
-internal void
+static void
 GLFW_ErrorCallback(int Error, const char *Description)
 {
     fprintf(stderr, "ERROR: (GLFW: %d) %s.\n", Error, Description);
 }
 
-internal void 
+static void 
 GLFW_KeyCallback(GLFWwindow *Window, int Key, int Scancode, int Action, int Mods)
 {
     ProcessKeyboardInput(&GlobalInputState, Key, Scancode, Action, Mods);
 }
 
-internal void
+static void
 ToggleUI(GLFWwindow *Window, bool *DrawUI)
 {
     *DrawUI ^= 1;

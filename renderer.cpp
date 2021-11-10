@@ -1,6 +1,6 @@
 global_variable std::vector<texture_unit> TextureCache;
 
-internal int
+static int
 CheckTextureCache(char *TexturePath)
 {
     for(int i = 0; i < TextureCache.size(); ++i)
