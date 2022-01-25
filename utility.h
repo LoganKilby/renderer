@@ -74,7 +74,7 @@ ReadEntireFileToString(char *Filename)
 
 
 static char *
-ReadEntireFile(char *Filename, unsigned long int *TotalBytesRead)
+ReadEntireFile(char *Filename, u64 *TotalBytesRead)
 {
     HANDLE FileHandle = CreateFileA(Filename,
                                     GENERIC_READ,

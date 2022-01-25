@@ -166,7 +166,6 @@ OutputErrorQueue()
     while(ErrorCode != GL_NO_ERROR)
     {
         OutputOpenglError(ErrorCode);
-        Assert(0);
         ErrorCode = glGetError();
     }
 }
@@ -404,6 +403,22 @@ LoadTexture(char *Filename)
 }
 #endif
 
+static void
+ReallocTexture(texture_unit *Texture, u32 Width, u32 Height)
+{
+    glBindTexture(GL_TEXTURE_2D, Texture->Id);
+    //glPixelStorei(GL_PACK_LSB_FIRST, false);
+    glTexImage2D(GL_TEXTURE_2D, 0, Texture->Channels, Width, Height, 0, Texture->MemoryOrder, Texture->PixelDataType, 0);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Texture->WrapParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Texture->WrapParam);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    Texture->Width = Width;
+    Texture->Height = Height;
+}
+
 static texture_unit
 LoadTexture2D(u32 *Data, s32 Width, s32 Height, s32 Channels, GLenum MemoryOrder, GLenum PixelDataType)
 {
@@ -437,8 +452,7 @@ LoadTexture2D(u32 *Data, s32 Width, s32 Height, s32 Channels, GLenum MemoryOrder
     
     glGenTextures(1, &Result.Id);
     glBindTexture(GL_TEXTURE_2D, Result.Id);
-    //glPixelStorei(GL_PACK_LSB_FIRST, false);
-    glTexImage2D(GL_TEXTURE_2D, 0, Channels, Width, Height, 0, MemoryOrder, PixelDataType, Data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Width, Height, 0, MemoryOrder, PixelDataType, Data);
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, WrapParam);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, WrapParam);
@@ -447,7 +461,7 @@ LoadTexture2D(u32 *Data, s32 Width, s32 Height, s32 Channels, GLenum MemoryOrder
     
     Result.Width = Width;
     Result.Height = Height;
-    Result.Channels = Channels;
+    Result.Channels = 4;
     Result.MemoryOrder = MemoryOrder;
     Result.Pixels = Data;
     Result.PixelDataType = PixelDataType;
@@ -455,25 +469,6 @@ LoadTexture2D(u32 *Data, s32 Width, s32 Height, s32 Channels, GLenum MemoryOrder
     Result.FilterParam = GL_LINEAR;
     
     printf("INFO: Texture loaded. (Texture ID: %d)\n", Result.Id);
-    
-    return Result;
-}
-
-static texture_unit
-CreateSubTexture2D(texture_unit *BaseTexture,  u32 SubWidth, u32 SubHeight, u32 MipLevel = 0, u32 XOffset = 0, u32 YOffset = 0)
-{
-    texture_unit Result = {};
-    glGenTextures(1, &Result.Id);
-    glBindTexture(GL_TEXTURE_2D, Result.Id);
-    glTextureSubImage2D(BaseTexture->Id, MipLevel, XOffset, YOffset, SubWidth, SubHeight, BaseTexture->MemoryOrder, BaseTexture->PixelDataType, BaseTexture->Pixels);
-    
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, BaseTexture->WrapParam);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, BaseTexture->WrapParam);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, BaseTexture->FilterParam);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, BaseTexture->FilterParam);
-    
-    glBindTexture(GL_TEXTURE_2D, 0);
     
     return Result;
 }

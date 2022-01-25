@@ -2,9 +2,11 @@
 #include "include/GLFW/glfw3.h"
 #define IMGUI_IMPLEMENTATION
 #include "include/imgui/imgui_single_file.h"
+
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "include/qpc/qpc.h"
+#include "macros.h"
 #include "types.h"
 #include "utility.h"
 #include "opengl_code.h"
@@ -43,8 +45,8 @@ int WinMain(HINSTANCE hInstance,
     HWND Console = GetConsoleWindow();
     SetWindowPos(Console, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     
-    //board_data/Trimmer/Hermary/Vision/board1.brd
-    SBoardData *BoardData = (SBoardData *)ReadFile("board_data/Trimmer/JS50/board44.brd");
+    TIMED_BLOCK;
+    TIMED_BLOCK;
     
     float WindowWidth = 1280.0f;
     float WindowHeight = 720.0f;
@@ -81,7 +83,7 @@ int WinMain(HINSTANCE hInstance,
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
-        glPointSize(1.5);
+        glPointSize(1.25);
         //glEnable(GL_BLEND);
         //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -110,18 +112,16 @@ int WinMain(HINSTANCE hInstance,
     }
     
     
+    char BoardFilePath[256] = {};
+    strcpy(BoardFilePath, "board_data/Trimmer/JS50/board32.brd");
     
-    // TODO: Use opengl to copy the sub-image?
-    u32 MaxImageWidth = 5760;
-    u32 MaxImageHeight = 440;
+    SBoardData *BoardData = (SBoardData *)malloc(sizeof(SBoardData));;
+    ReadFile(BoardData, BoardFilePath, sizeof(SBoardData));
     
-    u32 BottomWidth = BoardData->vs_image_data.sBottomImageData.width;
-    u32 BottomHeight = BoardData->vs_image_data.sBottomImageData.height;
-    texture_unit BottomBoardTexture = LoadTexture2D(&BoardData->vs_image_data.sBottomImageData.Pixels[0][0], MaxImageWidth, MaxImageHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
-    
-    u32 TopWidth = BoardData->vs_image_data.sTopImageData.width;
-    u32 TopHeight = BoardData->vs_image_data.sTopImageData.height;
-    texture_unit TopBoardTexture = LoadTexture2D(&BoardData->vs_image_data.sTopImageData.Pixels[0][0], MaxImageWidth, MaxImageHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
+    u32 ProfileCount = ArrayCount(BoardData->last_board_data.profile_data);
+    u32 SampleCount = ArrayCount(BoardData->last_board_data.profile_data[0].thk_array);
+    u32 ElementCount = ProfileCount * SampleCount;
+    vertex_buffer TopVertexData = CreateVertexBuffer(ElementCount);
     
     board_color_segments ColorSegments = {};
     ColorSegments.vne = {1.0f, 0.0f, 0.0f};
@@ -129,16 +129,24 @@ int WinMain(HINSTANCE hInstance,
     ColorSegments.thick = {0.0f, 1.0f, 0.0f};
     ColorSegments.scant = {1.0f, 1.0f, 0.0f};
     
-    QPC_StartCounter();
-    // NOTE: Points are representative of the "top texture"
-    vertex_buffer TopVertexData = ProcessProfileData(BoardData, 8, ColorSegments);
-    f32 PixelsPerInch = 20;
-    f32 XRangeInInches = (MaxImageWidth / 20) * 1000;
-    f32 YRangeInInches = (MaxImageHeight / 20) * 1000;
-    CreateTextureCoordinates(&TopVertexData, XRangeInInches, YRangeInInches);
-    //vertex_buffer TopVertexData = ExtractJS50Raw(BoardData);
-    QPC_EndCounterPrint("Vertices processed");
-    printf("mb allocated: %.3f\n", (f32)(2 * TopVertexData.Capacity * sizeof(v3) + TopVertexData.Capacity * sizeof(v2)) / 1000000.0f);
+    ProcessProfileData(&TopVertexData, BoardData, 8, ColorSegments);
+    TopVertexData.Bounds = Compute3DPointSetBounds(TopVertexData.Attributes, TopVertexData.Count);
+    CreateTextureCoordinates(TopVertexData.Attributes, TopVertexData.Count, TopVertexData.Bounds, 0, 0);
+    
+    u32 MaxImageWidth = 5760;
+    u32 MaxImageHeight = 440;
+    
+    u32 BottomWidth = BoardData->vs_image_data.sBottomImageData.width;
+    u32 BottomHeight = BoardData->vs_image_data.sBottomImageData.height;
+    texture_unit BottomBoardTexture = LoadTexture2D(&BoardData->vs_image_data.sBottomImageData.Pixels[0][0], MaxImageWidth, MaxImageHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
+    texture_unit BottomSubBoardTexture = LoadTexture2D(0, BottomWidth, BottomHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
+    glCopyImageSubData(BottomBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, BottomSubBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, BottomWidth, BottomHeight, 1);
+    
+    texture_unit TopBoardTexture = LoadTexture2D(&BoardData->vs_image_data.sTopImageData.Pixels[0][0], MaxImageWidth, MaxImageHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
+    u32 TopWidth = BoardData->vs_image_data.sTopImageData.width;
+    u32 TopHeight = BoardData->vs_image_data.sTopImageData.height;
+    texture_unit TopSubBoardTexture = LoadTexture2D(0, TopWidth, TopHeight, 4, GL_BGRA, GL_UNSIGNED_BYTE);
+    glCopyImageSubData(TopBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, TopSubBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, TopWidth, TopHeight, 1);
     
     glGenVertexArrays(1, &TopVertexData.VAO);
     glGenBuffers(1, &TopVertexData.VBO);
@@ -152,8 +160,6 @@ int WinMain(HINSTANCE hInstance,
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex_attributes), (void*)offsetof(vertex_attributes, TexCoords));
     glBindVertexArray(0);
-    
-    //UploadBufferedVertices(&TopVertexData);
     
     unsigned int VertexShaderID;
     unsigned int FragmentShaderID;
@@ -232,38 +238,45 @@ int WinMain(HINSTANCE hInstance,
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, BottomSubBoardTexture.Id);
+        
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(0.00005f, 0.00005f, 0.00005f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(BoardProgram.Id, "mvp", MVP);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
         glBindVertexArray(TopVertexData.VAO);
         glDrawArrays(GL_POINTS, 0, TopVertexData.Count);
         glBindVertexArray(0);
         
+        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-5, 0, 0));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
         RenderCube();
         
-        ModelMatrix = glm::mat4(1.0f);
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, TopBoardTexture.Id);
-        //RenderQuad();
-        
+        glBindTexture(GL_TEXTURE_2D, BottomBoardTexture.Id);
         ModelMatrix = glm::mat4(1.0f);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(5, 0, 0));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, BottomBoardTexture.Id);
+        glBindTexture(GL_TEXTURE_2D, BottomSubBoardTexture.Id);
         RenderCube();
+        
+        glBindTexture(GL_TEXTURE_2D, BottomSubBoardTexture.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0, 0, -2));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        RenderQuad();
+        
+        glBindTexture(GL_TEXTURE_2D, TopSubBoardTexture.Id);
+        ModelMatrix = glm::mat4(1.0f);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0, 0, 2));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        SetUniformMatrix4fv(DefaultProgram.Id, "mvp", MVP);
+        RenderQuad();
         
         OutputErrorQueue();
         
@@ -274,7 +287,6 @@ int WinMain(HINSTANCE hInstance,
             ImGui::NewFrame();
             
             if(ShowDemoWindow) ImGui::ShowDemoWindow(&ShowDemoWindow);
-            
             {
                 static int clicked;
                 ImGui::Begin("Color Segments");
@@ -282,19 +294,45 @@ int WinMain(HINSTANCE hInstance,
                 ImGui::ColorEdit3("thick", &ColorSegments.thick.x);
                 ImGui::ColorEdit3("vne_1", &ColorSegments.vne_1.x);
                 ImGui::ColorEdit3("vne", &ColorSegments.vne.x);
+                ImGui::Text("Board file path");
+                ImGui::InputText("", BoardFilePath, ArrayCount(BoardFilePath));
                 if(ImGui::Button("Apply"))
                     clicked++;
                 if(clicked & 1)
                 {
-                    QPC_StartCounter();
-#if 0 // TODO Just clear color attribute and recalculate that
-                    ClearVertexBuffer(&TopVertexData);
-                    ProcessProfileData(&TopVertexData, BoardData, 8, ColorSegments);
-                    V3UpdateBufferObject(TopColorsVBO, TopVertexData.ElementCount * sizeof(v3), TopVertexData.ColorAttribute);
-#endif
-                    f64 MilisecondsElapsed = QPC_EndCounter() / (f64)1000;
-                    ImGui::SameLine();
-                    ImGui::Text("%Lf\n", MilisecondsElapsed);
+                    ReadFile(BoardData, BoardFilePath, sizeof(SBoardData));
+                    
+                    if(BoardData)
+                    {
+                        TIMED_BLOCK;
+                        glTextureSubImage2D(BottomBoardTexture.Id, 0, 0, 0, MaxImageWidth, MaxImageHeight,
+                                            BottomBoardTexture.MemoryOrder, BottomBoardTexture.PixelDataType,
+                                            &BoardData->vs_image_data.sBottomImageData.Pixels[0][0]);
+                        
+                        glTextureSubImage2D(TopBoardTexture.Id, 0, 0, 0, MaxImageWidth, MaxImageHeight,
+                                            TopBoardTexture.MemoryOrder, TopBoardTexture.PixelDataType,
+                                            &BoardData->vs_image_data.sTopImageData.Pixels[0][0]);
+                        
+                        glBindTexture(GL_TEXTURE_2D, TopSubBoardTexture.Id);
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, BoardData->vs_image_data.sTopImageData.width, BoardData->vs_image_data.sTopImageData.height, 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+                        glCopyImageSubData(TopBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, TopSubBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, BoardData->vs_image_data.sTopImageData.width, BoardData->vs_image_data.sTopImageData.height, 1);
+                        
+                        glBindTexture(GL_TEXTURE_2D, BottomSubBoardTexture.Id);
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, BoardData->vs_image_data.sBottomImageData.width, BoardData->vs_image_data.sBottomImageData.height, 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+                        glCopyImageSubData(BottomBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, BottomSubBoardTexture.Id, GL_TEXTURE_2D, 0, 0, 0, 0, BoardData->vs_image_data.sBottomImageData.width, BoardData->vs_image_data.sBottomImageData.height, 1);
+                        
+                        TopVertexData.Count = 0;
+                        ProcessProfileData(&TopVertexData, BoardData, 8, ColorSegments);
+                        TopVertexData.Bounds = Compute3DPointSetBounds(TopVertexData.Attributes, TopVertexData.Count);
+                        CreateTextureCoordinates(TopVertexData.Attributes, TopVertexData.Count, TopVertexData.Bounds, 0, 0);
+                        
+                        glBindBuffer(GL_ARRAY_BUFFER, TopVertexData.VBO);
+                        glBufferSubData(GL_ARRAY_BUFFER, 0, TopVertexData.Capacity * sizeof(vertex_attributes), TopVertexData.Attributes);
+                        glBindBuffer(GL_ARRAY_BUFFER, 0);
+                        OutputErrorQueue();
+                    }
+                    
+                    
                     clicked = 0;
                 }
                 

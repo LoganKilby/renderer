@@ -130,4 +130,28 @@ struct spot_light
     float Quadratic;
 };
 
+struct bounds
+{
+    glm::vec3 Min;
+    glm::vec3 Max;
+};
+
+struct vertex_attributes
+{
+    v3 Point;
+    v3 Color;
+    v2 TexCoords;
+};
+
+struct point_render_set
+{
+    vertex_attributes *Attributes;
+    u32 Count;
+    u32 MaxCount;
+    bounds Bounds;
+    
+    u32 VAO;
+    u32 VBO;
+};
+
 #endif //RENDERER_H

@@ -5,6 +5,7 @@
 
 #define local_persist static 
 #define global_variable static
+#define internal static
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
@@ -35,5 +36,60 @@ typedef int32_t b32;
 
 typedef float f32;
 typedef double f64;
+
+struct v3
+{
+    union
+    {
+        struct 
+        {
+            float x;
+            float y;
+            float z;
+        };
+        
+        struct
+        {
+            float r;
+            float g;
+            float b;
+        };
+    };
+};
+
+struct v2
+{
+    f32 x, y;
+};
+
+static v2
+V2(f32 a, f32 b)
+{
+    v2 result = {a, b};
+    
+    return result;
+}
+
+static v2
+V2(f32 a)
+{
+    v2 result = {a, a};
+    
+    return result;
+}
+
+static v3
+V3(f32 x, f32 y, f32 z)
+{
+    v3 result = {x, y, z};
+    return result;
+}
+
+static v3
+V3(f32 a)
+{
+    v3 result = {a, a, a};
+    return result;
+}
 
 #endif //TYPES_H

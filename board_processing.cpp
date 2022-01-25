@@ -74,12 +74,15 @@ V3UpdateBufferObject(u32 BufferObj, size_t SizeInBytes, v3 *Data)
     glBufferSubData(GL_ARRAY_BUFFER, 0, SizeInBytes, Data);
 }
 
-static void *ReadFile(char *Filename)
+static void *
+ReadFile(char *Filename, u64 *SizeOut)
 {
     FILE *FileHandle = fopen(Filename, "rb");
     fseek(FileHandle, 0L, SEEK_END);
     long int FileSize = ftell(FileHandle);
     rewind(FileHandle);
+    
+    *SizeOut = FileSize;
     
     void *Result = malloc(FileSize);
     fread((void *)Result, FileSize, 1, FileHandle);
@@ -88,11 +91,32 @@ static void *ReadFile(char *Filename)
     return Result;
 }
 
+static void
+ReadFile(void *DataOut, char *Filename, u64 SizeExpected)
+{
+    FILE *FileHandle = fopen(Filename, "rb");
+    
+    if(FileHandle)
+    {
+        fseek(FileHandle, 0L, SEEK_END);
+        long int FileSize = ftell(FileHandle);
+        rewind(FileHandle);
+        Assert(FileSize <= SizeExpected);
+        fread(DataOut, FileSize, 1, FileHandle);
+        fclose(FileHandle);
+    }
+    else
+    {
+        fprintf(stderr, "unable to open file %s\n", Filename);
+    }
+}
+
 inline f32
 Map(f32 Value, f32 A, f32 B, f32 C, f32 D)
 {
     
-    f32 Result = (Value - A) / (B - A) * (D - C) + C;
+    //f32 Result = (Value - A) / (B - A) * (D - C) + C;
+    f32 Result = Value / B * D;
     Assert((Result >= C) && (Result <= D));
     
     return Result;
@@ -102,29 +126,33 @@ Map(f32 Value, f32 A, f32 B, f32 C, f32 D)
 // MAX_NUM_FT_OF_LIGHT_CURTAIN = MAX_LEN_BRD + 1
 // NUM_LIGHT_CURTAIN_ELEMENTS_FT = 48
 
-static vertex_buffer
-ProcessProfileData(SBoardData *BoardData, int Grade, board_color_segments ColorSegments)
+static void
+ProcessProfileData(vertex_buffer *Result, SBoardData *BoardData, s32 Grade, board_color_segments ColorSegments)
 {
     PROFILE_DATA_STN *Profiles = &BoardData->last_board_data.profile_data[0];
     u32 ProfileCount = ArrayCount(BoardData->last_board_data.profile_data);
     u32 SampleCount = ArrayCount(Profiles[0].thk_array);
-    u32 ElementCount = ProfileCount * SampleCount;
-    vertex_buffer Result = CreateVertexBuffer(ElementCount);
     
-    f32 ZOffsetPerProfile = 25.0f; // TODO: This is currently kind of arbitrary
+    Assert(Result->Capacity >= (ProfileCount * SampleCount));
+    Result->Count = 0;
+    Result->ProfileCount = ProfileCount;
+    
+    f32 ZOffsetPerProfile = 45.0f; // TODO: This is currently kind of arbitrary
+    // image width / profile count
+    
     f32 XOffsetPerSample = (1.0f / 64.0f) * 1000; // in 1000th's of an inch
     
     u32 StartIndex = BoardData->last_board_data.implement_data.beg_ele;
     u32 EndIndex = BoardData->last_board_data.implement_data.end_ele + 1;
     
-    f32 MinX = 0;
-    f32 MaxX = 288000.0f;
+    f32 MinX = FLT_MAX;
+    f32 MaxX = FLT_MIN;
     
-    f32 MinY = -22000.0f;
-    f32 MaxY = 22000.0f;
+    f32 MinY = FLT_MAX;
+    f32 MaxY = FLT_MIN;
     
-    f32 MinZ = 0.0f;
-    f32 MaxZ = ZOffsetPerProfile * ProfileCount;
+    f32 MinZ = FLT_MAX;
+    f32 MaxZ = FLT_MIN;
     
     v3 Vertex;
     v3 Color;
@@ -209,20 +237,11 @@ ProcessProfileData(SBoardData *BoardData, int Grade, board_color_segments ColorS
                     
                     //TexCoords.x = Map(Vertex.x, 0, 288000, -1, 1);
                     //TexCoords.y = Map(Vertex.y, 0, 22000, -1, 1);
-                    PushAttributes(&Result, Vertex);
+                    PushAttributes(Result, Vertex);
                 }
             }
         }
     }
-    
-    Result.MaxX = MaxX;
-    Result.MinX = MinX;
-    Result.MinY = MinY;
-    Result.MaxY = MaxY;
-    Result.MinZ = MinZ;
-    Result.MaxZ = MaxZ;
-    
-    return Result;
 }
 
 // CLineLzStruct::LinLzPoint
@@ -337,16 +356,4 @@ WriteRawVertexData(char *Filename, v3 *Data, int Count)
     }
     
     fclose(FileHandle);
-}
-
-static void
-CreateTextureCoordinates(vertex_buffer *Buffer, f32 TextureWidth, f32 TextureHeight)
-{
-    v2 TexCoords;
-    for(u32 i = 0; i < Buffer->Count; ++i)
-    {
-        TexCoords.x = Map(Buffer->Attributes[i].Point.z, 0, TextureWidth, 0, 1);
-        TexCoords.y = Map(Buffer->Attributes[i].Point.x, 0, TextureHeight, 0, 1);
-        Buffer->Attributes[i].TexCoords = TexCoords;
-    }
 }
